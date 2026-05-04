@@ -6,6 +6,13 @@ import './landing.css'
 
 const NAV_LINKS = ['Tipsters', 'Ranking', 'Cómo funciona', 'Precios']
 
+const NAV_SCROLL = {
+  'Tipsters':      'section-ranking',
+  'Ranking':       'section-ranking',
+  'Cómo funciona': 'section-features',
+  'Precios':       'section-cta',
+}
+
 const STATS = [
   { num: '1.240',  label: 'Tipsters activos' },
   { num: '98.400', label: 'Apuestas auditadas' },
@@ -28,7 +35,6 @@ const TIPSTERS = [
   { rank: '#3', initials: 'BK', name: 'BetKing',   sport: 'Tenis · ATP',         roi: '+29%', acierto: '76%', picks: '445', spark: [2,5,4,8,12,10,15,18,20,23,26,29] },
 ]
 
-/* Lluvia de tipsters — generada una vez por carga */
 const RAIN_ITEMS = (() => {
   const list = [
     { name: 'MarcGol',     val: '+41%' },
@@ -70,13 +76,9 @@ const RAIN_ITEMS = (() => {
 
 const SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'eSports', 'Béisbol', 'Hockey', 'F1', 'UFC', 'Golf', 'Boxeo', 'Rugby', 'NFL']
 
-/* ──────────────────────────────────────────
-   Counter animado: 0 → target al entrar en viewport
-────────────────────────────────────────── */
 function AnimatedNum({ value }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-40px' })
-
   const sign = value.startsWith('+') ? '+' : ''
   const isPct = value.endsWith('%')
   const target = parseInt(value.replace(/[+%]/g, '').replace(/\./g, ''), 10)
@@ -98,9 +100,6 @@ function AnimatedNum({ value }) {
   return <span ref={ref}>{`${sign}0${isPct ? '%' : ''}`}</span>
 }
 
-/* ──────────────────────────────────────────
-   Sparkline SVG con relleno gradient + dot final
-────────────────────────────────────────── */
 function Sparkline({ data, w = 88, h = 30 }) {
   const id = useId().replace(/:/g, '')
   const max = Math.max(...data)
@@ -134,9 +133,6 @@ function Sparkline({ data, w = 88, h = 30 }) {
   )
 }
 
-/* ──────────────────────────────────────────
-   Mock UIs dentro de las feature cards
-────────────────────────────────────────── */
 function MockProof() {
   return (
     <div className="mock mock--proof">
@@ -233,9 +229,6 @@ function MockCategories() {
 
 const MOCKS = [MockProof, MockRanking, MockVIP, MockChat, MockStats, MockCategories]
 
-/* ──────────────────────────────────────────
-   Lluvia de tipsters cayendo desde arriba
-────────────────────────────────────────── */
 function TipsterRain() {
   return (
     <div className="rain" aria-hidden="true">
@@ -259,9 +252,6 @@ function TipsterRain() {
   )
 }
 
-/* ──────────────────────────────────────────
-   Hero con spotlight que sigue al cursor
-────────────────────────────────────────── */
 function Hero({ navigate }) {
   const ref = useRef(null)
 
@@ -302,23 +292,24 @@ function Hero({ navigate }) {
   )
 }
 
-/* ──────────────────────────────────────────
-   NavLinks (CSS puro, sin animación rara)
-────────────────────────────────────────── */
 function NavLinks() {
+  const handleClick = (e, link) => {
+    e.preventDefault()
+    const id = NAV_SCROLL[link]
+    if (id) {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
   return (
     <nav className="nav-links">
       {NAV_LINKS.map(l => (
-        <a key={l} href="#" className="nav-link">{l}</a>
+        <a key={l} href="#" className="nav-link" onClick={(e) => handleClick(e, l)}>{l}</a>
       ))}
     </nav>
   )
 }
 
-/* ──────────────────────────────────────────
-   Landing principal
-────────────────────────────────────────── */
-export default function Landing({ navigate }) {
+export default function Landing({ navigate, user }) {
   return (
     <div className="landing">
 
@@ -343,7 +334,6 @@ export default function Landing({ navigate }) {
 
       <Hero navigate={navigate} />
 
-      {/* STATS con contador animado */}
       <motion.div className="stats-bar" initial="hidden" animate="visible" variants={stagger}>
         {STATS.map((s, i) => (
           <motion.div key={i} className="stat-item" variants={fadeUp}>
@@ -353,8 +343,7 @@ export default function Landing({ navigate }) {
         ))}
       </motion.div>
 
-      {/* FEATURES — bento con mock UIs */}
-      <section className="features-section">
+      <section className="features-section" id="section-features">
         <div className="features-inner">
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
             <div className="section-title">Todo lo que necesitas<br />para apostar con cabeza</div>
@@ -385,9 +374,35 @@ export default function Landing({ navigate }) {
         </div>
       </section>
 
-      {/* RANKING con sparklines */}
-      <section className="ranking-section">
+      <section className="ranking-section" id="section-ranking">
         <div className="ranking-inner">
+
+          {!user && (
+            <motion.div
+              variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              style={{
+                background: 'rgba(0,255,138,0.06)',
+                border: '0.5px solid rgba(0,255,138,0.2)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '16px 24px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+              <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                👁️ Estás viendo una <strong style={{ color: 'var(--color-text)' }}>preview</strong> — Regístrate gratis para ver el ranking completo
+              </div>
+              <button
+                onClick={() => navigate('register')}
+                style={{ background: 'var(--color-primary)', border: 'none', color: '#000', padding: '8px 18px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                Registrarse gratis →
+              </button>
+            </motion.div>
+          )}
+
           <motion.div className="ranking-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
             <h2>Top tipsters esta semana</h2>
             <a href="#">Ver ranking completo</a>
@@ -423,8 +438,7 @@ export default function Landing({ navigate }) {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="cta-section">
+      <section className="cta-section" id="section-cta">
         <div className="cta-inner">
           <motion.div className="cta-content" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
             <h2>Empieza gratis hoy</h2>
@@ -437,7 +451,6 @@ export default function Landing({ navigate }) {
         </div>
       </section>
 
-      {/* FOOTER con wordmark gigante */}
       <footer className="footer">
         <div className="footer-cols">
           <div className="footer-col">

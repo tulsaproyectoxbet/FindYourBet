@@ -12,7 +12,7 @@ export default function Register({ navigate, login }) {
   const {
     form, update, terms, setTerms, age, setAge,
     showPass, setShowPass, showPassConfirm, setShowPassConfirm,
-    error, loading, handleRegister, skipDev
+    error, loading, handleRegister
   } = useSignUp({ onLogin: login })
 
   const maxBirthdate = new Date(new Date().setFullYear(new Date().getFullYear() - 18))
@@ -23,7 +23,6 @@ export default function Register({ navigate, login }) {
       <motion.nav className="auth-nav"
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="auth-logo" onClick={() => navigate('landing')}>FindYour<span>Bet</span></div>
-        <Button variant="outline" size="sm" onClick={skipDev}>⚡ Saltar (dev)</Button>
       </motion.nav>
 
       <div className="auth-wrapper">
