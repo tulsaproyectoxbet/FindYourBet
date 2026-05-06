@@ -12,7 +12,7 @@ import '../dashboard.css'
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
 const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }
 
-export default function Canales({ user, initialCanalCode }) {
+export default function Canales({ user, initialCanalCode, onAddBet }) {
   const { myChannels, joinedChannels, memberCounts, loading, createChannel, deleteChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const [activeChannel, setActiveChannel] = useState(null)
   const [activeMemberCount, setActiveMemberCount] = useState(0)
@@ -40,11 +40,8 @@ export default function Canales({ user, initialCanalCode }) {
     const channel = await findChannelByCode(code)
     if (!channel) return
     const isMember = joinedChannels.some(j => j.id === channel.id) || myChannels.some(m => m.id === channel.id)
-    if (isMember) {
-      handleOpenChannel(channel)
-    } else {
-      await handlePreviewChannel(channel)
-    }
+    if (isMember) handleOpenChannel(channel)
+    else await handlePreviewChannel(channel)
   }
 
   const handleOpenChannel = (channel) => {
@@ -119,7 +116,7 @@ export default function Canales({ user, initialCanalCode }) {
   if (previewChannel) {
     const isAlreadyMember = joinedChannels.some(j => j.id === previewChannel.id) || myChannels.some(m => m.id === previewChannel.id)
     if (isAlreadyMember) {
-      return <ChatView channel={previewChannel} user={user} onBack={() => setPreviewChannel(null)} memberCount={previewMemberCount} onOpenCanal={handleOpenByCode} />
+      return <ChatView channel={previewChannel} user={user} onBack={() => setPreviewChannel(null)} memberCount={previewMemberCount} onOpenCanal={handleOpenByCode} onAddBet={onAddBet} />
     }
     return <PreviewView channel={previewChannel} user={user} onBack={() => setPreviewChannel(null)} onJoin={handleJoinFromPreview} joining={joiningPreview} memberCount={previewMemberCount} />
   }
@@ -132,11 +129,11 @@ export default function Canales({ user, initialCanalCode }) {
       memberCount={activeMemberCount}
       onLeave={() => { leaveChannel(activeChannel.id); setActiveChannel(null) }}
       onOpenCanal={handleOpenByCode}
+      onAddBet={onAddBet}
     />
   }
 
   const canCreateMore = myChannels.length < MAX_OWN_CHANNELS
-  const canJoinMore = joinedChannels.length < MAX_JOINED_CHANNELS
 
   return (
     <motion.div key="canales" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>

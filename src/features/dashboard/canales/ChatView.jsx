@@ -4,7 +4,56 @@ import { supabase } from '../../../lib/supabase'
 import { Button } from '../../../components/ui/Button'
 import { useMessages } from './hooks/useMessages'
 
-function renderMessage(content, onInternalLink) {
+function parseBetMessage(content) {
+  try {
+    return JSON.parse(content.replace('[BET]:', ''))
+  } catch { return null }
+}
+
+function BetCard({ bet }) {
+  const statusColor = bet.status === 'won' ? 'var(--color-primary)' : bet.status === 'lost' ? 'var(--color-error)' : 'var(--color-text-muted)'
+  const statusLabel = bet.status === 'won' ? '✓ Ganada' : bet.status === 'lost' ? '✗ Perdida' : '⏳ Pendiente'
+  const statusBg = bet.status === 'won' ? 'var(--color-primary-light)' : bet.status === 'lost' ? 'var(--color-error-light)' : 'var(--color-bg-soft)'
+
+  return (
+    <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', minWidth: '240px', maxWidth: '300px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>📊 Pick</span>
+        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 'var(--radius-full)', background: statusBg, color: statusColor, fontWeight: 700, border: `0.5px solid ${statusColor}` }}>
+          {statusLabel}
+        </span>
+      </div>
+      <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{bet.event}</div>
+      <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>
+        {bet.sport} · {bet.market}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        {[
+          { label: 'Pick', value: bet.pick },
+          { label: 'Cuota', value: parseFloat(bet.odds).toFixed(2) },
+          { label: 'Stake', value: `S${bet.stake}` },
+        ].map((s, i) => (
+          <div key={i} style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{s.label}</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)', marginTop: '2px' }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '8px' }}>
+        🕐 {new Date(bet.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+      </div>
+    </div>
+  )
+}
+
+function renderMessage(content, onInternalLink, isOwnerMsg = false) {
+  const linkColor = isOwnerMsg ? '#010906' : 'var(--color-primary)'
+
+  if (content.startsWith('[BET]:')) {
+    const bet = parseBetMessage(content)
+    if (bet) return <BetCard bet={bet} />
+    return null
+  }
   if (content.startsWith('[IMAGE]:')) {
     const url = content.replace('[IMAGE]:', '')
     return <img src={url} alt="img" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: 'var(--radius-md)', display: 'block' }} />
@@ -12,12 +61,11 @@ function renderMessage(content, onInternalLink) {
   if (content.startsWith('[FILE:')) {
     const match = content.match(/\[FILE:(.*?)\]:(.*)/)
     if (match) return (
-      <a href={match[2]} target="_blank" rel="noreferrer" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+      <a href={match[2]} target="_blank" rel="noreferrer" style={{ color: linkColor, display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
         <span>📎</span><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
       </a>
     )
   }
-
   const urlRegex = /(https?:\/\/[^\s]+)/g
   const parts = content.split(urlRegex)
   if (parts.length > 1) {
@@ -29,21 +77,15 @@ function renderMessage(content, onInternalLink) {
           if (isCanalLink) {
             const code = part.split('/canal/')[1]?.split(/[?#\s]/)[0]
             return (
-              <span key={i}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  console.log('clic link intern:', code)
-                  onInternalLink?.(code)
-                }}
-                style={{ color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer', wordBreak: 'break-all', userSelect: 'none' }}>
+              <span key={i} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInternalLink?.(code) }}
+                style={{ color: linkColor, textDecoration: 'underline', cursor: 'pointer', wordBreak: 'break-all', userSelect: 'none' }}>
                 📡 {part}
               </span>
             )
           }
           return (
             <a key={i} href={part} target="_blank" rel="noreferrer"
-              style={{ color: 'var(--color-primary)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+              style={{ color: linkColor, textDecoration: 'underline', wordBreak: 'break-all' }}>
               {part}
             </a>
           )
@@ -51,16 +93,40 @@ function renderMessage(content, onInternalLink) {
       </span>
     )
   }
-
   return content
 }
 
 function isImageMessage(content) { return content.startsWith('[IMAGE]:') }
 function isLinkMessage(content) { return content.startsWith('http://') || content.startsWith('https://') }
+function isBetMessage(content) { return content.startsWith('[BET]:') }
+
+function calcChannelStats(messages) {
+  const betMessages = messages.filter(m => isBetMessage(m.content))
+  const bets = betMessages.map(m => parseBetMessage(m.content)).filter(Boolean)
+  const resolved = bets.filter(b => b.status !== 'pending')
+  const won = bets.filter(b => b.status === 'won').length
+  const lost = bets.filter(b => b.status === 'lost').length
+  let yieldVal = 0
+  if (resolved.length > 0) {
+    const { profit, stakeSum } = resolved.reduce(
+      (acc, b) => ({
+        stakeSum: acc.stakeSum + b.stake,
+        profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake)
+      }),
+      { profit: 0, stakeSum: 0 }
+    )
+    yieldVal = stakeSum > 0 ? (profit / stakeSum) * 100 : 0
+  }
+  const avgOdds = bets.length > 0
+    ? (bets.reduce((s, b) => s + parseFloat(b.odds), 0) / bets.length).toFixed(2)
+    : '—'
+  return { total: bets.length, won, lost, yieldVal, avgOdds, resolved: resolved.length }
+}
 
 function InfoView({ channel, messages, isOwner, onClose, onUpdateLinkPublic, copiedLink, onCopyLink }) {
   const images = messages.filter(m => isImageMessage(m.content))
   const links = messages.filter(m => isLinkMessage(m.content))
+  const stats = calcChannelStats(messages)
 
   return (
     <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
@@ -81,6 +147,25 @@ function InfoView({ channel, messages, isOwner, onClose, onUpdateLinkPublic, cop
           {channel.is_private ? '🔒 Canal privado' : '🌐 Canal público'}
         </div>
       </div>
+
+      {stats.total > 0 && (
+        <div style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: '16px', border: '0.5px solid var(--color-border)' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>📊 Estadísticas del canal</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {[
+              { label: 'Yield', value: `${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(1)}%`, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
+              { label: 'W / L', value: `${stats.won} / ${stats.lost}`, color: 'var(--color-text)' },
+              { label: 'Total picks', value: stats.total, color: 'var(--color-text)' },
+              { label: 'Cuota media', value: stats.avgOdds, color: 'var(--color-warning)' },
+            ].map((s, i) => (
+              <div key={i} style={{ background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '0.5px solid var(--color-border)' }}>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>{s.label}</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: '16px', border: '0.5px solid var(--color-border)' }}>
         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Enlace de invitación</div>
@@ -111,14 +196,11 @@ function InfoView({ channel, messages, isOwner, onClose, onUpdateLinkPublic, cop
 
       {images.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-            Fotos ({images.length})
-          </div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Fotos ({images.length})</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
             {images.map(m => (
               <a key={m.id} href={m.content.replace('[IMAGE]:', '')} target="_blank" rel="noreferrer">
-                <img src={m.content.replace('[IMAGE]:', '')} alt="img"
-                  style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 'var(--radius-sm)', display: 'block' }} />
+                <img src={m.content.replace('[IMAGE]:', '')} alt="img" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 'var(--radius-sm)', display: 'block' }} />
               </a>
             ))}
           </div>
@@ -127,9 +209,7 @@ function InfoView({ channel, messages, isOwner, onClose, onUpdateLinkPublic, cop
 
       {links.length > 0 && (
         <div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-            Enlaces ({links.length})
-          </div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Enlaces ({links.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {links.map(m => (
               <a key={m.id} href={m.content} target="_blank" rel="noreferrer"
@@ -144,7 +224,7 @@ function InfoView({ channel, messages, isOwner, onClose, onUpdateLinkPublic, cop
   )
 }
 
-export default function ChatView({ channel: initialChannel, user, onBack, memberCount, onLeave, onOpenCanal }) {
+export default function ChatView({ channel: initialChannel, user, onBack, memberCount, onLeave, onOpenCanal, onAddBet }) {
   const { messages, loading, sendMessage, bottomRef } = useMessages(initialChannel.id)
   const [channel, setChannel] = useState(initialChannel)
   const [text, setText] = useState('')
@@ -195,10 +275,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
-  const handleInternalLink = (code) => {
-    console.log('Obrint canal intern:', code)
-    onOpenCanal?.(code)
-  }
+  const handleInternalLink = (code) => { onOpenCanal?.(code) }
 
   const menuItems = [
     { icon: 'ℹ️', label: 'Info del canal', action: () => { setShowInfo(true); setShowMenu(false) } },
@@ -233,8 +310,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                   {menuItems.map((item, i) => (
                     <button key={i} onClick={item.action}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: item.danger ? 'var(--color-error)' : 'var(--color-text)', textAlign: 'left', borderBottom: i < menuItems.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
+                      <span>{item.icon}</span><span>{item.label}</span>
                     </button>
                   ))}
                 </motion.div>
@@ -252,21 +328,26 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
             <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
             <div>Sin mensajes todavía.</div>
           </div>
-        ) : messages.map(m => (
-          <div key={m.id} style={{ alignSelf: m.user_id === user.id ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-            <div style={{
-              background: m.user_id === user.id ? 'var(--color-primary)' : 'var(--color-bg-soft)',
-              color: m.user_id === user.id ? 'var(--color-primary-light)' : 'var(--color-text)',
-              padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
-              border: m.user_id === user.id ? 'none' : '0.5px solid var(--color-border)'
-            }}>
-              {renderMessage(m.content, handleInternalLink)}
+        ) : messages.map(m => {
+          const isBet = isBetMessage(m.content)
+          const isOwnerMsg = m.user_id === user.id && !isBet
+          return (
+            <div key={m.id} style={{ alignSelf: isBet ? 'flex-start' : m.user_id === user.id ? 'flex-end' : 'flex-start', maxWidth: isBet ? '320px' : '70%' }}>
+              <div style={{
+                background: isBet ? 'transparent' : m.user_id === user.id ? 'var(--color-primary)' : 'var(--color-bg-soft)',
+                color: isOwnerMsg ? '#010906' : 'var(--color-text)',
+                padding: isBet ? '0' : '10px 14px',
+                borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
+                border: isBet ? 'none' : m.user_id === user.id ? 'none' : '0.5px solid var(--color-border)'
+              }}>
+                {renderMessage(m.content, handleInternalLink, isOwnerMsg)}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: m.user_id === user.id ? 'right' : 'left' }}>
+                {new Date(m.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+              </div>
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: m.user_id === user.id ? 'right' : 'left' }}>
-              {new Date(m.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        ))}
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
@@ -280,6 +361,10 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
             placeholder="Escribe un mensaje... (Enter para enviar)" rows={2}
             style={{ flex: 1, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
+          <button onClick={() => onAddBet?.(channel.id)}
+            style={{ background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', fontSize: '13px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
+            📊 Añadir apuesta
+          </button>
           <Button onClick={handleSend} disabled={!text.trim()}>Enviar</Button>
         </div>
       ) : (
@@ -290,15 +375,10 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
 
       <AnimatePresence>
         {showInfo && (
-          <InfoView
-            channel={channel}
-            messages={messages}
-            isOwner={isOwner}
+          <InfoView channel={channel} messages={messages} isOwner={isOwner}
             onClose={() => setShowInfo(false)}
             onUpdateLinkPublic={handleUpdateLinkPublic}
-            copiedLink={copiedLink}
-            onCopyLink={handleCopyLink}
-          />
+            copiedLink={copiedLink} onCopyLink={handleCopyLink} />
         )}
       </AnimatePresence>
     </motion.div>

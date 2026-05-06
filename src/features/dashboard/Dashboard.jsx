@@ -24,10 +24,11 @@ const SIDEBAR_ITEMS = [
 
 export default function Dashboard({ user, logout }) {
   const [tab, setTab] = useState('estadisticas')
+  const [preselectedChannelId, setPreselectedChannelId] = useState(null)
   const [searchParams] = useSearchParams()
   const {
     bets, allBets, loadingBets, showModal, setShowModal,
-    form, setForm, submitBet, resolveBet,
+    form, setForm, submitBet, resolveBet, deleteBet,
     won, lost, yieldVal, avgOdds,
     period, setPeriod
   } = useBets(user)
@@ -40,17 +41,28 @@ export default function Dashboard({ user, logout }) {
   const canalCode = searchParams.get('canal')
   const isPerfilTab = ['estadisticas', 'historial', 'contacto'].includes(tab)
 
+  const handleAddBetFromCanal = (channelId) => {
+    setPreselectedChannelId(channelId)
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setPreselectedChannelId(null)
+  }
+
   return (
     <div className="dashboard">
       <BetModal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal}
         form={form}
         setForm={setForm}
         onSubmit={submitBet}
+        user={user}
+        preselectedChannelId={preselectedChannelId}
       />
 
-      {/* NAV */}
       <motion.nav className="dash-nav"
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="dash-nav-left">
@@ -75,10 +87,8 @@ export default function Dashboard({ user, logout }) {
         </div>
       </motion.nav>
 
-      {/* LAYOUT */}
       <div className="dash-layout">
 
-        {/* SIDEBAR — només visible quan estem a les tabs de perfil */}
         {isPerfilTab && (
           <aside className="dash-sidebar">
             <div className="sidebar-label">Mi perfil</div>
@@ -95,7 +105,6 @@ export default function Dashboard({ user, logout }) {
           </aside>
         )}
 
-        {/* CONTINGUT */}
         <div className="dash-content">
           <AnimatePresence mode="wait">
 
@@ -113,13 +122,20 @@ export default function Dashboard({ user, logout }) {
                 bets={bets} loadingBets={loadingBets}
                 won={won} lost={lost} yieldVal={yieldVal} avgOdds={avgOdds}
                 onNewBet={() => setShowModal(true)} onResolveBet={resolveBet}
+                onDeleteBet={deleteBet}
                 period={period} onPeriodChange={setPeriod}
               />
             )}
 
             {tab === 'contacto' && <Contacto />}
 
-            {tab === 'canales' && <Canales user={user} initialCanalCode={canalCode} />}
+            {tab === 'canales' && (
+              <Canales
+                user={user}
+                initialCanalCode={canalCode}
+                onAddBet={handleAddBetFromCanal}
+              />
+            )}
 
             {tab === 'ranking' && <Ranking user={user} />}
 
