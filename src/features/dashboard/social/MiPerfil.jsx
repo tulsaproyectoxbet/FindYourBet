@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 
@@ -8,11 +8,29 @@ const DM_OPTIONS = [
   { id: 'everyone', icon: '🌐', label: 'Todos', desc: 'Cualquiera puede escribirte sin restricción' },
 ]
 
+const inputStyle = {
+  width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)',
+  color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px',
+  padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box'
+}
+
 function StatPill({ label, value, color }) {
   return (
     <div style={{ textAlign: 'center', padding: '0 20px', borderRight: '0.5px solid var(--color-border)' }}>
       <div style={{ fontSize: '20px', fontWeight: 700, color: color || 'var(--color-text)' }}>{value}</div>
       <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{label}</div>
+    </div>
+  )
+}
+
+function Avatar({ url, name, size = 80, fontSize = 32 }) {
+  if (url) return (
+    <img src={url} alt="avatar"
+      style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--color-bg)', display: 'block' }} />
+  )
+  return (
+    <div style={{ width: size, height: size, background: 'var(--color-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 700, color: '#010906', border: '3px solid var(--color-bg)', flexShrink: 0 }}>
+      {(name || '?')[0].toUpperCase()}
     </div>
   )
 }
@@ -27,8 +45,17 @@ export default function MiPerfil({ user, onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [showConfig, setShowConfig] = useState(false)
   const [showDmConfig, setShowDmConfig] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [savingDm, setSavingDm] = useState(false)
   const [activeTab, setActiveTab] = useState('picks')
+
+  // Edit form
+  const [editForm, setEditForm] = useState({ name: '', username: '', bio: '' })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -55,6 +82,7 @@ export default function MiPerfil({ user, onNavigate }) {
     setFollowersCount(fersCount || 0)
     setFollowingCount(fingCount || 0)
     if (dmSet) setDmSetting(dmSet.allow_dms)
+    if (prof) setEditForm({ name: prof.name || '', username: prof.username || '', bio: prof.bio || '' })
 
     if (bets && bets.length > 0) {
       const resolved = bets.filter(b => b.status !== 'pending')
@@ -82,12 +110,98 @@ export default function MiPerfil({ user, onNavigate }) {
     setSavingDm(false)
   }
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  const handleSaveProfile = async () => {
+    setSaving(true)
+    setSaveError('')
+
+    if (!editForm.name.trim() || !editForm.username.trim()) {
+      setSaveError('El nombre y username son obligatorios')
+      setSaving(false)
+      return
+    }
+
+    // Comprova username únic (si ha canviat)
+    if (editForm.username !== profile?.username) {
+      const { data: existing } = await supabase
+        .from('profiles').select('id').eq('username', editForm.username).neq('id', user.id).single()
+      if (existing) {
+        setSaveError('Este @username ya está en uso')
+        setSaving(false)
+        return
+      }
+    }
+
+    let avatarUrl = profile?.avatar_url || null
+
+    // Puja la foto si n'hi ha una nova
+    if (avatarFile) {
+  // Esborra totes les fotos antigues d'aquest usuari abans de pujar la nova
+  const { data: existingFiles, error: listError } = await supabase.storage
+    .from('avatars')
+    .list(user.id)
+
+  console.log('existingFiles:', existingFiles, 'listError:', listError)
+
+  if (existingFiles && existingFiles.length > 0) {
+    const filesToDelete = existingFiles.map(f => `${user.id}/${f.name}`)
+    await supabase.storage.from('avatars').remove(filesToDelete)
+  }
+
+  const ext = avatarFile.name.split('.').pop()
+  const path = `${user.id}/avatar.${ext}`
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, avatarFile, { upsert: true })
+
+      if (uploadError) {
+        console.log('uploadError:', uploadError)
+        setSaveError('Error al subir la foto')
+        setSaving(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+      // Afegim timestamp per forçar reload de la imatge
+      avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`
+    }
+
+    const { error } = await supabase.from('profiles').update({
+      name: editForm.name.trim(),
+      username: editForm.username.trim().toLowerCase(),
+      bio: editForm.bio.trim(),
+      avatar_url: avatarUrl
+    }).eq('id', user.id)
+
+    if (error) {
+      setSaveError('Error al guardar los cambios')
+      setSaving(false)
+      return
+    }
+
+    await supabase.auth.updateUser({ data: { name: editForm.name.trim() } })
+
+    await fetchAll()
+    setShowEditModal(false)
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    setSaving(false)
+  }
+
   if (loading) return (
     <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)' }}>⏳ Cargando perfil...</div>
   )
 
   const username = profile?.username || user?.name || 'Usuario'
   const displayName = profile?.name || username
+  const avatarUrl = profile?.avatar_url || null
+
   const tierLabel = stats.total >= 150 && stats.yieldVal >= 15 ? '💎 Elite'
     : stats.total >= 80 && stats.yieldVal >= 10 ? '🥇 Gold'
     : stats.total >= 30 && stats.yieldVal >= 5 ? '🥈 Silver'
@@ -105,6 +219,10 @@ export default function MiPerfil({ user, onNavigate }) {
         {/* BANNER */}
         <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--color-primary-light) 0%, rgba(0,200,100,0.08) 100%)', borderBottom: '0.5px solid var(--color-border)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+            <button onClick={() => { setShowEditModal(true); setShowConfig(false) }}
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
+              ✏️ Editar perfil
+            </button>
             <button onClick={() => setShowConfig(!showConfig)}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)' }}>
               ⋯
@@ -136,8 +254,8 @@ export default function MiPerfil({ user, onNavigate }) {
         {/* AVATAR + NOM */}
         <div style={{ padding: '0 28px 24px', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
-            <div style={{ width: '80px', height: '80px', background: 'var(--color-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 700, color: '#010906', border: '3px solid var(--color-bg)', marginTop: '-40px', flexShrink: 0 }}>
-              {displayName[0].toUpperCase()}
+            <div style={{ marginTop: '-40px' }}>
+              <Avatar url={avatarUrl} name={displayName} size={80} fontSize={32} />
             </div>
             {tierLabel && (
               <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '0.5px solid var(--color-primary-border)', fontWeight: 700 }}>
@@ -147,7 +265,10 @@ export default function MiPerfil({ user, onNavigate }) {
           </div>
 
           <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: '2px' }}>{displayName}</div>
-          <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>@{username}</div>
+          <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: profile?.bio ? '8px' : '16px' }}>@{username}</div>
+          {profile?.bio && (
+            <div style={{ fontSize: '14px', color: 'var(--color-text-soft)', marginBottom: '16px', lineHeight: 1.5 }}>{profile.bio}</div>
+          )}
 
           {/* STATS SOCIALS */}
           <div style={{ display: 'flex', gap: '0', marginBottom: '16px' }}>
@@ -240,6 +361,91 @@ export default function MiPerfil({ user, onNavigate }) {
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL EDITAR PERFIL */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+            onClick={() => setShowEditModal(false)}>
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: 'var(--shadow-md)', maxHeight: '90vh', overflowY: 'auto' }}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ fontWeight: 700, fontSize: '18px' }}>✏️ Editar perfil</div>
+                <button onClick={() => setShowEditModal(false)}
+                  style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  ×
+                </button>
+              </div>
+
+              {/* FOTO */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '24px', padding: '20px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)' }}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <Avatar url={avatarPreview || avatarUrl} name={displayName} size={72} fontSize={28} />
+                  <button onClick={() => fileInputRef.current?.click()}
+                    style={{ position: 'absolute', bottom: 0, right: 0, width: '24px', height: '24px', background: 'var(--color-primary)', border: '2px solid var(--color-bg)', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
+                    📷
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>Foto de perfil</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>JPG, PNG o GIF. Máx 5MB.</div>
+                  <button onClick={() => fileInputRef.current?.click()}
+                    style={{ fontSize: '12px', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
+                    Cambiar foto
+                  </button>
+                </div>
+              </div>
+
+              {/* CAMPS */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Nombre completo *</label>
+                <input style={inputStyle} placeholder="Tu nombre" value={editForm.name}
+                  onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>@Username *</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: '14px' }}>@</span>
+                  <input style={{ ...inputStyle, paddingLeft: '28px' }} placeholder="username" value={editForm.username}
+                    onChange={e => setEditForm(p => ({ ...p, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))} />
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>Solo letras minúsculas, números y _</div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Bio</label>
+                <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3}
+                  placeholder="Cuéntale a la comunidad quién eres como tipster..."
+                  value={editForm.bio} onChange={e => setEditForm(p => ({ ...p, bio: e.target.value }))}
+                  maxLength={160} />
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>{editForm.bio.length}/160</div>
+              </div>
+
+              {saveError && (
+                <div style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', color: 'var(--color-error)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', marginBottom: '16px' }}>
+                  {saveError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={handleSaveProfile} disabled={saving}
+                  style={{ flex: 1, background: saving ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: saving ? 'var(--color-text-muted)' : '#010906', border: 'none', padding: '12px', borderRadius: 'var(--radius-md)', cursor: saving ? 'default' : 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)' }}>
+                  {saving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                <button onClick={() => setShowEditModal(false)}
+                  style={{ padding: '12px 20px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'var(--font-sans)', color: 'var(--color-text)' }}>
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

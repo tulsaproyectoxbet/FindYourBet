@@ -74,7 +74,7 @@ function AppRoutes() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem('fyb_unlocked') === '1')
   const navigate = useNavigate()
 
-  useEffect(() => {
+useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({

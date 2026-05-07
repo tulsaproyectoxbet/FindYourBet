@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useBets } from './hooks/useBets'
 import { useDMs } from './social/hooks/useDMs'
 import { BetModal } from './BetModal'
@@ -54,6 +54,7 @@ export default function Dashboard({ user, logout }) {
   const [tab, setTab] = useState('estadisticas')
   const [preselectedChannelId, setPreselectedChannelId] = useState(null)
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const {
     bets, allBets, loadingBets, showModal, setShowModal,
     form, setForm, submitBet, resolveBet, deleteBet,
@@ -101,7 +102,7 @@ export default function Dashboard({ user, logout }) {
       <motion.nav className="dash-nav"
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="dash-nav-left">
-          <div className="dash-logo">FindYour<span>Bet</span></div>
+          <div className="dash-logo" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>FindYour<span>Bet</span></div>
           <div className="dash-nav-tabs">
             {NAV_TABS.map(t => (
               <motion.button key={t.id}
