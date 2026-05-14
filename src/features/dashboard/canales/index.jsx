@@ -13,7 +13,7 @@ const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: 
 const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }
 
 export default function Canales({ user, initialCanalCode, onAddBet }) {
-  const { myChannels, joinedChannels, memberCounts, loading, createChannel, deleteChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
+  const { myChannels, joinedChannels, memberCounts, loading, createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const [activeChannel, setActiveChannel] = useState(null)
   const [activeMemberCount, setActiveMemberCount] = useState(0)
   const [previewChannel, setPreviewChannel] = useState(null)
@@ -21,6 +21,7 @@ export default function Canales({ user, initialCanalCode, onAddBet }) {
   const [joiningPreview, setJoiningPreview] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [suggestedChannels, setSuggestedChannels] = useState([])
   const [createForm, setCreateForm] = useState({ name: '', description: '', isPrivate: false })
   const [createError, setCreateError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -80,10 +81,20 @@ export default function Canales({ user, initialCanalCode, onAddBet }) {
     setShowCreate(false)
   }
 
+  const handleOpenSearch = async () => {
+    setShowSearch(true)
+    setShowCreate(false)
+    if (!suggestedChannels.length) {
+      setSearching(true)
+      const results = await searchChannels('')
+      setSuggestedChannels(results)
+      setSearching(false)
+    }
+  }
+
   const handleSearch = async (q) => {
     setSearchQuery(q)
     setJoinError('')
-    if (!q.trim()) { setSearchResults([]); return }
     setSearching(true)
     const results = await searchChannels(q)
     setSearchResults(results)
@@ -128,8 +139,10 @@ export default function Canales({ user, initialCanalCode, onAddBet }) {
       onBack={() => setActiveChannel(null)}
       memberCount={activeMemberCount}
       onLeave={() => { leaveChannel(activeChannel.id); setActiveChannel(null) }}
+      onDeleteChannel={async (channelId) => { await deleteChannel(channelId); setActiveChannel(null) }}
       onOpenCanal={handleOpenByCode}
       onAddBet={onAddBet}
+      onChannelUpdated={(updated) => { updateChannel(updated); setActiveChannel(updated) }}
     />
   }
 
@@ -146,7 +159,7 @@ export default function Canales({ user, initialCanalCode, onAddBet }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Button variant="ghost" size="sm" onClick={() => { setShowSearch(!showSearch); setShowCreate(false) }}>🔍 Buscar canal</Button>
+          <Button variant="ghost" size="sm" onClick={() => showSearch ? setShowSearch(false) : handleOpenSearch()}>🔍 Buscar canal</Button>
           {canCreateMore && <Button size="sm" onClick={() => { setShowCreate(!showCreate); setShowSearch(false) }}>+ Crear canal</Button>}
         </div>
       </div>
@@ -218,31 +231,79 @@ export default function Canales({ user, initialCanalCode, onAddBet }) {
                 {joinError}
               </div>
             )}
-            {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px' }}>Buscando...</div>}
-            {searchResults.map(c => {
-              const alreadyJoined = joinedChannels.some(j => j.id === c.id)
-              const isOwn = myChannels.some(m => m.id === c.id)
-              return (
-                <div key={c.id} onClick={() => handlePreviewChannel(c)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 0', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer' }}>
-                  <div style={{ width: '38px', height: '38px', background: 'var(--color-bg-soft)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 700, color: 'var(--color-text-muted)', flexShrink: 0, border: '0.5px solid var(--color-border)' }}>
-                    {c.name[0].toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>#{c.name}</div>
-                    {c.description && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{c.description}</div>}
-                  </div>
-                  {alreadyJoined || isOwn ? (
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', padding: '5px 12px' }}>Ya unido ✓</span>
-                  ) : (
-                    <span style={{ fontSize: '12px', color: 'var(--color-primary)', padding: '5px 12px', fontWeight: 600 }}>Ver canal →</span>
-                  )}
-                </div>
+            {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '12px 0' }}>Buscando...</div>}
+
+            {!searching && (() => {
+              const list = searchQuery.trim() ? searchResults : suggestedChannels
+              if (list.length === 0 && searchQuery.trim()) return (
+                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', paddingTop: '8px' }}>No se encontraron canales públicos</div>
               )
-            })}
-            {searchQuery && !searching && searchResults.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', paddingTop: '8px' }}>No se encontraron canales públicos</div>
-            )}
+              return (
+                <>
+                  {!searchQuery.trim() && list.length > 0 && (
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+                      🔥 Canales sugeridos
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {list.map((c, idx) => {
+                      const alreadyJoined = joinedChannels.some(j => j.id === c.id)
+                      const isOwn = myChannels.some(m => m.id === c.id)
+                      const prof = c.ownerProfile
+                      const stats = c.ownerStats
+                      const initial = (prof?.username || c.name || '?')[0].toUpperCase()
+                      return (
+                        <div key={c.id} onClick={() => handlePreviewChannel(c)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}>
+
+                          {/* Avatar propietari */}
+                          <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg)' }}>
+                            {prof?.avatar_url
+                              ? <img src={prof.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : initial}
+                          </div>
+
+                          {/* Info canal */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '14px' }}>#{c.name}</span>
+                              {idx === 0 && !searchQuery.trim() && (
+                                <span style={{ fontSize: '10px', background: 'var(--color-primary)', color: '#010906', borderRadius: 'var(--radius-full)', padding: '1px 7px', fontWeight: 700 }}>TOP</span>
+                              )}
+                            </div>
+                            {prof?.username && (
+                              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>@{prof.username}</div>
+                            )}
+                            {c.description && (
+                              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.description}</div>
+                            )}
+                          </div>
+
+                          {/* Stats */}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                              <span>👥</span><span>{c.memberCount}</span>
+                            </div>
+                            {stats.total > 0 && (
+                              <div style={{ fontSize: '11px', color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)', fontWeight: 700 }}>
+                                {stats.yieldVal >= 0 ? '+' : ''}{stats.yieldVal.toFixed(1)}% yield
+                              </div>
+                            )}
+                            {alreadyJoined || isOwn ? (
+                              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600 }}>Unido ✓</span>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>Ver →</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )
+            })()}
           </motion.div>
         )}
       </AnimatePresence>

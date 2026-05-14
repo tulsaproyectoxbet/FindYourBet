@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '../../../components/ui/Button'
 import { useMessages } from './hooks/useMessages'
@@ -19,7 +20,12 @@ function renderMessage(content) {
 }
 
 export default function PreviewView({ channel, user, onBack, onJoin, joining, memberCount }) {
-  const { messages, loading, bottomRef } = useMessages(channel.id)
+  const { messages, loading } = useMessages(channel.id)
+  const bottomRef = useRef(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+  }, [messages])
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}

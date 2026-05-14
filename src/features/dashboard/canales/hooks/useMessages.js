@@ -4,7 +4,6 @@ import { supabase } from '../../../../lib/supabase'
 export function useMessages(channelId) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
-  const bottomRef = useRef(null)
   const channelIdRef = useRef(channelId)
 
   const fetchMessages = async () => {
@@ -26,19 +25,16 @@ export function useMessages(channelId) {
     return () => clearInterval(interval)
   }, [channelId])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
   const sendMessage = async (content, userId) => {
     if (!content.trim()) return
     await supabase.from('channel_messages').insert({
       channel_id: channelId,
       user_id: userId,
-      content: content.trim()
+      content: content.trim(),
+      created_at: new Date().toISOString()
     })
     await fetchMessages()
   }
 
-  return { messages, loading, sendMessage, bottomRef }
+  return { messages, loading, sendMessage }
 }

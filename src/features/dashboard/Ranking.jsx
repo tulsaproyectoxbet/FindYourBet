@@ -10,7 +10,7 @@ const MIN_BETS = 10
 const SPORTS_LIST = ['Fútbol', 'Baloncesto', 'Tenis', 'Béisbol', 'Fútbol Americano', 'eSports', 'MMA', 'Otros']
 
 const PERIODS = [
-  { id: 'trimestral', label: 'Últimos 3 meses' },
+  { id: 'trimestral', label: 'Ranking' },
   { id: 'setmanal',   label: 'Semanal' },
   { id: 'mensual',    label: 'Mensual' },
   { id: 'anual',      label: 'Anual' },
@@ -175,7 +175,72 @@ function useRanking(period, selectedSports) {
   return { ranking, loading }
 }
 
-const selectStyle = { background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 600, padding: '10px 14px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer', width: 'fit-content' }
+function PeriodDropdown({ period, setPeriod }) {
+  const [open, setOpen] = useState(false)
+  const selected = PERIODS.find(p => p.id === period)
+  const isRanking = period === 'trimestral'
+
+  return (
+    <div style={{ position: 'relative', width: 'fit-content' }}>
+      <button onClick={() => setOpen(v => !v)}
+        style={{
+          background: isRanking ? 'var(--color-primary-light)' : 'var(--color-bg-soft)',
+          border: isRanking ? '1.5px solid var(--color-primary)' : '0.5px solid var(--color-border)',
+          color: isRanking ? 'var(--color-primary)' : 'var(--color-text)',
+          fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 700,
+          padding: '10px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px', justifyContent: 'space-between'
+        }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {isRanking && <span style={{ fontSize: '12px' }}>🏆</span>}
+          {selected?.label}
+        </span>
+        <span style={{ fontSize: '10px', opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              style={{ position: 'absolute', top: '48px', left: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', zIndex: 10, minWidth: '200px', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+
+              {/* Opció principal */}
+              <div onClick={() => { setPeriod('trimestral'); setOpen(false) }}
+                style={{ padding: '12px 16px', cursor: 'pointer', background: period === 'trimestral' ? 'var(--color-primary-light)' : 'transparent', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🏆</span>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>Ranking</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>Últimos 3 meses · Principal</div>
+                  </div>
+                  {period === 'trimestral' && (
+                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--color-primary)' }}>✓</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Separador */}
+              <div style={{ padding: '6px 16px 2px', fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Por período
+              </div>
+
+              {/* Resta d'opcions */}
+              {PERIODS.slice(1).map(p => (
+                <div key={p.id} onClick={() => { setPeriod(p.id); setOpen(false) }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', cursor: 'pointer', background: period === p.id ? 'rgba(255,255,255,0.04)' : 'transparent' }}>
+                  <span style={{ fontSize: '13px', color: period === p.id ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: period === p.id ? 600 : 400 }}>{p.label}</span>
+                  {period === p.id && <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>✓</span>}
+                </div>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodos }) {
   const [open, setOpen] = useState(false)
@@ -255,9 +320,7 @@ export default function Ranking({ user }) {
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={period} onChange={e => setPeriod(e.target.value)} style={selectStyle}>
-          {PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
+        <PeriodDropdown period={period} setPeriod={setPeriod} />
         <SportDropdown
           selectedSports={selectedSports}
           toggleSport={toggleSport}

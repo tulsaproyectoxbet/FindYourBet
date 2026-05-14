@@ -21,8 +21,6 @@ function buildChartData(bets, period) {
 
     if (period === 'setmanal' || period === 'mensual' || period === 'trimestral') {
       key = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
-    } else if (period === 'anual') {
-      key = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })
     } else {
       key = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })
     }
@@ -92,18 +90,14 @@ function LineChart({ data }) {
             <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
           </linearGradient>
         </defs>
-
-        {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
           <line key={i}
             x1={pad.left} y1={pad.top + t * innerH}
             x2={pad.left + innerW} y2={pad.top + t * innerH}
             stroke="var(--color-border)" strokeWidth="0.5" />
         ))}
-
         <path d={fillPath} fill="url(#lineGrad)" />
         <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
         {pts.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="3.5" fill="var(--color-primary)" />
@@ -116,7 +110,7 @@ function LineChart({ data }) {
 }
 
 export default function Estadisticas({ bets, loadingBets, won, lost, yieldVal, avgOdds, onNewBet, period, onPeriodChange }) {
-  const [chartType, setChartType] = useState('bars')
+  const [chartType, setChartType] = useState('line')
 
   const chartData = useMemo(() => buildChartData(bets, period), [bets, period])
 
@@ -141,7 +135,6 @@ export default function Estadisticas({ bets, loadingBets, won, lost, yieldVal, a
         </button>
       </div>
 
-      {/* SELECTOR PERÍODE */}
       <div style={{ marginBottom: '24px' }}>
         <select value={period} onChange={e => onPeriodChange(e.target.value)}
           style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 600, padding: '10px 14px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer', width: 'fit-content' }}>
@@ -157,7 +150,6 @@ export default function Estadisticas({ bets, loadingBets, won, lost, yieldVal, a
         </AnimatePresence>
       </div>
 
-      {/* KPIs */}
       <motion.div className="kpi-grid" initial="hidden" animate="visible" variants={stagger}>
         {KPIs.map((k, i) => (
           <motion.div key={i} className="kpi-card" variants={fadeUp} whileHover={{ y: -2, transition: { duration: 0.2 } }}>
@@ -168,18 +160,14 @@ export default function Estadisticas({ bets, loadingBets, won, lost, yieldVal, a
         ))}
       </motion.div>
 
-      {/* GRÀFICA */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '15px', fontWeight: 600 }}>Beneficio por período</div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {[{ id: 'bars', label: '▦ Barras' }, { id: 'line', label: '↗ Línea' }].map(t => (
-              <button key={t.id} onClick={() => setChartType(t.id)}
-                style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)', background: chartType === t.id ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: chartType === t.id ? '#010906' : 'var(--color-text-muted)', border: chartType === t.id ? 'none' : '0.5px solid var(--color-border)' }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <select value={chartType} onChange={e => setChartType(e.target.value)}
+            style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, padding: '7px 12px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer' }}>
+            <option value="line">↗ Línea</option>
+            <option value="bars">▦ Barras</option>
+          </select>
         </div>
 
         {loadingBets ? (

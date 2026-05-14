@@ -78,14 +78,62 @@ export function useChannels(user) {
     setMyChannels(prev => prev.filter(c => c.id !== channelId))
   }
 
-  // La cerca només retorna canals públics
   const searchChannels = async (query) => {
-    if (!query.trim()) return []
-    const { data } = await supabase.from('channels').select('*')
-      .ilike('name', `%${query}%`)
+    const { data: channels } = await supabase.from('channels')
+      .select('*')
       .eq('is_private', false)
-      .limit(10)
-    return data || []
+      .ilike('name', query.trim() ? `%${query}%` : '%')
+      .limit(query.trim() ? 15 : 12)
+
+    if (!channels?.length) return []
+
+    const channelIds = channels.map(c => c.id)
+    const ownerIds = [...new Set(channels.map(c => c.owner_id))]
+
+    const [memberResults, { data: profiles }, { data: bets }] = await Promise.all([
+      Promise.all(channelIds.map(id =>
+        supabase.from('channel_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('channel_id', id)
+          .then(({ count }) => ({ id, count: (count || 0) + 1 }))
+      )),
+      supabase.from('profiles').select('id, username, name, avatar_url').in('id', ownerIds),
+      supabase.from('bets').select('user_id, status, stake, odds')
+        .in('user_id', ownerIds)
+        .in('status', ['won', 'lost']),
+    ])
+
+    const memberMap = Object.fromEntries(memberResults.map(m => [m.id, m.count]))
+    const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+
+    const statsMap = {}
+    for (const uid of ownerIds) {
+      const ownerBets = (bets || []).filter(b => b.user_id === uid)
+      if (!ownerBets.length) { statsMap[uid] = { yieldVal: 0, winRate: 0, total: 0 }; continue }
+      const won = ownerBets.filter(b => b.status === 'won')
+      const { profit, stakeSum } = ownerBets.reduce(
+        (acc, b) => ({ stakeSum: acc.stakeSum + b.stake, profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake) }),
+        { profit: 0, stakeSum: 0 }
+      )
+      statsMap[uid] = {
+        yieldVal: stakeSum > 0 ? (profit / stakeSum) * 100 : 0,
+        winRate: (won.length / ownerBets.length) * 100,
+        total: ownerBets.length,
+      }
+    }
+
+    const enriched = channels.map(c => ({
+      ...c,
+      memberCount: memberMap[c.id] || 1,
+      ownerProfile: profileMap[c.owner_id] || null,
+      ownerStats: statsMap[c.owner_id] || { yieldVal: 0, winRate: 0, total: 0 },
+    }))
+
+    const maxMembers = Math.max(...enriched.map(c => c.memberCount), 1)
+    return enriched.sort((a, b) => {
+      const score = c => (c.memberCount / maxMembers) * 60 + Math.max(0, c.ownerStats.yieldVal) * 1.5 + c.ownerStats.winRate * 0.4
+      return score(b) - score(a)
+    })
   }
 
   // Busca un canal pel codi d'invitació (per canals privats)
@@ -114,9 +162,14 @@ export function useChannels(user) {
     await fetchChannels()
   }
 
+  const updateChannel = (updated) => {
+    setMyChannels(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+    setJoinedChannels(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+  }
+
   return {
     myChannels, joinedChannels, memberCounts, loading,
-    createChannel, deleteChannel, searchChannels, findChannelByCode,
+    createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode,
     joinChannel, leaveChannel, refetch: fetchChannels,
     MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS
   }

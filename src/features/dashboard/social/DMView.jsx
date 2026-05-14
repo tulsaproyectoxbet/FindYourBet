@@ -1,5 +1,31 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { supabase } from '../../../lib/supabase'
+
+function formatTime(ts) {
+  if (!ts) return ''
+  const date = new Date(ts)
+  if (isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+}
+
+function renderContent(content, isOwn) {
+  if (!content) return null
+  if (content.startsWith('[IMAGE]:')) {
+    const url = content.replace('[IMAGE]:', '')
+    return <img src={url} alt="img" style={{ display: 'block', minWidth: '160px', minHeight: '120px', maxWidth: '100%', maxHeight: '340px', borderRadius: 'var(--radius-md)' }} />
+  }
+  if (content.startsWith('[FILE:')) {
+    const match = content.match(/\[FILE:(.*?)\]:(.*)/)
+    if (match) return (
+      <a href={match[2]} target="_blank" rel="noreferrer"
+        style={{ color: isOwn ? '#010906' : 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+        <span>📎</span><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
+      </a>
+    )
+  }
+  return content
+}
 
 export default function DMView({ conversation, currentUser, onBack, onSend, onFetchMessages, onBlock, onReport, onMute }) {
   const [messages, setMessages] = useState([])
@@ -7,7 +33,12 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   const [loading, setLoading] = useState(true)
   const [showMenu, setShowMenu] = useState(false)
   const [muted, setMuted] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const scrollRef = useRef(null)
   const bottomRef = useRef(null)
+  const prevCountRef = useRef(0)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     loadMessages()
@@ -15,13 +46,15 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
     return () => clearInterval(interval)
   }, [conversation.id])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
   const loadMessages = async () => {
     const data = await onFetchMessages(conversation.id)
     setMessages(data)
+    const newCount = data.length
+    const prevCount = prevCountRef.current
+    if (newCount > prevCount || prevCount === 0) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: prevCount === 0 ? 'instant' : 'smooth' }), 50)
+    }
+    prevCountRef.current = newCount
     setLoading(false)
   }
 
@@ -35,6 +68,29 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+  }
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      const ext = file.name.split('.').pop().toLowerCase()
+      const path = `dm/${currentUser.id}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('channel-files').upload(path, file, { upsert: true })
+      if (error) { setUploadError(`Error al subir: ${error.message}`); return }
+      const { data: urlData } = supabase.storage.from('channel-files').getPublicUrl(path)
+      const isImage = /^image\/(jpeg|png|gif|webp)$/.test(file.type) || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)
+      const content = isImage ? `[IMAGE]:${urlData.publicUrl}` : `[FILE:${file.name}]:${urlData.publicUrl}`
+      await onSend(conversation.id, content)
+      await loadMessages()
+    } catch {
+      setUploadError('Error inesperado al subir el archivo.')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
   }
 
   const menuItems = [
@@ -83,7 +139,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
       </div>
 
       {/* MISSATGES */}
-      <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
         ) : messages.length === 0 ? (
@@ -93,19 +149,35 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           </div>
         ) : messages.map(m => {
           const isOwn = m.sender_id === currentUser.id
+          const isImage = m.content?.startsWith('[IMAGE]:')
           return (
-            <div key={m.id} style={{ alignSelf: isOwn ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-              <div style={{
-                background: isOwn ? 'var(--color-primary)' : 'var(--color-bg-soft)',
-                color: isOwn ? '#010906' : 'var(--color-text)',
-                padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
-                border: isOwn ? 'none' : '0.5px solid var(--color-border)'
-              }}>
-                {m.content}
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: isOwn ? 'right' : 'left' }}>
-                {new Date(m.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-                {isOwn && m.read_at && <span style={{ marginLeft: '4px' }}>✓✓</span>}
+            <div key={m.id} style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
+              <div style={{ maxWidth: '70%' }}>
+                <div style={{
+                  position: 'relative',
+                  background: isOwn ? 'var(--color-primary)' : 'var(--color-bg-soft)',
+                  color: isOwn ? '#010906' : 'var(--color-text)',
+                  padding: isImage ? '6px' : '10px 14px 22px 14px',
+                  borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
+                  border: isOwn ? 'none' : '0.5px solid var(--color-border)'
+                }}>
+                  {renderContent(m.content, isOwn)}
+                  {!isImage && (
+                    <span style={{
+                      position: 'absolute', bottom: '5px', right: '10px',
+                      fontSize: '10px',
+                      color: isOwn ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {formatTime(m.created_at)}{isOwn && m.read_at ? ' ✓✓' : ''}
+                    </span>
+                  )}
+                </div>
+                {isImage && (
+                  <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '3px', textAlign: isOwn ? 'right' : 'left' }}>
+                    {formatTime(m.created_at)}
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -127,11 +199,11 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
             @{conversation.otherUsername} quiere enviarte un mensaje
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button onClick={() => { onBlock?.(conversation.id) }}
+            <button onClick={() => onBlock?.(conversation.id)}
               style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
               Rechazar
             </button>
-            <button onClick={() => { /* acceptar */ }}
+            <button onClick={() => {}}
               style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
               Aceptar
             </button>
@@ -141,14 +213,26 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
 
       {/* INPUT */}
       {!needsAccept && !isPending && (
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', alignItems: 'flex-end' }}>
-          <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
-            placeholder="Escribe un mensaje... (Enter para enviar)" rows={2}
-            style={{ flex: 1, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
-          <button onClick={handleSend} disabled={!text.trim()}
-            style={{ background: text.trim() ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: text.trim() ? '#010906' : 'var(--color-text-muted)', border: 'none', padding: '12px 18px', borderRadius: 'var(--radius-md)', cursor: text.trim() ? 'pointer' : 'default', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-            Enviar
-          </button>
+        <div style={{ marginTop: '12px' }}>
+          {uploadError && (
+            <div style={{ marginBottom: '8px', padding: '8px 12px', background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-error)' }}>
+              {uploadError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+            <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/jpeg,image/png,image/gif,image/webp,.pdf" style={{ display: 'none' }} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+              {uploading ? '⏳' : '📎'}
+            </button>
+            <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
+              placeholder="Escribe un mensaje... (Enter para enviar)" rows={2}
+              style={{ flex: 1, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
+            <button onClick={handleSend} disabled={!text.trim()}
+              style={{ background: text.trim() ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: text.trim() ? '#010906' : 'var(--color-text-muted)', border: 'none', padding: '12px 18px', borderRadius: 'var(--radius-md)', cursor: text.trim() ? 'pointer' : 'default', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
+              Enviar
+            </button>
+          </div>
         </div>
       )}
     </motion.div>

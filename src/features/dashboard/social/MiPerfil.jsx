@@ -127,10 +127,19 @@ export default function MiPerfil({ user, onNavigate }) {
       return
     }
 
-    // Comprova username únic (si ha canviat)
+    // Comprova cooldown i unicitat de username (si ha canviat)
     if (editForm.username !== profile?.username) {
+      if (profile?.username_changed_at) {
+        const daysSince = (Date.now() - new Date(profile.username_changed_at).getTime()) / 86400000
+        if (daysSince < 14) {
+          const daysLeft = Math.ceil(14 - daysSince)
+          setSaveError(`Solo puedes cambiar tu @username cada 14 días. Podrás cambiarlo en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}.`)
+          setSaving(false)
+          return
+        }
+      }
       const { data: existing } = await supabase
-        .from('profiles').select('id').eq('username', editForm.username).neq('id', user.id).single()
+        .from('profiles').select('id').eq('username', editForm.username).neq('id', user.id).maybeSingle()
       if (existing) {
         setSaveError('Este @username ya está en uso')
         setSaving(false)
@@ -172,12 +181,17 @@ export default function MiPerfil({ user, onNavigate }) {
       avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`
     }
 
-    const { error } = await supabase.from('profiles').update({
+    const profileUpdate = {
       name: editForm.name.trim(),
       username: editForm.username.trim().toLowerCase(),
       bio: editForm.bio.trim(),
-      avatar_url: avatarUrl
-    }).eq('id', user.id)
+      avatar_url: avatarUrl,
+    }
+    if (editForm.username.trim().toLowerCase() !== profile?.username) {
+      profileUpdate.username_changed_at = new Date().toISOString()
+    }
+
+    const { error } = await supabase.from('profiles').update(profileUpdate).eq('id', user.id)
 
     if (error) {
       setSaveError('Error al guardar los cambios')
@@ -239,6 +253,7 @@ export default function MiPerfil({ user, onNavigate }) {
                     { icon: '🔐', label: 'Privacidad de mensajes', action: () => { setShowDmConfig(true); setShowConfig(false) } },
                     { icon: '📊', label: 'Mis estadísticas', action: () => { onNavigate('estadisticas'); setShowConfig(false) } },
                     { icon: '📋', label: 'Mi historial', action: () => { onNavigate('historial'); setShowConfig(false) } },
+                    { icon: '⚙️', label: 'Configuración', action: () => { onNavigate('configuracion'); setShowConfig(false) } },
                   ].map((item, i, arr) => (
                     <button key={i} onClick={item.action}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text)', textAlign: 'left', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
@@ -417,7 +432,13 @@ export default function MiPerfil({ user, onNavigate }) {
                   <input style={{ ...inputStyle, paddingLeft: '28px' }} placeholder="username" value={editForm.username}
                     onChange={e => setEditForm(p => ({ ...p, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))} />
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>Solo letras minúsculas, números y _</div>
+                {(() => {
+                  if (!profile?.username_changed_at) return null
+                  const daysSince = (Date.now() - new Date(profile.username_changed_at).getTime()) / 86400000
+                  if (daysSince >= 14) return <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px' }}>✓ Puedes cambiar tu @username</div>
+                  const daysLeft = Math.ceil(14 - daysSince)
+                  return <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>🔒 Podrás cambiarlo en {daysLeft} día{daysLeft !== 1 ? 's' : ''}</div>
+                })()}
               </div>
 
               <div style={{ marginBottom: '24px' }}>

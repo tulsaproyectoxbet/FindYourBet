@@ -11,6 +11,10 @@ import Canales from './canales'
 import Contacto from './Contacto'
 import Social from './social'
 import MiPerfil from './social/MiPerfil'
+import Feed from './feed'
+import { useNotifications } from './notifications/useNotifications'
+import NotificationsPanel from './notifications/NotificationsPanel'
+import Configuracion from './Configuracion'
 import './dashboard.css'
 
 const NAV_TABS = [
@@ -24,6 +28,7 @@ const SIDEBAR = [
   {
     label: 'Mi perfil',
     items: [
+      { id: 'miperfil', label: 'Perfil', icon: '👤' },
       { id: 'estadisticas', label: 'Estadísticas personales', icon: '📊' },
       { id: 'historial', label: 'Historial', icon: '📋' },
     ]
@@ -31,6 +36,7 @@ const SIDEBAR = [
   {
     label: 'Social',
     items: [
+      { id: 'feed', label: 'Descubre', icon: '🔥' },
       { id: 'canales', label: 'Canales', icon: '📡' },
       { id: 'social', label: 'Mensajes directos', icon: '💬' },
     ]
@@ -63,6 +69,8 @@ export default function Dashboard({ user, logout }) {
   } = useBets(user)
 
   const { unreadCount } = useDMs(user?.id)
+  const { notifications, unreadCount: notifCount, markRead, markAllRead } = useNotifications(user?.id)
+  const [showNotifs, setShowNotifs] = useState(false)
 
   useEffect(() => {
     const canalCode = searchParams.get('canal')
@@ -81,10 +89,15 @@ export default function Dashboard({ user, logout }) {
     setPreselectedChannelId(null)
   }
 
-  const activeNavTab = ['social', 'canales'].includes(tab) ? 'social'
+  const activeNavTab = ['social', 'canales', 'feed'].includes(tab) ? 'social'
     : ['contacto', 'sugerencias'].includes(tab) ? 'contacto'
-    : tab === 'miperfil' ? 'estadisticas'
+    : ['miperfil', 'historial', 'configuracion'].includes(tab) ? 'estadisticas'
     : tab
+
+  const handleNavigateToChannel = (channel) => {
+    navigate(`/dashboard?canal=${channel.invite_code}`)
+    setTab('canales')
+  }
 
   return (
     <div className="dashboard">
@@ -108,7 +121,7 @@ export default function Dashboard({ user, logout }) {
               <motion.button key={t.id}
                 className={`dash-tab ${activeNavTab === t.id ? 'active' : ''}`}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => setTab(t.id === 'social' ? 'social' : t.id === 'contacto' ? 'contacto' : t.id)}>
+                onClick={() => setTab(t.id)}>
                 {t.label}
                 {t.id === 'social' && unreadCount > 0 && (
                   <span style={{ marginLeft: '6px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
@@ -120,6 +133,27 @@ export default function Dashboard({ user, logout }) {
           </div>
         </div>
         <div className="dash-nav-right">
+          {/* CAMPANA NOTIFICACIONS */}
+          <div style={{ position: 'relative' }}>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => { const next = !showNotifs; setShowNotifs(next); if (next) markAllRead() }}
+              style={{ position: 'relative', background: showNotifs ? 'var(--color-bg-soft)' : 'none', border: '0.5px solid', borderColor: showNotifs ? 'var(--color-border)' : 'transparent', borderRadius: 'var(--radius-md)', cursor: 'pointer', padding: '7px 10px', fontSize: '18px', display: 'flex', alignItems: 'center' }}>
+              🔔
+              {notifCount > 0 && (
+                <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '9px', fontWeight: 700, padding: '1px 5px', minWidth: '16px', textAlign: 'center', lineHeight: '14px' }}>
+                  {notifCount > 9 ? '9+' : notifCount}
+                </span>
+              )}
+            </motion.button>
+            <AnimatePresence>
+              {showNotifs && (
+                <NotificationsPanel
+                  notifications={notifications}
+                  onClose={() => setShowNotifs(false)}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="user-chip" style={{ cursor: 'pointer' }}
             onClick={() => setTab('miperfil')}>
             <div className="user-avatar">{(user?.name || 'U')[0].toUpperCase()}</div>
@@ -188,6 +222,10 @@ export default function Dashboard({ user, logout }) {
               />
             )}
 
+            {tab === 'feed' && (
+              <Feed key="feed" user={user} onNavigateToChannel={handleNavigateToChannel} />
+            )}
+
             {tab === 'social' && (
               <Social key="social" user={user} />
             )}
@@ -197,11 +235,15 @@ export default function Dashboard({ user, logout }) {
             )}
 
             {(tab === 'contacto' || tab === 'sugerencias') && (
-              <Contacto key="contacto" initialTab={tab} />
+              <Contacto key={tab} initialTab={tab} />
             )}
 
             {tab === 'miperfil' && (
               <MiPerfil key="miperfil" user={user} onNavigate={setTab} />
+            )}
+
+            {tab === 'configuracion' && (
+              <Configuracion key="configuracion" user={user} logout={logout} />
             )}
 
           </AnimatePresence>

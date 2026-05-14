@@ -39,14 +39,33 @@ export function useSignUp({ onLogin }) {
 
     setError('')
     setLoading(true)
+
+    const { data: existingUser } = await supabase
+      .from('profiles').select('id').eq('username', username.toLowerCase()).maybeSingle()
+    if (existingUser) {
+      setError('Este @username ya está en uso. Elige otro.')
+      setLoading(false)
+      return
+    }
+
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password: pass,
-      options: { data: { name, surname, username, birthdate, nationality } }
+      options: { data: { surname, birthdate, nationality } }
     })
     setLoading(false)
     if (authError) { setError(authError.message); return }
-    onLogin({ name, surname, user: username, email, id: data.user?.id })
+
+    if (data.user?.id) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        username: username.toLowerCase(),
+        name: '',
+        username_changed_at: new Date().toISOString(),
+      })
+    }
+
+    onLogin({ name: '', user: username, email, id: data.user?.id })
   }
 
   return {
