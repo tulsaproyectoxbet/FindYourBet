@@ -92,12 +92,14 @@ function AppRoutes() {
   }
 
   useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 5000)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
         if (session?.user) setUser(await buildUser(session.user))
       } catch {
         if (session?.user) setUser({ id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email, avatar_url: null })
       } finally {
+        clearTimeout(timeout)
         setLoading(false)
       }
     })
