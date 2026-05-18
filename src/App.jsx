@@ -92,17 +92,23 @@ function AppRoutes() {
   }
 
   useEffect(() => {
+    // Garanteix que loading s'apaga sempre, fins i tot si Supabase no respon
     const timeout = setTimeout(() => setLoading(false), 5000)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+
+    const init = async () => {
       try {
-        if (session?.user) setUser(await buildUser(session.user))
-      } catch {
-        if (session?.user) setUser({ id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email, avatar_url: null })
-      } finally {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          try { setUser(await buildUser(session.user)) } catch {
+            setUser({ id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email, avatar_url: null })
+          }
+        }
+      } catch { /* Supabase unreachable, continue as logged out */ } finally {
         clearTimeout(timeout)
         setLoading(false)
       }
-    })
+    }
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       // INITIAL_SESSION is already handled by the getSession call above
@@ -136,8 +142,8 @@ function AppRoutes() {
     </div>
   )
 
-  // Si no está desbloqueado, muestra la pantalla de código
-  if (!unlocked) return <GateScreen onUnlock={() => setUnlocked(true)} />
+  const isPublicRoute = window.location.pathname.startsWith('/oferta/') || window.location.pathname.startsWith('/payment/')
+  if (!unlocked && !isPublicRoute) return <GateScreen onUnlock={() => setUnlocked(true)} />
 
   return (
     <Routes>

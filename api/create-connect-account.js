@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     let accountId = existing?.stripe_account_id
 
     if (!accountId) {
-      const account = await stripe.accounts.create({ type: 'express', country: 'ES' })
+      const account = await stripe.accounts.create({ type: 'express', country: 'ES', business_profile: { url: 'https://fyourbet.com' } })
       accountId = account.id
       await supabase.from('stripe_accounts').insert({ user_id, stripe_account_id: accountId })
     }
