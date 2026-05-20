@@ -229,16 +229,26 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
                 onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
                 style={inputStyle} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', padding: '14px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }}
-              onClick={() => setCreateForm({ ...createForm, isPrivate: !createForm.isPrivate })}>
-              <div style={{ width: '40px', height: '22px', borderRadius: '999px', background: createForm.isPrivate ? 'var(--color-primary)' : 'var(--color-border)', transition: 'background 0.2s', position: 'relative', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: '3px', left: createForm.isPrivate ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>🔒 Canal privado</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                  Solo accesible con enlace de invitación. No aparece en la búsqueda.
+            <div style={{ marginBottom: '20px', padding: '14px', background: 'rgba(245,158,11,0.1)', borderRadius: 'var(--radius-md)', border: '0.5px solid rgba(245,158,11,0.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                onClick={() => setCreateForm({ ...createForm, isPrivate: !createForm.isPrivate })}>
+                <div style={{ width: '40px', height: '22px', borderRadius: '999px', background: createForm.isPrivate ? 'var(--color-primary)' : 'var(--color-border)', transition: 'background 0.2s', position: 'relative', flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: '3px', left: createForm.isPrivate ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
                 </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
+                    {createForm.isPrivate ? '🔒 Canal privado' : '🌐 Canal público'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                    {createForm.isPrivate
+                      ? 'Solo accesible con enlace de invitación.'
+                      : 'Visible en búsqueda. Cualquiera puede unirse.'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '0.5px solid rgba(245,158,11,0.25)', fontSize: '12px', color: 'var(--color-warning)', fontWeight: 600 }}>
+                <span>⚠️</span>
+                <span>Esta acción es irreversible.</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>

@@ -213,10 +213,9 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '60px 20px', textAlign: 'center' }}>
-          <Avatar url={profile.avatar_url || null} name={profile.name || profile.username} size={72} fontSize={28} />
+          <Avatar url={profile.avatar_url || null} name={profile.username} size={72} fontSize={28} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '4px' }}>{profile.name || profile.username}</div>
-            <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>@{profile.username}</div>
+            <div style={{ fontWeight: 700, fontSize: '18px' }}>@{profile.username}</div>
           </div>
           <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 20px' }}>
             🚫 Usuario bloqueado
@@ -231,7 +230,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
   }
 
   const isOwnProfile = userId === currentUser?.id
-  const displayName = profile.name || profile.username
+  const displayName = profile.username
   const username = profile.username
   const avatarUrl = profile.avatar_url || null
 
@@ -317,8 +316,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             </div>
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: '2px' }}>{displayName}</div>
-          <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: profile.bio ? '8px' : '16px' }}>{username}</div>
+          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile.bio ? '8px' : '16px' }}>@{username}</div>
           {profile.bio && (
             <div style={{ fontSize: '14px', color: 'var(--color-text-soft)', marginBottom: '16px', lineHeight: 1.5 }}>{profile.bio}</div>
           )}
@@ -584,8 +582,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                         {c.avatarUrl ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (c.username || '?')[0].toUpperCase()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name || c.username}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>@{c.username}</div>
+                        <div style={{ fontWeight: 600, fontSize: '13px' }}>@{c.username}</div>
                       </div>
                       <button onClick={() => handleSendProfileTo('dm', c.id, c.username)} disabled={sentSet.has(c.id)}
                         style={{ background: sentSet.has(c.id) ? 'var(--color-primary-light)' : 'var(--color-primary)', color: sentSet.has(c.id) ? 'var(--color-primary)' : '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: sentSet.has(c.id) ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.2s' }}>

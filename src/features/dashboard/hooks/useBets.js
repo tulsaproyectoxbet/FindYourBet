@@ -136,12 +136,21 @@ export function useBets(user) {
       alert('Selecciona al menos un canal para publicar la apuesta'); return
     }
 
+    // Determina canal principal + privacitat: was_private només si TOTS els canals són privats
+    const { data: ch } = await supabase
+      .from('channels')
+      .select('id, is_private')
+      .in('id', channelIds)
+    const allPrivate = (ch || []).length > 0 && ch.every(c => c.is_private)
+
     const newBet = {
       user_id: user.id, event: form.event, pick: form.pick,
       odds: parseFloat(form.odds), stake: form.stake,
       date: new Date(form.date).toISOString(),
       sport: form.sport, market: form.market, analysis: form.analysis,
-      status: 'pending', channel_ids: channelIds
+      status: 'pending', channel_ids: channelIds,
+      channel_id: channelIds[0],
+      was_private: allPrivate,
     }
     const { data, error } = await supabase.from('bets').insert(newBet).select()
     if (!error && data?.[0]) {

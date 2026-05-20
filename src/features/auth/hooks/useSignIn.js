@@ -14,7 +14,22 @@ export function useSignIn({ onLogin }) {
     if (!email || !pass) { setError('Rellena todos los campos'); return }
     setError('')
     setLoading(true)
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password: pass })
+    let data, authError
+    try {
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password: pass }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ])
+      data = result.data
+      authError = result.error
+    } catch {
+      Object.keys(localStorage)
+        .filter(k => k.includes('supabase') || k.startsWith('sb-'))
+        .forEach(k => localStorage.removeItem(k))
+      setLoading(false)
+      setError('Sesión caducada. Vuelve a intentarlo.')
+      return
+    }
     setLoading(false)
     if (authError) { setError('Email o contraseña incorrectos'); return }
     const meta = data.user?.user_metadata
@@ -32,7 +47,7 @@ export function useSignIn({ onLogin }) {
     setError('')
     setLoading(true)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'http://localhost:5173'
+      redirectTo: window.location.origin
     })
     setLoading(false)
     if (resetError) { setError(resetError.message); return }

@@ -54,7 +54,7 @@ export default function Feed({ user, onNavigateToChannel }) {
               <FeedCard
                 key={post.id}
                 post={post}
-                currentUserId={user?.id}
+                currentUser={user}
                 onLike={toggleLike}
                 onComment={{ fetch: fetchComments, add: addComment }}
                 onNavigateToChannel={onNavigateToChannel}

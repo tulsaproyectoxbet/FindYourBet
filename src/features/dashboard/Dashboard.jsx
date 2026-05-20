@@ -348,9 +348,9 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             <div className="user-avatar" style={{ overflow: 'hidden', padding: 0 }}>
               {navAvatar
                 ? <img src={navAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                : (user?.name || 'U')[0].toUpperCase()}
+                : (user?.username || 'U')[0].toUpperCase()}
             </div>
-            <span>{user?.name || 'Usuario'}</span>
+            <span>{user?.username || 'Usuario'}</span>
           </div>
           <motion.button className="dash-tab" whileTap={{ scale: 0.98 }} onClick={logout}>
             Salir

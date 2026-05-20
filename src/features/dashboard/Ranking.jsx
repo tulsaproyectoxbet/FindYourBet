@@ -99,24 +99,36 @@ function getBestCombination(userBets, selectedSports) {
   return best
 }
 
-function useRanking(period, selectedSports) {
+function useRanking(period, selectedSports, scope = 'public') {
   const [ranking, setRanking] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchRanking = async () => {
     setLoading(true)
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
-    const { data: bets, error } = await supabase
+    const range = getPeriodRange(period)
+    let query = supabase
       .from('bets')
-      .select('user_id, odds, stake, status, date, sport')
+      .select('user_id, odds, stake, status, date, sport, was_private, channel_id')
       .neq('status', 'pending')
-      .limit(5000)
+      .eq('was_private', scope === 'private')
+      .limit(2000)
+    if (range) {
+      query = query.gte('date', range.start.toISOString()).lte('date', range.end.toISOString())
+    }
+    const { data: bets, error } = await query
     if (error || !bets) { setLoading(false); return }
 
-    const range = getPeriodRange(period)
-    const filteredBets = range
-      ? bets.filter(b => { const d = new Date(b.date); return d >= range.start && d <= range.end })
-      : bets
+    // Premium = canal privat amb almenys una offer activa. Els canals privats
+    // sense offer són "invite-only" i NO han d'aparèixer al ranking premium.
+    let filteredBets = bets
+    if (scope === 'private') {
+      const { data: activeOffers } = await supabase
+        .from('offers').select('channel_id').eq('active', true)
+      const premiumIds = new Set((activeOffers || []).map(o => o.channel_id))
+      filteredBets = bets.filter(b => premiumIds.has(b.channel_id))
+    }
 
     const byUser = {}
     filteredBets.forEach(b => {
@@ -183,6 +195,7 @@ function useRanking(period, selectedSports) {
     } catch (e) {
       // silent — no bloqueja la UI
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }
@@ -191,7 +204,7 @@ function useRanking(period, selectedSports) {
     fetchRanking()
     const interval = setInterval(fetchRanking, 60000)
     return () => clearInterval(interval)
-  }, [period, JSON.stringify(selectedSports)])
+  }, [period, JSON.stringify(selectedSports), scope])
 
   return { ranking, loading }
 }
@@ -319,7 +332,8 @@ function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodos }) {
 export default function Ranking({ user }) {
   const [period, setPeriod] = useState('trimestral')
   const [selectedSports, setSelectedSports] = useState([])
-  const { ranking, loading } = useRanking(period, selectedSports)
+  const [scope, setScope] = useState('public')
+  const { ranking, loading } = useRanking(period, selectedSports, scope)
 
   const toggleSport = (sport) => {
     setSelectedSports(prev =>
@@ -338,6 +352,18 @@ export default function Ranking({ user }) {
       <div className="page-header">
         <h2>Ranking</h2>
         <p>Clasificación por Yield. Mínimo {MIN_BETS} apuestas resueltas para aparecer.</p>
+      </div>
+
+      <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', marginBottom: '16px', width: 'fit-content' }}>
+        {[
+          { id: 'public',  label: '🌐 Público',  desc: 'Tipsters de canales gratuitos' },
+          { id: 'private', label: '💎 Premium', desc: 'Tipsters de canales de pago' },
+        ].map(s => (
+          <button key={s.id} onClick={() => setScope(s.id)} title={s.desc}
+            style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: scope === s.id ? 'var(--color-primary)' : 'transparent', color: scope === s.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+            {s.label}
+          </button>
+        ))}
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>

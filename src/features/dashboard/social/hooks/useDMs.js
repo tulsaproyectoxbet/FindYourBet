@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../../lib/supabase'
+import { usePolling } from '../../../../hooks/usePolling'
 
 export function useDMs(currentUserId) {
   const [conversations, setConversations] = useState([])
@@ -8,17 +9,15 @@ export function useDMs(currentUserId) {
 
   useEffect(() => {
     if (!currentUserId) return
-    let cancelled = false
-    const run = async () => {
-      await fetchConversations(cancelled)
-    }
-    run()
-    const interval = setInterval(() => fetchConversations(false), 5000)
-    return () => { cancelled = true; clearInterval(interval) }
+    fetchConversations(false)
   }, [currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  usePolling(useCallback(() => fetchConversations(false), [currentUserId]), 15000, !!currentUserId) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Optimitzat: 4 queries en total en comptes de 1 + N×3
   const fetchConversations = async (cancelled = false) => {
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
+    try {
     const { data: convs } = await supabase
       .from('dm_conversations')
       .select('*')
@@ -78,7 +77,6 @@ export function useDMs(currentUserId) {
         ...conv,
         otherId,
         otherUsername: profile?.username || otherId.slice(0, 6),
-        otherName: profile?.name || '',
         otherAvatarUrl: profile?.avatar_url || null,
         lastMessage: lastMsg?.content || '',
         lastMessageAt: lastMsg?.created_at || conv.created_at,
@@ -94,6 +92,9 @@ export function useDMs(currentUserId) {
     setUnreadCount(total)
     setConversations(enriched.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)))
     setLoading(false)
+    } finally {
+      clearTimeout(safetyTimer)
+    }
   }
 
   const startConversation = async (otherUserId, isFollowing) => {

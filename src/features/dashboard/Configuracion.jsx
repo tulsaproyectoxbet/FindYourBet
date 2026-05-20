@@ -123,7 +123,7 @@ export default function Configuracion({ user, logout }) {
             <div style={{ fontWeight: 600, fontSize: '15px' }}>{user?.email || '—'}</div>
           </div>
           <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: 'var(--color-primary)' }}>
-            {(user?.name || user?.email || 'U')[0].toUpperCase()}
+            {(user?.username || user?.email || 'U')[0].toUpperCase()}
           </div>
         </div>
       </Card>

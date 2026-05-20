@@ -1,31 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { usePolling } from '../../../hooks/usePolling'
 
 export function useNotifications(userId) {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!userId) return
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(40)
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(40)
 
-    if (data) {
-      setNotifications(data)
-      setUnreadCount(data.filter(n => !n.read_at).length)
+      if (data) {
+        setNotifications(data)
+        setUnreadCount(data.filter(n => !n.read_at).length)
+      }
+    } catch {
+      // silent — no bloqueja la UI
     }
-  }
-
-  useEffect(() => {
-    if (!userId) return
-    fetchNotifications()
-    const interval = setInterval(fetchNotifications, 15000)
-    return () => clearInterval(interval)
   }, [userId])
+
+  useEffect(() => { if (userId) fetchNotifications() }, [userId, fetchNotifications])
+
+  usePolling(fetchNotifications, 30000, !!userId)
 
   const markRead = async (id) => {
     const now = new Date().toISOString()

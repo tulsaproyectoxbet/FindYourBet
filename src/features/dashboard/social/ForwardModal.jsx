@@ -110,7 +110,6 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
               const sent = sentSet.has(conv.id)
               const isSending = sending === conv.id
               const username = conv.profile?.username || conv.otherId.slice(0, 8)
-              const name = conv.profile?.name || ''
               return (
                 <button key={conv.id} onClick={() => forwardToDM(conv)}
                   style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 20px', background: sent ? 'var(--color-primary-light)' : 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: sent ? 'default' : 'pointer', fontFamily: 'var(--font-sans)', textAlign: 'left', boxSizing: 'border-box', transition: 'background 0.15s' }}>
@@ -120,8 +119,7 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
                       : username[0]?.toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || `@${username}`}</div>
-                    {name && <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>@{username}</div>}
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
                   </div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: sent ? 'var(--color-primary)' : 'var(--color-text-muted)', flexShrink: 0 }}>
                     {isSending ? '⏳' : sent ? '✓ Enviado' : 'Enviar →'}

@@ -4,9 +4,26 @@ import { useSignUp } from './hooks/useSignUp'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { FormLabel } from '../../components/ui/FormLabel'
+import { supabase } from '../../lib/supabase'
 import './auth.css'
 
 const NATIONALITIES = ['España', 'México', 'Argentina', 'Colombia', 'Chile', 'Perú', 'Venezuela', 'Ecuador', 'Bolivia', 'Paraguay', 'Uruguay', 'Otra']
+
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+  </svg>
+)
+
+const handleGoogleRegister = () => {
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/dashboard' }
+  })
+}
 
 export default function Register({ navigate, login }) {
   const {
@@ -32,13 +49,21 @@ export default function Register({ navigate, login }) {
             <div className="auth-subtitle">Crea tu cuenta — es gratis</div>
           </motion.div>
 
+          <motion.div variants={fadeUp} custom={2}>
+            <button className="auth-google-btn" onClick={handleGoogleRegister}>
+              <GoogleIcon />
+              Registrarse con Google
+            </button>
+            <div className="auth-divider">o regístrate con email</div>
+          </motion.div>
+
           {error && (
             <motion.div className="auth-error" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
               {error}
             </motion.div>
           )}
 
-          <motion.div className="form-row" variants={fadeUp} custom={2}>
+          <motion.div className="form-row" variants={fadeUp} custom={3}>
             <div>
               <FormLabel>Nombre *</FormLabel>
               <Input placeholder="Tu nombre" value={form.name} onChange={e => update('name', e.target.value)} />
@@ -49,7 +74,7 @@ export default function Register({ navigate, login }) {
             </div>
           </motion.div>
 
-          <motion.div className="form-row" variants={fadeUp} custom={3}>
+          <motion.div className="form-row" variants={fadeUp} custom={4}>
             <div>
               <FormLabel>Fecha de nacimiento *</FormLabel>
               <Input type="date" value={form.birthdate} max={maxBirthdate}
@@ -64,7 +89,7 @@ export default function Register({ navigate, login }) {
             </div>
           </motion.div>
 
-          <motion.div className="form-group" variants={fadeUp} custom={4}>
+          <motion.div className="form-group" variants={fadeUp} custom={5}>
             <FormLabel>Nombre de usuario *</FormLabel>
             <div className="input-with-icon">
               <span className="input-prefix">@</span>
@@ -73,13 +98,13 @@ export default function Register({ navigate, login }) {
             </div>
           </motion.div>
 
-          <motion.div className="form-group" variants={fadeUp} custom={5}>
+          <motion.div className="form-group" variants={fadeUp} custom={6}>
             <FormLabel>Email *</FormLabel>
             <Input type="email" placeholder="tu@email.com"
               value={form.email} onChange={e => update('email', e.target.value)} />
           </motion.div>
 
-          <motion.div className="form-row" variants={fadeUp} custom={6}>
+          <motion.div className="form-row" variants={fadeUp} custom={7}>
             <div>
               <FormLabel>Contraseña *</FormLabel>
               <div className="input-with-icon">
@@ -102,7 +127,7 @@ export default function Register({ navigate, login }) {
             </div>
           </motion.div>
 
-          <motion.div className="auth-checkboxes" variants={fadeUp} custom={7}>
+          <motion.div className="auth-checkboxes" variants={fadeUp} custom={8}>
             <label className="auth-checkbox-label">
               <input type="checkbox" className="auth-checkbox" checked={age} onChange={e => setAge(e.target.checked)} />
               <span>Confirmo que tengo <strong>18 años o más</strong> y que las apuestas están permitidas en mi país de residencia.</span>
@@ -118,17 +143,17 @@ export default function Register({ navigate, login }) {
             </label>
           </motion.div>
 
-          <motion.div variants={fadeUp} custom={8}>
+          <motion.div variants={fadeUp} custom={9}>
             <Button full onClick={handleRegister} disabled={loading}>
               {loading ? 'Creando cuenta...' : 'Crear cuenta'}
             </Button>
           </motion.div>
 
-          <motion.div className="auth-privacy-note" variants={fadeUp} custom={9}>
+          <motion.div className="auth-privacy-note" variants={fadeUp} custom={10}>
             🔒 Tus datos están protegidos y nunca serán compartidos con terceros.
           </motion.div>
 
-          <motion.div className="auth-switch" variants={fadeUp} custom={10}>
+          <motion.div className="auth-switch" variants={fadeUp} custom={11}>
             ¿Ya tienes cuenta?{' '}
             <button className="auth-link" onClick={() => navigate('login')}>Inicia sesión</button>
           </motion.div>

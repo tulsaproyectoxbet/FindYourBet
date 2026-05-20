@@ -79,6 +79,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, isOwn
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', opacity: muted ? 0.6 : 1 }}>
             {channel.name}
+            {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)' }}>⚠️ Eliminado</span>}
             {muted && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400 }}>🔕 {muteLabel(muteKey)}</span>}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'flex', gap: '8px', opacity: muted ? 0.6 : 1 }}>

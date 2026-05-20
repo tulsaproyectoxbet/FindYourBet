@@ -1,32 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../../lib/supabase'
+import { usePolling } from '../../../../hooks/usePolling'
 
 export function useMessages(channelId) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const fetchMessages = useCallback(async () => {
+    if (!channelId) return
+    const { data } = await supabase
+      .from('channel_messages')
+      .select('*')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: true })
+      .limit(100)
+    if (data) {
+      setMessages(data)
+      setLoading(false)
+    }
+  }, [channelId])
+
   useEffect(() => {
     if (!channelId) { setLoading(false); return }
+    setLoading(true)
+    fetchMessages()
+  }, [channelId, fetchMessages])
 
-    let cancelled = false
-
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('channel_messages')
-        .select('*')
-        .eq('channel_id', channelId)
-        .order('created_at', { ascending: true })
-        .limit(100)
-      if (!cancelled && data) {
-        setMessages(data)
-        setLoading(false)
-      }
-    }
-
-    fetch()
-    const interval = setInterval(fetch, 2000)
-    return () => { cancelled = true; clearInterval(interval) }
-  }, [channelId])
+  usePolling(fetchMessages, 5000, !!channelId)
 
   const sendMessage = async (content, userId) => {
     if (!content.trim()) return

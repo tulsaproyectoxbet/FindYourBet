@@ -22,9 +22,13 @@ export function useChannels(user) {
 
   const fetchChannels = async () => {
     setLoading(true)
+    // Safety net: si una query es penja, mai deixar la UI atrapada en "Cargando"
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
+      // Canals propis: el propietari els ha eliminat → els amaguem (ja no els ha de veure)
       const { data: own } = await supabase
         .from('channels').select('*').eq('owner_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       setMyChannels(own || [])
 
@@ -32,9 +36,13 @@ export function useChannels(user) {
         .from('channel_members').select('channel_id, channels(*)')
         .eq('user_id', user.id)
 
+      // Canals on sóc membre: mostro els actius + els eliminats fa <3 dies perquè vegin
+      // el banner i puguin sortir. Després de 3 dies desapareixen automàticament del llistat.
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
       const joined = memberships
         ?.map(m => m.channels)
-        .filter(c => c && !(own || []).some(o => o.id === c.id)) || []
+        .filter(c => c && !(own || []).some(o => o.id === c.id))
+        .filter(c => !c.deleted_at || c.deleted_at > threeDaysAgo) || []
       setJoinedChannels(joined)
 
       const allChannels = [...(own || []), ...joined]
@@ -48,20 +56,40 @@ export function useChannels(user) {
       }
       setMemberCounts(counts)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }
 
   const createChannel = async (name, description, isPrivate = false) => {
-    if (!name.trim()) return { error: 'El nombre es obligatorio' }
+    const trimmed = name.trim()
+    if (!trimmed) return { error: 'El nombre es obligatorio' }
     if (myChannels.length >= MAX_OWN_CHANNELS) return { error: `Límite de ${MAX_OWN_CHANNELS} canales propios alcanzado` }
+
+    // Nom únic per canals públics (case-insensitive). Si està eliminat fa <7 dies
+    // i ets el propietari original, pots reutilitzar el nom. Si és un altre owner, bloquejat.
+    if (!isPrivate) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+      const { data: conflicts } = await supabase
+        .from('channels')
+        .select('id, owner_id, deleted_at')
+        .eq('is_private', false)
+        .ilike('name', trimmed)
+      const blocking = (conflicts || []).find(c => {
+        if (!c.deleted_at) return true                          // canal actiu → blocked
+        if (c.owner_id === user.id) return false                // l'has eliminat tu → pots tornar a usar-lo
+        if (c.deleted_at > sevenDaysAgo) return true            // un altre l'ha eliminat fa <7 dies → blocked
+        return false                                            // >7 dies, alliberat
+      })
+      if (blocking) return { error: 'Ese nombre de canal ya está en uso' }
+    }
 
     const invite_code = generateInviteCode()
 
     const { data, error } = await supabase
       .from('channels').insert({
         owner_id: user.id,
-        name: name.trim(),
+        name: trimmed,
         description: description.trim(),
         is_private: isPrivate,
         invite_code
@@ -75,10 +103,14 @@ export function useChannels(user) {
     return { data, error }
   }
 
-  const deleteChannel = async (channelId) => {
-    await supabase.from('channel_messages').delete().eq('channel_id', channelId)
-    await supabase.from('channel_members').delete().eq('channel_id', channelId)
-    await supabase.from('channels').delete().eq('id', channelId)
+  const deleteChannel = async (channelId, reason = null) => {
+    // Soft delete: marquem deleted_at + motiu opcional. Missatges i membres queden
+    // intactes perquè els picks segueixin accessibles via PostModal i els membres
+    // puguin sortir manualment durant 3 dies abans de l'ocultació automàtica.
+    await supabase.from('channels').update({
+      deleted_at: new Date().toISOString(),
+      deletion_reason: reason,
+    }).eq('id', channelId)
     setMyChannels(prev => prev.filter(c => c.id !== channelId))
   }
 
@@ -86,6 +118,7 @@ export function useChannels(user) {
     let q = supabase.from('channels')
       .select('*')
       .eq('is_private', false)
+      .is('deleted_at', null)
       .ilike('name', query.trim() ? `%${query}%` : '%')
       .limit(20)
 

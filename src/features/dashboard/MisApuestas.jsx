@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { hasMatchStarted } from './hooks/useBets'
+import PostModal from './feed/PostModal'
 import './dashboard.css'
 
 const SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'Béisbol', 'Fútbol Americano', 'eSports', 'MMA', 'Otros']
@@ -360,7 +361,7 @@ function EditBetModal({ bet, onSave, onClose }) {
 
 // ── Carta d'aposta ────────────────────────────────────────────────────────────
 
-function BetCard({ b, onResolveBet, onDeleteBet, onEditBet }) {
+function BetCard({ b, onResolveBet, onDeleteBet, onEditBet, onViewPost }) {
   const started = hasMatchStarted(b)
   const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending
   const isLive = b.status === 'pending' && started
@@ -370,8 +371,9 @@ function BetCard({ b, onResolveBet, onDeleteBet, onEditBet }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 16 }}
-      style={{ display: 'flex', background: 'var(--color-bg)', border: `0.5px solid ${isLive ? 'var(--color-warning)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', overflow: 'hidden', minWidth: 0 }}
-      whileHover={{ boxShadow: 'var(--shadow-sm)' }}>
+      style={{ display: 'flex', background: 'var(--color-bg)', border: `0.5px solid ${isLive ? 'var(--color-warning)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', overflow: 'hidden', minWidth: 0, cursor: 'pointer' }}
+      whileHover={{ boxShadow: 'var(--shadow-sm)' }}
+      onClick={() => onViewPost(b.id)}>
       <div style={{ width: '3px', flexShrink: 0, background: isLive ? 'var(--color-warning)' : cfg.accent }} />
       <div style={{ flex: 1, padding: '14px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
@@ -405,14 +407,14 @@ function BetCard({ b, onResolveBet, onDeleteBet, onEditBet }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: 'auto' }}>
           {canEdit && (
             <div style={{ display: 'flex', gap: '5px' }}>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={() => onEditBet(b)} style={{ flex: 1, background: 'var(--color-bg-soft)', color: 'var(--color-text)', border: '0.5px solid var(--color-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>✏️ Editar</motion.button>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={() => onDeleteBet(b.id)} style={{ flex: 1, background: 'var(--color-error-light)', color: 'var(--color-error)', border: '0.5px solid var(--color-error-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>🗑 Borrar</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onEditBet(b) }} style={{ flex: 1, background: 'var(--color-bg-soft)', color: 'var(--color-text)', border: '0.5px solid var(--color-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>✏️ Editar</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onDeleteBet(b.id) }} style={{ flex: 1, background: 'var(--color-error-light)', color: 'var(--color-error)', border: '0.5px solid var(--color-error-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>🗑 Borrar</motion.button>
             </div>
           )}
           {b.status === 'pending' && started && (
             <div style={{ display: 'flex', gap: '5px' }}>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={() => onResolveBet(b.id, 'won')} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✓ Win</motion.button>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={() => onResolveBet(b.id, 'lost')} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✗ Loss</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'won') }} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✓ Win</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✗ Loss</motion.button>
             </div>
           )}
         </div>
@@ -424,10 +426,11 @@ function BetCard({ b, onResolveBet, onDeleteBet, onEditBet }) {
 
 // ── Component principal ───────────────────────────────────────────────────────
 
-export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onResolveBet, onDeleteBet, onUpdateBet }) {
+export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onResolveBet, onDeleteBet, onUpdateBet, user }) {
   const [period, setPeriod] = useState('trimestral')
   const [offset, setOffset] = useState(0)
   const [editingBet, setEditingBet] = useState(null)
+  const [postModalBetId, setPostModalBetId] = useState(null)
 
   const handlePeriodChange = (p) => { setPeriod(p); setOffset(0) }
 
@@ -519,7 +522,7 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <AnimatePresence>
                 {bets.map(b => (
-                  <BetCard key={b.id} b={b} onResolveBet={onResolveBet} onDeleteBet={onDeleteBet} onEditBet={setEditingBet} />
+                  <BetCard key={b.id} b={b} onResolveBet={onResolveBet} onDeleteBet={onDeleteBet} onEditBet={setEditingBet} onViewPost={setPostModalBetId} />
                 ))}
               </AnimatePresence>
             </div>
@@ -533,6 +536,12 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
       <AnimatePresence>
         {editingBet && (
           <EditBetModal bet={editingBet} onSave={onUpdateBet} onClose={() => setEditingBet(null)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {postModalBetId && user && (
+          <PostModal betId={postModalBetId} currentUser={user} onClose={() => setPostModalBetId(null)} />
         )}
       </AnimatePresence>
 

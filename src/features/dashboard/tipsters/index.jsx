@@ -25,7 +25,7 @@ function Avatar({ url, name, size = 48, fontSize = 18 }) {
 function TipsterCard({ tipster, isFollowing, isMutual, onClick }) {
   const { stats } = tipster
   const tier = TIER_LABEL(stats.total, stats.yieldVal)
-  const displayName = tipster.name || tipster.username
+  const displayName = tipster.username
 
   return (
     <div onClick={onClick}

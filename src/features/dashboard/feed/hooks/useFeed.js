@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { insertNotification } from '../../notifications/useNotifications'
+import { usePolling } from '../../../../hooks/usePolling'
 
 function parseBet(content) {
   try {
@@ -72,6 +73,7 @@ export function useFeed(currentUserId) {
 
   const fetchFeed = async () => {
     if (!currentUserId) return
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
       const { data: memberships } = await supabase
         .from('channel_members')
@@ -117,6 +119,7 @@ export function useFeed(currentUserId) {
     } catch (e) {
       // silent
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }
@@ -124,9 +127,9 @@ export function useFeed(currentUserId) {
   useEffect(() => {
     if (!currentUserId) return
     fetchFeed()
-    const interval = setInterval(fetchFeed, 30000)
-    return () => clearInterval(interval)
-  }, [currentUserId])
+  }, [currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  usePolling(fetchFeed, 60000, !!currentUserId)
 
   const toggleLike = async (messageId, currentlyLiked) => {
     const update = feed => feed.map(p =>

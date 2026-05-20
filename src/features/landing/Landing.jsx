@@ -350,7 +350,7 @@ export default function Landing({ navigate, user }) {
               </Button>
               <div className="nav-user-chip">
                 <span className="nav-user-dot" />
-                <span className="nav-user-name">{user.name}</span>
+                <span className="nav-user-name">{user.username || user.email}</span>
               </div>
             </>
           ) : (

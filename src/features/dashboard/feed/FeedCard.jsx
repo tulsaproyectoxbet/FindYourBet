@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ForwardModal from '../social/ForwardModal'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -29,17 +30,23 @@ function ActionBtn({ icon, label, onClick, active }) {
   )
 }
 
-export default function FeedCard({ post, currentUserId, onLike, onComment, onNavigateToChannel, onReport }) {
+export default function FeedCard({ post, currentUser, onLike, onComment, onNavigateToChannel, onReport }) {
   const [showComments, setShowComments] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showForward, setShowForward] = useState(false)
   const [comments, setComments] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [loadingComments, setLoadingComments] = useState(false)
-  const [shared, setShared] = useState(false)
 
   const { bet, profile, channel, likeCount, commentCount, hasLiked, created_at } = post
   const cfg = STATUS_CFG[bet?.status] ?? STATUS_CFG.pending
   const initials = (profile?.username || '?')[0].toUpperCase()
+
+  const forwardContent = `[BET]:${JSON.stringify({
+    id: bet?.id, event: bet?.event, pick: bet?.pick,
+    odds: bet?.odds, stake: bet?.stake, sport: bet?.sport,
+    market: bet?.market, date: bet?.date, status: bet?.status
+  })}`
 
   const handleOpenComments = async () => {
     setShowComments(true)
@@ -58,20 +65,11 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
     await onComment.add(post.id, text)
     setComments(prev => [...(prev || []), {
       id: `tmp-${Date.now()}`,
-      user_id: currentUserId,
+      user_id: currentUser?.id,
       content: text,
       created_at: new Date().toISOString(),
       profile: null,
     }])
-  }
-
-  const handleShare = () => {
-    const url = channel?.invite_code
-      ? `${window.location.origin}/dashboard?canal=${channel.invite_code}`
-      : window.location.href
-    navigator.clipboard.writeText(url)
-    setShared(true)
-    setTimeout(() => setShared(false), 2000)
   }
 
   return (
@@ -88,7 +86,7 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
               : initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.2 }}>@{profile?.username || 'usuario'}</div>
+            <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.2 }}>{profile?.username || 'usuario'}</div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
               <span>{timeAgo(created_at)}</span>
               {channel && (
@@ -96,7 +94,7 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
                   <span>·</span>
                   <button onClick={() => onNavigateToChannel?.(channel)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', color: 'var(--color-primary)', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
-                    #{channel.name}
+                    {channel.name}
                   </button>
                 </>
               )}
@@ -162,7 +160,7 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '6px 8px 10px', borderTop: '0.5px solid var(--color-border)' }}>
           <ActionBtn active={hasLiked} icon={hasLiked ? '❤️' : '🤍'} label={likeCount || ''} onClick={() => onLike(post.id, hasLiked)} />
           <ActionBtn icon="💬" label={commentCount || ''} onClick={handleOpenComments} />
-          <ActionBtn icon={shared ? '✓' : '🔗'} label={shared ? 'Copiado' : 'Compartir'} onClick={handleShare} active={shared} />
+          <ActionBtn icon="↩" label="Reenviar" onClick={() => setShowForward(true)} />
           {channel && (
             <button onClick={() => onNavigateToChannel?.(channel)}
               style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-sans)' }}>
@@ -184,7 +182,6 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
               transition={{ type: 'spring', damping: 30, stiffness: 320 }}
               style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 51, background: 'var(--color-bg)', borderRadius: '20px 20px 0 0', padding: '0 0 16px', maxHeight: '65vh', display: 'flex', flexDirection: 'column' }}>
 
-              {/* Handle */}
               <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
                 <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: 'var(--color-border)' }} />
               </div>
@@ -212,7 +209,7 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '2px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700 }}>@{c.profile?.username || 'usuario'}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700 }}>{c.profile?.username || 'usuario'}</span>
                         <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{timeAgo(c.created_at)}</span>
                       </div>
                       <div style={{ fontSize: '13px', lineHeight: 1.5, color: 'var(--color-text)' }}>{c.content}</div>
@@ -233,6 +230,18 @@ export default function FeedCard({ post, currentUserId, onLike, onComment, onNav
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* FORWARD MODAL */}
+      <AnimatePresence>
+        {showForward && (
+          <ForwardModal
+            content={forwardContent}
+            fromChannelName={channel?.name || ''}
+            currentUser={currentUser}
+            onClose={() => setShowForward(false)}
+          />
         )}
       </AnimatePresence>
     </>

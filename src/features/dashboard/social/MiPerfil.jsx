@@ -309,8 +309,8 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
     <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)' }}>⏳ Cargando perfil...</div>
   )
 
-  const username = profile?.username || user?.name || 'Usuario'
-  const displayName = profile?.name || username
+  const username = profile?.username || 'Usuario'
+  const displayName = username
   const avatarUrl = profile?.avatar_url || null
 
   const tierLabel = stats.total >= 150 && stats.yieldVal >= 15 ? '💎 Elite'
@@ -381,8 +381,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
             )}
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: '2px' }}>{displayName}</div>
-          <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: profile?.bio ? '8px' : '16px' }}>@{username}</div>
+          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile?.bio ? '8px' : '16px' }}>@{username}</div>
           {profile?.bio && (
             <div style={{ fontSize: '14px', color: 'var(--color-text-soft)', marginBottom: '16px', lineHeight: 1.5 }}>{profile.bio}</div>
           )}

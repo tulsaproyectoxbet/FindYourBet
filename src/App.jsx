@@ -79,22 +79,30 @@ function AppRoutes() {
 
   const buildUser = async (authUser) => {
     let profile = null
+    let profileConfirmed = false
     try {
       const res = await Promise.race([
         supabase.from('profiles').select('avatar_url, username, name').eq('id', authUser.id).maybeSingle(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('profile-timeout')), 6000))
       ])
-      profile = res?.data || null
+      if (res?.error) {
+        console.warn('[buildUser] profile query error:', res.error)
+      } else {
+        profileConfirmed = true
+        profile = res?.data || null
+      }
     } catch (e) {
       console.warn('[buildUser] profile fetch failed, falling back to metadata:', e?.message)
     }
     return {
       id: authUser.id,
-      name: profile?.name || authUser.user_metadata?.name || authUser.email,
+      name: profile?.username || authUser.email,
       username: profile?.username || null,
       email: authUser.email,
       avatar_url: profile?.avatar_url || authUser.user_metadata?.avatar_url || null,
-      needsOnboarding: !profile?.username,
+      // Si la query del perfil ha fallat (timeout, error, etc.) NO assumim que falti
+      // l'onboarding — això causava redirects falsos en cada esdeveniment de Supabase.
+      needsOnboarding: profileConfirmed && !profile?.username,
     }
   }
 
@@ -123,7 +131,7 @@ function AppRoutes() {
           await supabase.auth.signOut()
         } else if (session?.user) {
           try { setUser(await buildUser(session.user)) } catch {
-            setUser({ id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email, avatar_url: null })
+            setUser({ id: session.user.id, name: session.user.email, email: session.user.email, avatar_url: null })
           }
         }
       } catch {
@@ -140,7 +148,7 @@ function AppRoutes() {
       // ha de re-avaluar needsOnboarding perquè pot arribar amb perfil incomplet.
       if (_event === 'INITIAL_SESSION' || _event === 'TOKEN_REFRESHED') return
       if (session?.user) {
-        try { setUser(await buildUser(session.user)) } catch { setUser({ id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email, avatar_url: null }) }
+        try { setUser(await buildUser(session.user)) } catch { setUser({ id: session.user.id, name: session.user.email, email: session.user.email, avatar_url: null }) }
       } else {
         setUser(null)
       }

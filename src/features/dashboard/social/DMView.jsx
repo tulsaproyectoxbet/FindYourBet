@@ -309,8 +309,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
               : (conversation.otherUsername || '?')[0].toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '15px' }}>{conversation.otherName || conversation.otherUsername}</div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{conversation.otherUsername}</div>
+            <div style={{ fontWeight: 700, fontSize: '15px' }}>{conversation.otherUsername}</div>
           </div>
         </div>
         <div style={{ position: 'relative' }}>

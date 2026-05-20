@@ -82,8 +82,7 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
                   {u.avatar_url ? <img src={u.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (u.username || '?')[0].toUpperCase()}
                 </div>
                 <div onClick={() => { onViewProfile?.(u.id); onClose() }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name || u.username}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{u.username}</div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{u.username}</div>
                 </div>
                 {!isOwn && (
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>

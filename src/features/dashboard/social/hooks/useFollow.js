@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../../lib/supabase'
+import { insertNotification } from '../../notifications/useNotifications'
 
 export function useFollow(currentUserId) {
   const [following, setFollowing] = useState([]) // IDs que segueixo
@@ -27,9 +28,10 @@ export function useFollow(currentUserId) {
     }
   }
 
-  const follow = async (userId) => {
+  const follow = async (userId, fromUsername) => {
     await supabase.from('follows').insert({ follower_id: currentUserId, following_id: userId })
     setFollowing(prev => [...prev, userId])
+    await insertNotification({ userId, type: 'follow', fromUserId: currentUserId, fromUsername: fromUsername || 'alguien' })
   }
 
   const unfollow = async (userId) => {
