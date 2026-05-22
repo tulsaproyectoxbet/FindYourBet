@@ -112,8 +112,27 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, isOwn
           {channel.avatar_url ? <img src={channel.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : channel.name[0].toUpperCase()}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', opacity: muted ? 0.6 : 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', opacity: muted ? 0.6 : 1 }}>
             {channel.name}
+            {/* Badge de tipus de canal VIP — mostra el preu si en té */}
+            {channel.channel_type === 'vip_monthly' && (
+              <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', border: '0.5px solid rgba(245,158,11,0.35)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>
+                📅 VIP Mensual{channel.price ? ` · ${channel.price}€` : ''}
+              </span>
+            )}
+            {channel.channel_type === 'vip_weekly' && (
+              <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', border: '0.5px solid rgba(245,158,11,0.35)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>
+                📅 VIP Semanal{channel.price ? ` · ${channel.price}€` : ''}
+              </span>
+            )}
+            {channel.channel_type === 'stakazo' && (
+              <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '0.5px solid rgba(99,102,241,0.35)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>
+                ⚡ Stakazo{channel.price ? ` · ${channel.price}€` : ''}
+              </span>
+            )}
+            {channel.channel_type === 'free_private' && (
+              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', border: '0.5px solid var(--color-border)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>🔒 Privado</span>
+            )}
             {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)' }}>⚠️ Eliminado</span>}
             {muted && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400 }}>🔕 {muteLabel(muteKey)}</span>}
             {lastMessage && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400 }}>{timeAgo(lastMessage.created_at)}</span>}

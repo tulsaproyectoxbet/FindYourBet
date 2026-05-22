@@ -110,6 +110,8 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
       .select('user_id, odds, stake, status, date, sport, was_private, channel_id')
       .neq('status', 'pending')
       .eq('was_private', scope === 'private')
+      // Exclou picks suspesos o invalidats — no compten fins que l'admin els validi
+      .not('review_status', 'in', '("review","invalid")')
       .limit(2000)
     if (range) {
       query = query.gte('date', range.start.toISOString()).lte('date', range.end.toISOString())
@@ -346,13 +348,292 @@ export function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodo
   )
 }
 
+// Hook per al ranking de canals VIP (mensuals o setmanals).
+// Agrupa les apostes per channel_id i calcula stats per canal.
+// Mín. 5 picks resolts per aparèixer (menys que el rànking públic perquè els VIP
+// solen tenir menys volum però tots pagats → mostra valor ràpidament).
+const MIN_VIP_BETS = 5
+function useVipRanking(vipType) {
+  const [ranking, setRanking] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true)
+      try {
+        // 1. Obté tots els canals VIP del tipus seleccionat
+        const { data: channels } = await supabase
+          .from('channels')
+          .select('id, name, owner_id, price, avatar_url')
+          .eq('channel_type', vipType)
+          .is('deleted_at', null)
+
+        if (!channels?.length) { setRanking([]); setLoading(false); return }
+
+        const channelIds = channels.map(c => c.id)
+        const ownerIds = [...new Set(channels.map(c => c.owner_id))]
+
+        // 2. Obté les apostes d'aquests canals i els perfils dels propietaris
+        const [{ data: bets }, { data: profiles }] = await Promise.all([
+          supabase.from('bets')
+            .select('channel_id, status, stake, odds')
+            .in('channel_id', channelIds)
+            .in('status', ['won', 'lost'])
+            .limit(2000),
+          supabase.from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', ownerIds),
+        ])
+
+        const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+
+        // 3. Agrupa per canal i calcula mètriques
+        const byChannel = {}
+        for (const b of bets || []) {
+          if (!byChannel[b.channel_id]) byChannel[b.channel_id] = []
+          byChannel[b.channel_id].push(b)
+        }
+
+        const entries = channels.map(c => {
+          const channelBets = byChannel[c.id] || []
+          if (channelBets.length < MIN_VIP_BETS) return null
+          const won = channelBets.filter(b => b.status === 'won').length
+          const lost = channelBets.filter(b => b.status === 'lost').length
+          const { profit, stakeSum } = channelBets.reduce(
+            (acc, b) => ({
+              stakeSum: acc.stakeSum + b.stake,
+              profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake),
+            }),
+            { profit: 0, stakeSum: 0 }
+          )
+          const yieldVal = stakeSum > 0 ? (profit / stakeSum) * 100 : 0
+          const avgOdds = channelBets.length > 0
+            ? (channelBets.reduce((s, b) => s + b.odds, 0) / channelBets.length).toFixed(2)
+            : '—'
+          const winRate = channelBets.length > 0 ? (won / channelBets.length) * 100 : 0
+          const profile = profileMap[c.owner_id]
+          return { channelId: c.id, channelName: c.name, price: c.price, ownerId: c.owner_id, username: profile?.username ?? '?', bets: channelBets.length, won, lost, yieldVal, avgOdds, winRate }
+        }).filter(Boolean).sort((a, b) => b.yieldVal - a.yieldVal)
+
+        setRanking(entries)
+      } catch { /* silent */ } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+    const interval = setInterval(fetch, 60000)
+    return () => clearInterval(interval)
+  }, [vipType])
+
+  return { ranking, loading }
+}
+
+// Hook per al ranking de Stakazos — agrupa per tipster (owner_id) a través de
+// tots els seus canals de tipus 'stakazo'. No és un ranking de canals sinó de
+// l'historial acumulat del tipster venent picks puntuals.
+function useStakazoRanking() {
+  const [ranking, setRanking] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true)
+      try {
+        const { data: channels } = await supabase
+          .from('channels')
+          .select('id, owner_id')
+          .eq('channel_type', 'stakazo')
+          .is('deleted_at', null)
+
+        if (!channels?.length) { setRanking([]); setLoading(false); return }
+
+        const channelIds = channels.map(c => c.id)
+        const channelOwnerMap = Object.fromEntries(channels.map(c => [c.id, c.owner_id]))
+        const ownerIds = [...new Set(channels.map(c => c.owner_id))]
+
+        const [{ data: bets }, { data: profiles }] = await Promise.all([
+          supabase.from('bets')
+            .select('channel_id, status, stake, odds')
+            .in('channel_id', channelIds)
+            .in('status', ['won', 'lost'])
+            .limit(2000),
+          supabase.from('profiles')
+            .select('id, username')
+            .in('id', ownerIds),
+        ])
+
+        const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+
+        // Agrupa apostes per tipster (owner_id del canal)
+        const byOwner = {}
+        for (const b of bets || []) {
+          const ownerId = channelOwnerMap[b.channel_id]
+          if (!ownerId) continue
+          if (!byOwner[ownerId]) byOwner[ownerId] = []
+          byOwner[ownerId].push(b)
+        }
+
+        const entries = Object.entries(byOwner).map(([ownerId, ownerBets]) => {
+          if (ownerBets.length === 0) return null
+          const won = ownerBets.filter(b => b.status === 'won').length
+          const lost = ownerBets.filter(b => b.status === 'lost').length
+          const winRate = (won / ownerBets.length) * 100
+          const avgOdds = (ownerBets.reduce((s, b) => s + b.odds, 0) / ownerBets.length).toFixed(2)
+          // Benefici mig per comprador: profit per pick / nombre de stakazos venuts
+          const totalProfit = ownerBets.reduce(
+            (acc, b) => acc + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake), 0
+          )
+          const avgProfit = ownerBets.length > 0 ? (totalProfit / ownerBets.length).toFixed(2) : '0'
+          return { ownerId, username: profileMap[ownerId]?.username ?? '?', bets: ownerBets.length, won, lost, winRate, avgOdds, avgProfit }
+        }).filter(Boolean).sort((a, b) => b.winRate - a.winRate || b.bets - a.bets)
+
+        setRanking(entries)
+      } catch { /* silent */ } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+    const interval = setInterval(fetch, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return { ranking, loading }
+}
+
+// Component reutilitzable per als rows del ranking VIP i Stakazo
+function RankRow({ pos, left, right }) {
+  return (
+    <motion.div className="ranking-item" variants={fadeUp} layout whileHover={{ x: 4, transition: { duration: 0.2 } }}>
+      <div className={`rank-pos ${pos === 0 ? 'top1' : pos === 1 ? 'top2' : pos === 2 ? 'top3' : ''}`}>#{pos + 1}</div>
+      <div className="tipster-info-rank" style={{ flex: 1 }}>{left}</div>
+      <div className="rank-metrics">{right}</div>
+    </motion.div>
+  )
+}
+
+function VipRankingTab({ vipType, user, openProfile }) {
+  const { ranking, loading } = useVipRanking(vipType)
+  const label = vipType === 'vip_monthly' ? 'mensual' : 'semanal'
+
+  if (loading) return <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando...</div></div>
+  if (!ranking.length) return (
+    <div className="empty-state">
+      <div className="empty-icon">📅</div>
+      <div className="empty-title">Sin datos aún</div>
+      <div className="empty-sub">Los canales VIP {label}es necesitan mín. {MIN_VIP_BETS} picks resueltos para aparecer.</div>
+    </div>
+  )
+  return (
+    <motion.div className="ranking-list" initial="hidden" animate="visible" variants={stagger}>
+      {ranking.map((t, i) => (
+        <RankRow key={t.channelId} pos={i}
+          left={
+            <>
+              <div className="tipster-name-rank" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span onClick={() => openProfile(t.ownerId)} style={{ cursor: 'pointer' }}>{t.channelName}</span>
+                {t.price && <span style={{ fontSize: '10px', color: 'var(--color-warning)', background: 'rgba(245,158,11,0.12)', border: '0.5px solid rgba(245,158,11,0.3)', padding: '1px 7px', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>{t.price}€/{label === 'mensual' ? 'mes' : 'sem'}</span>}
+                {user?.id === t.ownerId && <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>Tu</span>}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
+                {t.username} · {t.bets} picks resueltos
+              </div>
+            </>
+          }
+          right={
+            <>
+              <div className="rank-metric">
+                <div className={`rank-metric-val ${t.yieldVal >= 0 ? '' : 'red'}`}>{t.yieldVal >= 0 ? '+' : ''}{t.yieldVal.toFixed(1)}%</div>
+                <div className="rank-metric-label">Yield</div>
+              </div>
+              <div className="rank-metric">
+                <div className="rank-metric-val neutral">{t.won}/{t.lost}</div>
+                <div className="rank-metric-label">W/L</div>
+              </div>
+              <div className="rank-metric">
+                <div className="rank-metric-val neutral">{t.winRate.toFixed(0)}%</div>
+                <div className="rank-metric-label">Acierto</div>
+              </div>
+              <div className="rank-metric">
+                <div className="rank-metric-val neutral">{t.avgOdds}</div>
+                <div className="rank-metric-label">Cuota</div>
+              </div>
+            </>
+          }
+        />
+      ))}
+    </motion.div>
+  )
+}
+
+function StakazoRankingTab({ user, openProfile }) {
+  const { ranking, loading } = useStakazoRanking()
+
+  if (loading) return <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando...</div></div>
+  if (!ranking.length) return (
+    <div className="empty-state">
+      <div className="empty-icon">⚡</div>
+      <div className="empty-title">Sin datos aún</div>
+      <div className="empty-sub">El historial de Stakazos aparecerá aquí cuando los tipsters resuelvan sus picks.</div>
+    </div>
+  )
+  return (
+    <motion.div className="ranking-list" initial="hidden" animate="visible" variants={stagger}>
+      {ranking.map((t, i) => (
+        <RankRow key={t.ownerId} pos={i}
+          left={
+            <>
+              <div className="tipster-name-rank" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span onClick={() => openProfile(t.ownerId)} style={{ cursor: 'pointer' }}>{t.username}</span>
+                {user?.id === t.ownerId && <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>Tu</span>}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '3px' }}>{t.bets} stakazos · beneficio mínimo promedio/pick</div>
+            </>
+          }
+          right={
+            <>
+              <div className="rank-metric">
+                <div className="rank-metric-val">{t.winRate.toFixed(0)}%</div>
+                <div className="rank-metric-label">Acierto</div>
+              </div>
+              <div className="rank-metric">
+                <div className="rank-metric-val neutral">{t.won}/{t.lost}</div>
+                <div className="rank-metric-label">W/L</div>
+              </div>
+              <div className="rank-metric">
+                <div className="rank-metric-val neutral">{t.avgOdds}</div>
+                <div className="rank-metric-label">Cuota</div>
+              </div>
+              <div className="rank-metric">
+                <div className={`rank-metric-val ${parseFloat(t.avgProfit) >= 0 ? '' : 'red'}`}>{parseFloat(t.avgProfit) >= 0 ? '+' : ''}{t.avgProfit}u</div>
+                <div className="rank-metric-label">Profit/pick</div>
+              </div>
+            </>
+          }
+        />
+      ))}
+    </motion.div>
+  )
+}
+
+// Sub-pestanyes del bloc Privado
+const PRIVATE_SUBTABS = [
+  { id: 'vip_monthly', label: '📅 VIP Mensual' },
+  { id: 'vip_weekly',  label: '📅 VIP Semanal' },
+  { id: 'stakazo',     label: '⚡ Stakazos' },
+]
+
 export default function Ranking({ user }) {
   const openProfile = useProfileNav()
+  // bloc: 'public' | 'private' — els 2 grans blocs del ranking
+  const [bloc, setBloc] = useState('public')
+  // subTab: sub-pestanya dins del bloc Privado
+  const [subTab, setSubTab] = useState('vip_monthly')
   const [period, setPeriod] = useState('trimestral')
   const [selectedSports, setSelectedSports] = useState([])
-  const [scope, setScope] = useState('public')
   const [hideMe, setHideMe] = useState(false)
-  const { ranking, loading } = useRanking(period, selectedSports, scope)
+  // El ranking públic s'obté per tipster. El privat té els seus propis hooks
+  // (per canal VIP o per tipster acumulat de stakazos).
+  const { ranking, loading } = useRanking(period, selectedSports, 'public')
 
   useEffect(() => {
     if (!user?.id) return
@@ -382,109 +663,114 @@ export default function Ranking({ user }) {
 
       <div className="page-header">
         <h2>Ranking</h2>
-        <p>Clasificación por Yield. Mínimo {MIN_BETS} apuestas resueltas para aparecer.</p>
+        <p>Clasificación de tipsters y canales por rendimiento.</p>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px' }}>
-          {[
-            { id: 'public',  label: '🌐 Público',  desc: 'Tipsters de canales gratuitos' },
-            { id: 'private', label: '💎 Premium', desc: 'Tipsters de canales de pago' },
-          ].map(s => (
-            <button key={s.id} onClick={() => setScope(s.id)} title={s.desc}
-              style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: scope === s.id ? 'var(--color-primary)' : 'transparent', color: scope === s.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-
+      {/* Selector principal: Público / Privado */}
+      <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', marginBottom: '20px', width: 'fit-content' }}>
+        {[
+          { id: 'public',  label: '🌐 Público' },
+          { id: 'private', label: '🔒 Privado' },
+        ].map(b => (
+          <button key={b.id} onClick={() => setBloc(b.id)}
+            style={{ padding: '9px 22px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', background: bloc === b.id ? 'var(--color-primary)' : 'transparent', color: bloc === b.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+            {b.label}
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <PeriodDropdown period={period} setPeriod={setPeriod} />
-        <SportDropdown
-          selectedSports={selectedSports}
-          toggleSport={toggleSport}
-          onSelectAll={() => setSelectedSports([])}
-          isTodos={isTodos}
-        />
-      </div>
+      {/* ── BLOC PÚBLIC ── */}
+      {bloc === 'public' && (
+        <>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <PeriodDropdown period={period} setPeriod={setPeriod} />
+            <SportDropdown
+              selectedSports={selectedSports}
+              toggleSport={toggleSport}
+              onSelectAll={() => setSelectedSports([])}
+              isTodos={isTodos}
+            />
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+            Mín. {MIN_BETS} apuestas resueltas · Mostrando: <strong style={{ color: 'var(--color-text)' }}>{periodLabel}</strong>
+            {!isTodos && <> · <strong style={{ color: 'var(--color-primary)' }}>{selectedSports.join(' + ')}</strong></>}
+          </div>
 
-      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-        Mostrando: <strong style={{ color: 'var(--color-text)' }}>{periodLabel}</strong>
-        {!isTodos && <> · <strong style={{ color: 'var(--color-primary)' }}>{selectedSports.join(' + ')}</strong></>}
-        {!isTodos && <span style={{ marginLeft: '6px' }}>— mejor combinación con mín. {MIN_BETS} apuestas por deporte</span>}
-      </div>
-
-      {loading ? (
-        <div className="empty-state">
-          <div className="empty-icon">⏳</div>
-          <div>Cargando ranking...</div>
-        </div>
-      ) : ranking.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">🏆</div>
-          <div className="empty-title">Sin datos para este filtro</div>
-          <div className="empty-sub">Prueba con otro período o deporte.</div>
-        </div>
-      ) : (
-        <AnimatePresence>
-          <motion.div className="ranking-list" initial="hidden" animate="visible" variants={stagger}>
-            {ranking.map((t, i) => {
-              return (
-                <motion.div key={t.userId} className="ranking-item" variants={fadeUp}
-                  layout whileHover={{ x: 4, transition: { duration: 0.2 } }}>
-
-                  <div className={`rank-pos ${i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : ''}`}>
-                    #{i + 1}
-                  </div>
-
-                  <div className="tipster-info-rank">
-                    <div className="tipster-name-rank" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span onClick={() => openProfile(t.userId)} style={{ cursor: 'pointer' }}>{t.username}</span>
-                      {user?.id === t.userId && (
-                        <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>
-                          Tu
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                      <span className="tipster-user-rank" style={{ margin: 0 }}>{t.bets} apuestas resueltas</span>
-                      {t.usedSports?.map(s => (
-                        <span key={s} style={{ fontSize: '10px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                          {SPORT_ICONS[s]} {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rank-metrics">
-                    <div className="rank-metric">
-                      <div className={`rank-metric-val ${t.yieldVal >= 0 ? '' : 'red'}`}>
-                        {t.yieldVal >= 0 ? '+' : ''}{t.yieldVal.toFixed(1)}%
+          {loading ? (
+            <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando ranking...</div></div>
+          ) : ranking.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🏆</div>
+              <div className="empty-title">Sin datos para este filtro</div>
+              <div className="empty-sub">Prueba con otro período o deporte.</div>
+            </div>
+          ) : (
+            <AnimatePresence>
+              <motion.div className="ranking-list" initial="hidden" animate="visible" variants={stagger}>
+                {ranking.map((t, i) => (
+                  <motion.div key={t.userId} className="ranking-item" variants={fadeUp}
+                    layout whileHover={{ x: 4, transition: { duration: 0.2 } }}>
+                    <div className={`rank-pos ${i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : ''}`}>#{i + 1}</div>
+                    <div className="tipster-info-rank">
+                      <div className="tipster-name-rank" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span onClick={() => openProfile(t.userId)} style={{ cursor: 'pointer' }}>{t.username}</span>
+                        {user?.id === t.userId && (
+                          <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>Tu</span>
+                        )}
                       </div>
-                      <div className="rank-metric-label">Yield</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        <span className="tipster-user-rank" style={{ margin: 0 }}>{t.bets} apuestas resueltas</span>
+                        {t.usedSports?.map(s => (
+                          <span key={s} style={{ fontSize: '10px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                            {SPORT_ICONS[s]} {s}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div className="rank-metric">
-                      <div className="rank-metric-val neutral">{t.won}/{t.lost}</div>
-                      <div className="rank-metric-label">W/L</div>
+                    <div className="rank-metrics">
+                      <div className="rank-metric">
+                        <div className={`rank-metric-val ${t.yieldVal >= 0 ? '' : 'red'}`}>{t.yieldVal >= 0 ? '+' : ''}{t.yieldVal.toFixed(1)}%</div>
+                        <div className="rank-metric-label">Yield</div>
+                      </div>
+                      <div className="rank-metric">
+                        <div className="rank-metric-val neutral">{t.won}/{t.lost}</div>
+                        <div className="rank-metric-label">W/L</div>
+                      </div>
+                      <div className="rank-metric">
+                        <div className="rank-metric-val neutral">{t.avgOdds}</div>
+                        <div className="rank-metric-label">Cuota</div>
+                      </div>
+                      <div className="rank-metric">
+                        <div className="rank-metric-val neutral">{t.habitualStake}</div>
+                        <div className="rank-metric-label">Stake<br/>usual</div>
+                      </div>
                     </div>
-                    <div className="rank-metric">
-                      <div className="rank-metric-val neutral">{t.avgOdds}</div>
-                      <div className="rank-metric-label">Cuota</div>
-                    </div>
-                    <div className="rank-metric">
-                      <div className="rank-metric-val neutral">{t.habitualStake}</div>
-                      <div className="rank-metric-label">Stake<br/>usual</div>
-                    </div>
-                  </div>
-
-                </motion.div>
-              )
-            })}
-          </motion.div>
-        </AnimatePresence>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </>
       )}
+
+      {/* ── BLOC PRIVAT ── sub-pestanyes VIP Mensual / VIP Semanal / Stakazos */}
+      {bloc === 'private' && (
+        <>
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '0.5px solid var(--color-border)', paddingBottom: '0' }}>
+            {PRIVATE_SUBTABS.map(t => (
+              <button key={t.id} onClick={() => setSubTab(t.id)}
+                style={{ padding: '8px 16px', border: 'none', borderBottom: `2px solid ${subTab === t.id ? 'var(--color-primary)' : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: subTab === t.id ? 700 : 500, fontFamily: 'var(--font-sans)', color: subTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {subTab === 'vip_monthly' && <VipRankingTab vipType="vip_monthly" user={user} openProfile={openProfile} />}
+          {subTab === 'vip_weekly'  && <VipRankingTab vipType="vip_weekly"  user={user} openProfile={openProfile} />}
+          {subTab === 'stakazo'     && <StakazoRankingTab user={user} openProfile={openProfile} />}
+        </>
+      )}
+
     </motion.div>
   )
 }

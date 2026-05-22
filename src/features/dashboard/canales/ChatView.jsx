@@ -32,11 +32,16 @@ import { insertNotification } from '../notifications/useNotifications'
 function isLinkMessage(content) { return content.startsWith('http://') || content.startsWith('https://') }
 
 // liveStatuses: map { betId → status } amb l'estat actual de la BD
-function calcChannelStats(messages, liveStatuses = {}) {
+// liveReviewStatuses: map { betId → review_status }
+// Picks en 'review' o 'invalid' queden exclosos de les estadístiques del canal.
+function calcChannelStats(messages, liveStatuses = {}, liveReviewStatuses = {}) {
   const betMessages = messages.filter(m => isBetMessage(m.content))
   const bets = betMessages.map(m => parseBetMessage(m.content)).filter(Boolean)
   // Substitueix l'status incrustat (sempre 'pending') pel de la BD si existeix
-  const enriched = bets.map(b => ({ ...b, status: liveStatuses[b.id] ?? b.status }))
+  const enriched = bets
+    .map(b => ({ ...b, status: liveStatuses[b.id] ?? b.status, reviewStatus: liveReviewStatuses[b.id] ?? null }))
+    // Exclou picks suspesos o invalidats de les estadístiques
+    .filter(b => b.reviewStatus !== 'review' && b.reviewStatus !== 'invalid')
   const resolved = enriched.filter(b => b.status !== 'pending')
   const won = enriched.filter(b => b.status === 'won').length
   const lost = enriched.filter(b => b.status === 'lost').length
@@ -637,6 +642,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   const isDeleted = !!channel.deleted_at
   const [isAdmin, setIsAdmin] = useState(false)
   const [liveBetStatuses, setLiveBetStatuses] = useState({})
+  const [liveBetReviewStatuses, setLiveBetReviewStatuses] = useState({})
   const [deletedMessageIds, setDeletedMessageIds] = useState(new Set())
   const [profileModal, setProfileModal] = useState(null)
   const [hoveredMsgId, setHoveredMsgId] = useState(null)
@@ -669,14 +675,16 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   useEffect(() => {
     if (!betIdsKey) { setLiveBetStatuses({}); return }
     const betIds = betIdsKey.split(',')
-    supabase.from('bets').select('id, status').in('id', betIds)
+    // Obté status i review_status per actualitzar estadístiques en temps real
+    supabase.from('bets').select('id, status, review_status').in('id', betIds)
       .then(({ data }) => {
         if (!data) return
         setLiveBetStatuses(Object.fromEntries(data.map(b => [b.id, b.status])))
+        setLiveBetReviewStatuses(Object.fromEntries(data.map(b => [b.id, b.review_status ?? null])))
       })
   }, [betIdsKey])
 
-  const channelStats = calcChannelStats(messages, liveBetStatuses)
+  const channelStats = calcChannelStats(messages, liveBetStatuses, liveBetReviewStatuses)
 
   useEffect(() => {
     if (!user?.id || isOwner || user.id === 'dev-skip') return
@@ -1029,7 +1037,9 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                             messageId={m.id}
                             bet={parseBetMessage(displayContent)}
                             liveStatus={liveBetStatuses[parseBetMessage(displayContent)?.id]}
+                            liveReviewStatus={liveBetReviewStatuses[parseBetMessage(displayContent)?.id]}
                             currentUser={user}
+                            isOwner={isOwn}
                             onOpenPost={() => setPostModalMessageId(m.id)}
                             timeStr={timeStr}
                             viewCount={m.view_count || 0}

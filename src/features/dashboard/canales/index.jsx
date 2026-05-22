@@ -22,7 +22,9 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
   const [showCreate, setShowCreate] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [suggestedChannels, setSuggestedChannels] = useState([])
-  const [createForm, setCreateForm] = useState({ name: '', description: '', isPrivate: false })
+  // channelType: 'public' | 'free_private' | 'vip_weekly' | 'vip_monthly' | 'stakazo'
+  // price/discountPrice en EUR. El tipster els posa al crear el canal i no es poden canviar.
+  const [createForm, setCreateForm] = useState({ name: '', description: '', channelType: 'public', price: '', discountPrice: '' })
   const [createError, setCreateError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -85,9 +87,15 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
 
   const handleCreate = async () => {
     setCreateError('')
-    const result = await createChannel(createForm.name, createForm.description, createForm.isPrivate)
+    const result = await createChannel(
+      createForm.name,
+      createForm.description,
+      createForm.channelType,
+      createForm.price || null,
+      createForm.discountPrice || null,
+    )
     if (result?.error) { setCreateError(result.error); return }
-    setCreateForm({ name: '', description: '', isPrivate: false })
+    setCreateForm({ name: '', description: '', channelType: 'public', price: '', discountPrice: '' })
     setShowCreate(false)
   }
 
@@ -232,30 +240,70 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
                 onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
                 style={inputStyle} />
             </div>
-            <div style={{ marginBottom: '20px', padding: '14px', background: 'rgba(245,158,11,0.1)', borderRadius: 'var(--radius-md)', border: '0.5px solid rgba(245,158,11,0.35)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-                onClick={() => setCreateForm({ ...createForm, isPrivate: !createForm.isPrivate })}>
-                <div style={{ width: '40px', height: '22px', borderRadius: '999px', background: createForm.isPrivate ? 'var(--color-primary)' : 'var(--color-border)', transition: 'background 0.2s', position: 'relative', flexShrink: 0 }}>
-                  <div style={{ position: 'absolute', top: '3px', left: createForm.isPrivate ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {createForm.isPrivate ? '🔒 Canal privado' : '🌐 Canal público'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    {createForm.isPrivate
-                      ? 'Solo accesible con enlace de invitación.'
-                      : 'Visible en búsqueda. Cualquiera puede unirse.'}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '0.5px solid rgba(245,158,11,0.25)', fontSize: '12px', color: 'var(--color-warning)', fontWeight: 600 }}>
-                <span>⚠️</span>
-                <span>Esta acción es irreversible.</span>
+            {/* Selector de tipus de canal — decisió irreversible */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={labelStyle}>Tipo de canal *</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {[
+                  { type: 'public',       icon: '🌐', label: 'Público',         desc: 'Visible en búsqueda. Aparece en el ranking de tipsters.' },
+                  { type: 'free_private', icon: '🔒', label: 'Privado gratuito', desc: 'Acceso solo por enlace. No aparece en ningún ranking.' },
+                  { type: 'vip_monthly',  icon: '📅', label: 'VIP Mensual',      desc: 'Subscripción mensual de pago. Aparece en el Top VIP Mensual.' },
+                  { type: 'vip_weekly',   icon: '📅', label: 'VIP Semanal',      desc: 'Subscripción semanal de pago. Aparece en el Top VIP Semanal.' },
+                  { type: 'stakazo',      icon: '⚡', label: 'Stakazo',          desc: 'Pick puntual de pago. Tu historial aparece en el Top Stakazos.' },
+                ].map(({ type, icon, label, desc }) => {
+                  const active = createForm.channelType === type
+                  return (
+                    <div key={type} onClick={() => setCreateForm({ ...createForm, channelType: type })}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`, background: active ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`, background: active ? 'var(--color-primary)' : 'transparent', flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {active && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#010906' }} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{icon} {label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+
+            {/* Camps de preu — només per VIP i Stakazo */}
+            {['vip_monthly', 'vip_weekly', 'stakazo'].includes(createForm.channelType) && (
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Precio de acceso * (EUR)</label>
+                  <input type="number" min="0.5" step="0.5" placeholder="ej. 9.99"
+                    value={createForm.price}
+                    onChange={e => setCreateForm({ ...createForm, price: e.target.value })}
+                    style={{ ...inputStyle }} />
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                    El tipster comparte el enlace cuando quiere abrir plazas.
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Precio rebajado (opcional) — entrada tardía (EUR)</label>
+                  <input type="number" min="0.5" step="0.5" placeholder="ej. 4.99"
+                    value={createForm.discountPrice}
+                    onChange={e => setCreateForm({ ...createForm, discountPrice: e.target.value })}
+                    style={{ ...inputStyle }} />
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                    Se generará un segundo enlace con este precio. Tú decides cuándo compartirlo.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '16px', fontSize: '12px', color: 'var(--color-warning)', fontWeight: 600 }}>
+              <span>⚠️</span>
+              <span>El tipo de canal no se puede cambiar una vez creado.</span>
+            </div>
+
             <div style={{ display: 'flex', gap: '8px' }}>
-              <Button onClick={handleCreate} disabled={!createForm.name.trim()}>Crear canal</Button>
+              <Button onClick={handleCreate}
+                disabled={!createForm.name.trim() || (['vip_monthly','vip_weekly','stakazo'].includes(createForm.channelType) && !createForm.price)}>
+                Crear canal
+              </Button>
               <Button variant="ghost" onClick={() => { setShowCreate(false); setCreateError('') }}>Cancelar</Button>
             </div>
           </motion.div>

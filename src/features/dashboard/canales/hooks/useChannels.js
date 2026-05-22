@@ -73,11 +73,22 @@ export function useChannels(user) {
     }
   }
 
-  const createChannel = async (name, description, isPrivate = false) => {
+  // channel_type: 'public' | 'free_private' | 'vip_weekly' | 'vip_monthly' | 'stakazo'
+  // Els VIP i stakazo sempre són privats (is_private = true).
+  // price/discountPrice en EUR. discountPrice genera un segon invite_code_discount
+  // que el tipster passa al chat quan vol donar accés rebaixat a final de període.
+  const createChannel = async (name, description, channelType = 'public', price = null, discountPrice = null) => {
     const trimmed = name.trim()
     if (!trimmed) return { error: 'El nombre es obligatorio' }
     if (trimmed.length > 30) return { error: 'El nombre del canal no puede superar los 30 caracteres' }
     if (myChannels.length >= MAX_OWN_CHANNELS) return { error: `Límite de ${MAX_OWN_CHANNELS} canales propios alcanzado` }
+
+    const isPrivate = channelType !== 'public'
+    const isVip = ['vip_weekly', 'vip_monthly', 'stakazo'].includes(channelType)
+
+    if (isVip && (!price || parseFloat(price) <= 0)) {
+      return { error: 'Los canales VIP y Stakazos requieren un precio de acceso' }
+    }
 
     // Nom únic per canals públics (case-insensitive). Si està eliminat fa <7 dies
     // i ets el propietari original, pots reutilitzar el nom. Si és un altre owner, bloquejat.
@@ -89,15 +100,19 @@ export function useChannels(user) {
         .eq('is_private', false)
         .ilike('name', trimmed)
       const blocking = (conflicts || []).find(c => {
-        if (!c.deleted_at) return true                          // canal actiu → blocked
-        if (c.owner_id === user.id) return false                // l'has eliminat tu → pots tornar a usar-lo
-        if (c.deleted_at > sevenDaysAgo) return true            // un altre l'ha eliminat fa <7 dies → blocked
-        return false                                            // >7 dies, alliberat
+        if (!c.deleted_at) return true
+        if (c.owner_id === user.id) return false
+        if (c.deleted_at > sevenDaysAgo) return true
+        return false
       })
       if (blocking) return { error: 'Ese nombre de canal ya está en uso' }
     }
 
     const invite_code = generateInviteCode()
+    // Segon codi d'invitació per al preu rebaixat (opcional, només per canals VIP)
+    const invite_code_discount = (isVip && discountPrice && parseFloat(discountPrice) > 0)
+      ? generateInviteCode()
+      : null
 
     const { data, error } = await supabase
       .from('channels').insert({
@@ -105,7 +120,12 @@ export function useChannels(user) {
         name: trimmed,
         description: description.trim(),
         is_private: isPrivate,
-        invite_code
+        invite_code,
+        channel_type: channelType,
+        price: isVip ? parseFloat(price) : null,
+        discount_price: invite_code_discount ? parseFloat(discountPrice) : null,
+        invite_code_discount,
+        currency: 'EUR',
       })
       .select().single()
 
@@ -192,13 +212,24 @@ export function useChannels(user) {
     })
   }
 
-  // Busca un canal por código de invitación (para canales privados)
+  // Busca un canal per codi d'invitació. Comprova primer el codi principal,
+  // després el codi de descompte (si existeix). Retorna el canal amb accessType
+  // i accessPrice per saber quin preu pagar al checkout de Stripe.
   const findChannelByCode = async (code) => {
     if (!code.trim()) return null
-    const { data } = await supabase.from('channels').select('*')
-      .eq('invite_code', code.trim().toLowerCase())
-      .single()
-    return data || null
+    const normalized = code.trim().toLowerCase()
+
+    // Codi principal
+    const { data: main } = await supabase.from('channels').select('*')
+      .eq('invite_code', normalized).maybeSingle()
+    if (main) return { ...main, accessType: 'full', accessPrice: main.price }
+
+    // Codi de descompte (entrada tardana rebaixada)
+    const { data: disc } = await supabase.from('channels').select('*')
+      .eq('invite_code_discount', normalized).maybeSingle()
+    if (disc) return { ...disc, accessType: 'discount', accessPrice: disc.discount_price }
+
+    return null
   }
 
   const joinChannel = async (channelId) => {

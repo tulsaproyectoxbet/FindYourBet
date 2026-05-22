@@ -21,6 +21,7 @@ import { useNotifications } from './notifications/useNotifications'
 import NotificationsPanel from './notifications/NotificationsPanel'
 import Configuracion from './Configuracion'
 import Faqs from './Faqs'
+import AdminPanel from '../admin/AdminPanel'
 import { ProfileNavContext } from '../../contexts/ProfileNavContext'
 import './dashboard.css'
 
@@ -38,6 +39,9 @@ const SHORTCUT_OPTIONS = [
   { id: 'contacto',     label: 'Contacto',          icon: '📱' },
   { id: 'sugerencias',  label: 'Sugerencias',       icon: '💡' },
 ]
+
+// Emails amb accés al panell d'admin — ha de coincidir amb ADMIN_EMAILS a AdminPanel.jsx
+const ADMIN_EMAILS = ['fyourbet@gmail.com']
 
 const DEFAULT_SHORTCUTS = ['estadisticas', 'social', 'ranking', 'contacto']
 const MAX_SHORTCUTS = 5
@@ -188,11 +192,18 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   const [canalesKey, setCanalesKey] = useState(0)
   const [socialKey, setSocialKey] = useState(0)
   const [tipstersKey, setTipstersKey] = useState(0)
+  const [feedKey, setFeedKey] = useState(0)
+  const [rankingKey, setRankingKey] = useState(0)
+  const [amigosKey, setAmigosKey] = useState(0)
   const [pendingSocialDMUserId, setPendingSocialDMUserId] = useState(null)
   const setTab = (id) => {
-    if (tab === 'canales' && id !== 'canales') setCanalesKey(k => k + 1)
-    if (tab === 'social' && id !== 'social') { setSocialKey(k => k + 1); setPendingSocialDMUserId(null) }
-    if (tab === 'tipsters' && id !== 'tipsters') setTipstersKey(k => k + 1)
+    // Sempre reinicia el component de destinació, vinguis d'on vinguis
+    if (id === 'canales') setCanalesKey(k => k + 1)
+    if (id === 'social') { setSocialKey(k => k + 1); setPendingSocialDMUserId(null) }
+    if (id === 'tipsters') setTipstersKey(k => k + 1)
+    if (id === 'feed') setFeedKey(k => k + 1)
+    if (id === 'ranking') setRankingKey(k => k + 1)
+    if (id === 'amigos') setAmigosKey(k => k + 1)
     setVisited(prev => new Set([...prev, id]))
     setTabRaw(id)
   }
@@ -393,6 +404,18 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
               ))}
             </div>
           ))}
+
+          {/* Accés al Centre de Control — només visible per a admins */}
+          {ADMIN_EMAILS.includes(user?.email) && (
+            <div className="sidebar-section" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '0.5px solid var(--color-border)' }}>
+              <button
+                className={`sidebar-item ${tab === 'admin' ? 'active' : ''}`}
+                onClick={() => setTab('admin')}>
+                <span className="sidebar-icon">⚙️</span>
+                Centro de control
+              </button>
+            </div>
+          )}
         </aside>
 
         {/* CONTINGUT */}
@@ -434,7 +457,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {visited.has('feed') && (
             <div style={{ display: tab === 'feed' ? 'block' : 'none' }}>
-              <Feed user={user} onNavigateToChannel={handleNavigateToChannel} />
+              <Feed key={feedKey} user={user} onNavigateToChannel={handleNavigateToChannel} />
             </div>
           )}
 
@@ -452,13 +475,13 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {visited.has('ranking') && (
             <div style={{ display: tab === 'ranking' ? 'block' : 'none' }}>
-              <Ranking user={user} />
+              <Ranking key={rankingKey} user={user} />
             </div>
           )}
 
           {visited.has('amigos') && (
             <div style={{ display: tab === 'amigos' ? 'block' : 'none' }}>
-              <RankingAmigos user={user} />
+              <RankingAmigos key={amigosKey} user={user} />
             </div>
           )}
 
@@ -472,6 +495,11 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             <div style={{ display: (tab === 'contacto' || tab === 'sugerencias') ? 'block' : 'none' }}>
               <Contacto initialTab={tab} />
             </div>
+          )}
+
+          {/* Centre de control admin — sense visited check, es munta/desmunta directament */}
+          {tab === 'admin' && ADMIN_EMAILS.includes(user?.email) && (
+            <AdminPanel user={user} />
           )}
 
           {visited.has('miperfil') && (

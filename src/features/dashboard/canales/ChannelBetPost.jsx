@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import ForwardModal from '../social/ForwardModal'
+import ReportPickModal from './ReportPickModal'
 
 const STATUS_CFG = {
   won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
@@ -9,14 +10,23 @@ const STATUS_CFG = {
   pending: { label: 'Pendiente', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
 }
 
-export default function ChannelBetPost({ messageId, bet, liveStatus, currentUser, onOpenPost, timeStr, viewCount = 0 }) {
+// isOwner: el propietari del canal no pot reportar els seus propis picks
+export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewStatus, currentUser, isOwner, onOpenPost, timeStr, viewCount = 0 }) {
   const [likeCount, setLikeCount] = useState(0)
   const [hasLiked, setHasLiked] = useState(false)
   const [commentCount, setCommentCount] = useState(0)
   const [showForward, setShowForward] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const status = liveStatus ?? bet.status
-  const cfg = STATUS_CFG[status] ?? STATUS_CFG.pending
+  // review_status del pick: null=normal | 'review'=suspès pendent admin | 'cleared'=validat | 'invalid'=invalidat
+  const reviewStatus = liveReviewStatus ?? null
+  const isUnderReview = reviewStatus === 'review'
+  const isInvalid = reviewStatus === 'invalid'
+
+  const cfg = (isUnderReview || isInvalid)
+    ? { label: isUnderReview ? '⏸ En revisión' : '❌ Invalidado', color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)' }
+    : STATUS_CFG[status] ?? STATUS_CFG.pending
 
   useEffect(() => {
     if (!messageId || !currentUser?.id) return
@@ -140,6 +150,13 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, currentUser
             <span>↗️</span>
             <span>Reenviar</span>
           </button>
+          {/* Botó de reportar — visible per a no-propietaris. Ocult si el pick ja és invalid. */}
+          {!isOwner && !isInvalid && (
+            <button onClick={(e) => { e.stopPropagation(); setShowReport(true) }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: isUnderReview ? 'var(--color-warning)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
+              <span>🚩</span>
+            </button>
+          )}
           {timeStr && (
             <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-muted)', opacity: 0.6, paddingRight: '4px' }}>
               {viewCount > 0 ? `👁 ${viewCount} · ` : ''}{timeStr}
@@ -155,6 +172,13 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, currentUser
             fromChannelName="Pick"
             currentUser={currentUser}
             onClose={() => setShowForward(false)}
+          />
+        )}
+        {showReport && (
+          <ReportPickModal
+            bet={bet}
+            currentUser={currentUser}
+            onClose={() => setShowReport(false)}
           />
         )}
       </AnimatePresence>
