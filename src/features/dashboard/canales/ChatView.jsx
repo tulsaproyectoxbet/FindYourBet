@@ -1002,7 +1002,15 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', justifyContent: (isBet || isVoice || isProfile) ? 'flex-start' : isOwn ? 'flex-end' : 'flex-start', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', alignItems: 'center', gap: '2px' }}>
+                  {/* ⋮ a l'esquerra dels missatges propis */}
+                  {isOwn && (
+                    <button
+                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMsgMenu(isMenuOpen ? null : { id: m.id, x: r.left, y: r.bottom }) }}
+                      style={{ opacity: isHovered || isMenuOpen ? 1 : 0, pointerEvents: isHovered || isMenuOpen ? 'auto' : 'none', transition: 'opacity 0.15s', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, flexShrink: 0, fontFamily: 'var(--font-sans)' }}>
+                      ⋮
+                    </button>
+                  )}
                   <div style={{ maxWidth: isBet || isProfile ? '320px' : isNobubble ? 'fit-content' : isVoice ? '280px' : '70%' }}>
                     {forwardedFrom && (
                       <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '2px', paddingLeft: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1020,12 +1028,6 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                         fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap', textAlign: 'left',
                         border: isOwn || isNobubble ? 'none' : '0.5px solid var(--color-border)',
                       }}>
-                      {/* Botó ▾ invisible fins hover — sempre dins la bombolla */}
-                      <button
-                        onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMsgMenu(isMenuOpen ? null : { id: m.id, x: r.left, y: r.bottom }) }}
-                        style={{ position: 'absolute', top: '4px', right: '4px', opacity: isHovered || isMenuOpen ? 1 : 0, pointerEvents: isHovered || isMenuOpen ? 'auto' : 'none', transition: 'opacity 0.15s', background: isOwn && !isNobubble ? 'rgba(1,9,6,0.15)' : 'rgba(0,0,0,0.08)', border: 'none', borderRadius: 'var(--radius-full)', width: '20px', height: '20px', cursor: 'pointer', fontSize: '10px', color: isOwn && !isNobubble ? '#010906' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-                        ▾
-                      </button>
                       {replyPreview && (
                         <div onClick={() => replyId && scrollToMessage(replyId)}
                           style={{ background: isOwn ? 'rgba(1,9,6,0.12)' : 'rgba(0,0,0,0.06)', borderLeft: `3px solid ${isOwn ? 'rgba(1,9,6,0.35)' : 'var(--color-primary)'}`, borderRadius: '4px', padding: '5px 8px', marginBottom: '8px', fontSize: '12px', opacity: 0.85, overflow: 'hidden', maxHeight: '52px', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: replyId ? 'pointer' : 'default' }}>
@@ -1084,6 +1086,14 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                       </div>
                     )}
                   </div>
+                  {/* ⋮ a la dreta dels missatges dels altres */}
+                  {!isOwn && (
+                    <button
+                      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMsgMenu(isMenuOpen ? null : { id: m.id, x: r.left, y: r.bottom }) }}
+                      style={{ opacity: isHovered || isMenuOpen ? 1 : 0, pointerEvents: isHovered || isMenuOpen ? 'auto' : 'none', transition: 'opacity 0.15s', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, flexShrink: 0, fontFamily: 'var(--font-sans)' }}>
+                      ⋮
+                    </button>
+                  )}
                 </div>
               )}
             </div>

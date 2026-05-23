@@ -73,7 +73,7 @@ const SIDEBAR = [
     ]
   },
   {
-    label: 'Ayuda',
+    label: 'Contacto',
     items: [
       { id: 'faqs', label: 'FAQs', icon: '❓' },
       { id: 'contacto', label: 'Redes sociales & Soporte', icon: '📱' },
@@ -196,15 +196,25 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   const [feedKey, setFeedKey] = useState(0)
   const [rankingKey, setRankingKey] = useState(0)
   const [amigosKey, setAmigosKey] = useState(0)
+  const [miperfilKey, setMiperfilKey] = useState(0)
+  const [historialKey, setHistorialKey] = useState(0)
+  const [estadisticasKey, setEstadisticasKey] = useState(0)
+  const [contactoKey, setContactoKey] = useState(0)
+  const [configuracionKey, setConfiguracionKey] = useState(0)
   const [pendingSocialDMUserId, setPendingSocialDMUserId] = useState(null)
   const setTab = (id) => {
-    // Sempre reinicia el component de destinació, vinguis d'on vinguis
+    // Reinicia el component de destinació en cada navegació
     if (id === 'canales') setCanalesKey(k => k + 1)
     if (id === 'social') { setSocialKey(k => k + 1); setPendingSocialDMUserId(null) }
     if (id === 'tipsters') setTipstersKey(k => k + 1)
     if (id === 'feed') setFeedKey(k => k + 1)
     if (id === 'ranking') setRankingKey(k => k + 1)
     if (id === 'amigos') setAmigosKey(k => k + 1)
+    if (id === 'miperfil') setMiperfilKey(k => k + 1)
+    if (id === 'historial') setHistorialKey(k => k + 1)
+    if (id === 'estadisticas') setEstadisticasKey(k => k + 1)
+    if (id === 'contacto' || id === 'sugerencias') setContactoKey(k => k + 1)
+    if (id === 'configuracion') setConfiguracionKey(k => k + 1)
     setVisited(prev => new Set([...prev, id]))
     setTabRaw(id)
   }
@@ -240,7 +250,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
         // Mostra el modal una sola vegada quan l'admin verifica l'usuari
         if (data?.is_verified && !data?.verified_notified) {
           setShowVerifiedModal(true)
-          supabase.from('profiles').update({ verified_notified: true }).eq('id', user.id)
+          supabase.from('profiles').update({ verified_notified: true }).eq('id', user.id).then()
         }
       })
   }, [user?.id])
@@ -463,7 +473,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {visited.has('estadisticas') && (
             <div style={{ display: tab === 'estadisticas' ? 'block' : 'none' }}>
-              <Estadisticas
+              <Estadisticas key={estadisticasKey}
                 bets={bets} allBets={allBets} loadingBets={loadingBets}
                 won={won} lost={lost} yieldVal={yieldVal} avgOdds={avgOdds}
                 onNewBet={() => setShowModal(true)}
@@ -475,7 +485,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {visited.has('historial') && (
             <div style={{ display: tab === 'historial' ? 'block' : 'none' }}>
-              <Historial
+              <Historial key={historialKey}
                 bets={allBets} loadingBets={loadingBets}
                 onNewBet={() => setShowModal(true)} onResolveBet={resolveBet}
                 user={user}
@@ -534,7 +544,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {(visited.has('contacto') || visited.has('sugerencias')) && (
             <div style={{ display: (tab === 'contacto' || tab === 'sugerencias') ? 'block' : 'none' }}>
-              <Contacto initialTab={tab} user={user} />
+              <Contacto key={contactoKey} initialTab={tab} user={user} />
             </div>
           )}
 
@@ -545,13 +555,13 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {visited.has('miperfil') && (
             <div style={{ display: tab === 'miperfil' ? 'block' : 'none' }}>
-              <MiPerfil user={user} onNavigate={setTab} onAvatarUpdated={(url) => { setNavAvatar(url); onRefreshUser?.() }} onNavigateToChannel={handleNavigateToChannel} />
+              <MiPerfil key={miperfilKey} user={user} onNavigate={setTab} onAvatarUpdated={(url) => { setNavAvatar(url); onRefreshUser?.() }} onNavigateToChannel={handleNavigateToChannel} />
             </div>
           )}
 
           {visited.has('configuracion') && (
             <div style={{ display: tab === 'configuracion' ? 'block' : 'none' }}>
-              <Configuracion user={user} logout={logout} />
+              <Configuracion key={configuracionKey} user={user} logout={logout} />
             </div>
           )}
 

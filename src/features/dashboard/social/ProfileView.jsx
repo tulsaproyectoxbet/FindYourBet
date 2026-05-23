@@ -114,7 +114,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
   }
 
   const fetchChannels = async () => {
-    if (loadingChannels || channels.length) return
+    if (loadingChannels) return
     setLoadingChannels(true)
     try {
       const { data: chans } = await supabase.from('channels')

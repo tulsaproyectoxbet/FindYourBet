@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-const APP_FEE_PERCENT = 0.10
+const FEE_STANDARD    = 0.20  // tipsters sense partnership
+const FEE_PARTNERSHIP = 0.15  // tipsters verificats (partnership)
 
 async function readBody(req) {
   const chunks = []
@@ -49,7 +50,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'El tipster no tiene pagos configurados' })
     }
 
-    const appFee = Math.round(offer.price * APP_FEE_PERCENT)
+    const { data: ownerProfile } = await supabase
+      .from('profiles')
+      .select('is_verified')
+      .eq('id', offer.channels.owner_id)
+      .single()
+
+    const feePercent = ownerProfile?.is_verified ? FEE_PARTNERSHIP : FEE_STANDARD
+    const appFee = Math.round(offer.price * feePercent)
     const appUrl = process.env.APP_URL || 'https://fyourbet.com'
 
     const session = await stripe.checkout.sessions.create({

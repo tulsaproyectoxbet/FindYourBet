@@ -28,7 +28,8 @@ export default function Login({ navigate, login }) {
     email, setEmail, pass, setPass, showPass, setShowPass,
     error, loading, resetSent, resetMode,
     handleLogin, handleResetPassword, skipDev,
-    enterReset, exitReset, exitResetSent
+    enterReset, exitReset, exitResetSent,
+    isLocked, secondsLeft,
   } = useSignIn({ onLogin: login })
 
   return (
@@ -84,8 +85,8 @@ export default function Login({ navigate, login }) {
               </motion.div>
 
               <motion.div variants={fadeUp} custom={6}>
-                <Button full onClick={handleLogin} disabled={loading}>
-                  {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                <Button full onClick={handleLogin} disabled={loading || isLocked}>
+                  {loading ? 'Iniciando sesión...' : isLocked ? `Espera ${secondsLeft}s` : 'Iniciar sesión'}
                 </Button>
               </motion.div>
 
