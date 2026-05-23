@@ -118,7 +118,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
     setLoadingChannels(true)
     try {
       const { data: chans } = await supabase.from('channels')
-        .select('*').eq('owner_id', userId).eq('is_private', false)
+        .select('*').eq('owner_id', userId).eq('is_private', false).is('deleted_at', null)
       if (!chans?.length) { setChannels([]); return }
       const { data: mems } = await supabase
         .from('channel_members').select('channel_id')
