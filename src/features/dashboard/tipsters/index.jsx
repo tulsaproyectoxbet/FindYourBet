@@ -37,6 +37,9 @@ function TipsterCard({ tipster, isFollowing, isMutual, onClick }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, fontSize: '14px' }}>{tipster.username}</span>
+          {tipster.is_verified && (
+            <span title="Verificado" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--color-primary)', color: '#010906', fontSize: '9px', fontWeight: 900, flexShrink: 0 }}>✓</span>
+          )}
           {isMutual ? (
             <span style={{ fontSize: '10px', color: 'var(--color-primary)', padding: '2px 8px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>👥 Amigos</span>
           ) : isFollowing && (
@@ -98,18 +101,23 @@ function sortFollowing(list, sort) {
 }
 
 export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
-  const [activeTab, setActiveTab] = useState('sugeridos')
+  // Siguiendo és el tab predeterminat
+  const [activeTab, setActiveTab] = useState('siguiendo')
   const [query, setQuery] = useState('')
 
   // Sugeridos
   const [pool, setPool] = useState([])
   const [displayed, setDisplayed] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   // Siguiendo
   const [following, setFollowing] = useState(null)   // null = not loaded yet
   const [followingLoading, setFollowingLoading] = useState(false)
   const [followingSort, setFollowingSort] = useState('yield')
+
+  // Verificados
+  const [verificados, setVerificados] = useState(null)
+  const [verificadosLoading, setVerificadosLoading] = useState(false)
 
   // Search
   const [searchResults, setSearchResults] = useState([])
@@ -119,7 +127,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
   const [selectedUserId, setSelectedUserId] = useState(null)
   const { follow, unfollow, isFollowing, isFollower, isMutual } = useFollow(user?.id)
 
-  useEffect(() => { loadSugeridos() }, [])
+  // Carregar siguiendo per defecte en muntar
+  useEffect(() => { loadSiguiendo() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSugeridos = async () => {
     setLoading(true)
@@ -231,11 +240,36 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
     setFollowingLoading(false)
   }
 
+  const loadVerificados = async () => {
+    if (!user?.id) return
+    setVerificadosLoading(true)
+    const { data: followRows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
+    const followingSet = new Set((followRows || []).map(f => f.following_id))
+
+    // Tots els perfils verificats que l'usuari no segueix
+    const { data: profiles } = await supabase.from('profiles')
+      .select('id, username, avatar_url, bio, is_verified')
+      .eq('is_verified', true)
+      .neq('id', user.id)
+
+    const unfolloedVerified = (profiles || []).filter(p => !followingSet.has(p.id))
+    if (!unfolloedVerified.length) { setVerificados([]); setVerificadosLoading(false); return }
+
+    const ids = unfolloedVerified.map(p => p.id)
+    const { data: bets } = await supabase.from('bets').select('user_id, stake, status, odds')
+      .in('user_id', ids).in('status', ['won', 'lost']).limit(2000)
+
+    setVerificados(enrichWithStats(unfolloedVerified, bets || []))
+    setVerificadosLoading(false)
+  }
+
   const handleTabChange = (tab) => {
     setActiveTab(tab)
     setQuery('')
     setSearchResults([])
     if (tab === 'siguiendo' && following === null) loadSiguiendo()
+    if (tab === 'sugeridos' && pool.length === 0) loadSugeridos()
+    if (tab === 'verificados' && verificados === null) loadVerificados()
   }
 
   const handleSearch = (q) => {
@@ -295,8 +329,9 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', width: 'fit-content', marginBottom: '20px' }}>
         {[
-          { id: 'sugeridos', label: '✨ Sugeridos' },
-          { id: 'siguiendo', label: '👤 Siguiendo' },
+          { id: 'siguiendo',   label: '👤 Siguiendo' },
+          { id: 'sugeridos',   label: '✨ Sugeridos' },
+          { id: 'verificados', label: '✓ Verificados' },
         ].map(t => (
           <button key={t.id} onClick={() => handleTabChange(t.id)}
             style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: activeTab === t.id ? 'var(--color-primary)' : 'transparent', color: activeTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
@@ -371,6 +406,29 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
               <AnimatePresence>
                 <motion.div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {displayed.map((t, i) => (
+                    <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                      <TipsterCard tipster={t} isFollowing={isFollowing(t.id)} isMutual={isMutual(t.id)} onClick={() => setSelectedUserId(t.id)} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </>
+          )}
+
+          {/* ── VERIFICADOS ── */}
+          {activeTab === 'verificados' && (
+            <>
+              {verificadosLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px' }}>⏳ Cargando...</div>}
+              {!verificadosLoading && verificados !== null && verificados.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✓</div>
+                  <div style={{ fontWeight: 600 }}>Sin tipsters verificados aún</div>
+                  <div style={{ fontSize: '13px', marginTop: '6px' }}>O ya sigues a todos los verificados</div>
+                </div>
+              )}
+              <AnimatePresence>
+                <motion.div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(verificados || []).map((t, i) => (
                     <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                       <TipsterCard tipster={t} isFollowing={isFollowing(t.id)} isMutual={isMutual(t.id)} onClick={() => setSelectedUserId(t.id)} />
                     </motion.div>

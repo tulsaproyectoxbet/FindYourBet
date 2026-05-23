@@ -12,7 +12,7 @@ import '../dashboard.css'
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
 const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }
 
-export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAddBet }) {
+export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAddBet, unreadChannelIds = new Set() }) {
   const { myChannels, joinedChannels, memberCounts, lastMessages, loading, createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const [activeChannel, setActiveChannel] = useState(null)
   const [activeMemberCount, setActiveMemberCount] = useState(0)
@@ -486,6 +486,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
               <ChannelCard key={c.id} channel={c} isOwner={true}
                 memberCount={memberCounts[c.id]}
                 lastMessage={lastMessages[c.id] || null}
+                hasUnread={unreadChannelIds.has(c.id)}
                 onClick={() => handleOpenChannel(c)}
                 onDelete={deleteChannel}
               />
@@ -504,6 +505,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
               <ChannelCard key={c.id} channel={c} isOwner={false}
                 memberCount={memberCounts[c.id]}
                 lastMessage={lastMessages[c.id] || null}
+                hasUnread={unreadChannelIds.has(c.id)}
                 onClick={() => handleOpenChannel(c)}
                 onLeave={() => leaveChannel(c.id)}
               />

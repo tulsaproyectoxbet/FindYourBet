@@ -373,7 +373,12 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
             </div>
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile?.bio ? '8px' : '16px' }}>{username}</div>
+          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile?.bio ? '8px' : '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {username}
+            {profile?.is_verified && (
+              <span title="Verificado" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary)', color: '#010906', fontSize: '11px', fontWeight: 900, flexShrink: 0 }}>✓</span>
+            )}
+          </div>
           {profile?.bio && (
             <div style={{ fontSize: '14px', color: 'var(--color-text-soft)', marginBottom: '16px', lineHeight: 1.5 }}>{profile.bio}</div>
           )}

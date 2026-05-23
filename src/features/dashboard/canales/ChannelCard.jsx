@@ -61,7 +61,7 @@ function MuteMenu({ muteKey, isMuted, muteLabel, onMute, onUnmute, onClose }) {
   )
 }
 
-export default function ChannelCard({ channel, onClick, onLeave, onDelete, isOwner, memberCount, lastMessage }) {
+export default function ChannelCard({ channel, onClick, onLeave, onDelete, isOwner, memberCount, lastMessage, hasUnread = false }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
   const [showMuteMenu, setShowMuteMenu] = useState(false)
@@ -113,6 +113,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, isOwn
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', opacity: muted ? 0.6 : 1 }}>
+            {hasUnread && !muted && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-error)', flexShrink: 0, display: 'inline-block' }} />}
             {channel.name}
             {/* Badge de tipus de canal VIP — mostra el preu si en té */}
             {channel.channel_type === 'vip_monthly' && (
