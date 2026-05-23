@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { usePolling } from '../../../../hooks/usePolling'
+import { markChannelRead } from '../../../../hooks/useUnreadChannelCount'
 
 export function useMessages(channelId, userId) {
   const [messages, setMessages] = useState([])
@@ -49,8 +50,10 @@ export function useMessages(channelId, userId) {
     if (enriched) {
       setMessages(enriched)
       setLoading(false)
+      // Marca el canal com llegit cada vegada que es carreguen missatges
+      markChannelRead(userId, channelId)
     }
-  }, [fetchAndEnrich])
+  }, [fetchAndEnrich, userId, channelId])
 
   useEffect(() => {
     if (!channelId) { setLoading(false); return }

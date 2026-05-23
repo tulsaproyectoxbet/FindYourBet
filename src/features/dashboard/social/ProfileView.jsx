@@ -133,6 +133,17 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
     }
   }
 
+  const handleToggleVerify = async () => {
+    const newVal = !profile.is_verified
+    await supabase.from('profiles').update({
+      is_verified: newVal,
+      // Reset notified flag perquè el modal aparegui de nou si es re-verifica
+      verified_notified: newVal ? false : false,
+    }).eq('id', userId)
+    setProfile(prev => ({ ...prev, is_verified: newVal }))
+    setShowMenu(false)
+  }
+
   const handleBlock = async () => {
     await supabase.from('blocks').upsert({ blocker_id: currentUser.id, blocked_id: userId })
     const { data: myChannels } = await supabase.from('channels').select('id').eq('owner_id', currentUser.id)
@@ -295,9 +306,13 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                           { icon: '📤', label: 'Compartir perfil', action: () => { openSendProfile(); setShowMenu(false) } },
                           { icon: '🚩', label: 'Denunciar', action: () => { onReport?.(userId); setShowMenu(false); alert('Usuario denunciado. Lo revisaremos pronto.') } },
                           { icon: '🚫', label: 'Bloquear', action: handleBlock, danger: true },
+                          // Opció exclusiva de l'admin: verificar / desverificar tipsters
+                          ...(currentUser?.email === 'fyourbet@gmail.com' ? [
+                            { icon: profile.is_verified ? '✕' : '✓', label: profile.is_verified ? 'Desverificar' : 'Verificar', action: handleToggleVerify, admin: true },
+                          ] : []),
                         ].map((item, i, arr) => (
                           <button key={i} onClick={item.action}
-                            style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', color: item.danger ? 'var(--color-error)' : 'var(--color-text)', fontWeight: item.danger ? 700 : 400, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
+                            style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', color: item.danger ? 'var(--color-error)' : item.admin ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: (item.danger || item.admin) ? 700 : 400, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
                             <span>{item.icon}</span><span>{item.label}</span>
                           </button>
                         ))}
@@ -325,7 +340,12 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             </div>
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile.bio ? '8px' : '16px' }}>{username}</div>
+          <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: profile.bio ? '8px' : '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {username}
+            {profile.is_verified && (
+              <span title="Verificado" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary)', color: '#010906', fontSize: '11px', fontWeight: 900, flexShrink: 0 }}>✓</span>
+            )}
+          </div>
           {profile.bio && (
             <div style={{ fontSize: '14px', color: 'var(--color-text-soft)', marginBottom: '16px', lineHeight: 1.5 }}>{profile.bio}</div>
           )}

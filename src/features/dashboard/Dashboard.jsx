@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useBets } from './hooks/useBets'
 import { useUnreadDMCount } from './social/hooks/useUnreadDMCount'
+import { useUnreadChannelCount } from '../../hooks/useUnreadChannelCount'
 import { BetModal } from './BetModal'
 import Estadisticas from './Estadisticas'
 import Historial from './MisApuestas'
@@ -229,10 +230,19 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
     localStorage.setItem(shortcutKey, JSON.stringify(next))
   }
 
+  const [showVerifiedModal, setShowVerifiedModal] = useState(false)
+
   useEffect(() => {
     if (!user?.id) return
-    supabase.from('profiles').select('avatar_url').eq('id', user.id).single()
-      .then(({ data }) => { if (data?.avatar_url) setNavAvatar(data.avatar_url) })
+    supabase.from('profiles').select('avatar_url, is_verified, verified_notified').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data?.avatar_url) setNavAvatar(data.avatar_url)
+        // Mostra el modal una sola vegada quan l'admin verifica l'usuari
+        if (data?.is_verified && !data?.verified_notified) {
+          setShowVerifiedModal(true)
+          supabase.from('profiles').update({ verified_notified: true }).eq('id', user.id)
+        }
+      })
   }, [user?.id])
 
   const [preselectedChannelId, setPreselectedChannelId] = useState(null)
@@ -246,6 +256,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   } = useBets(user)
 
   const unreadCount = useUnreadDMCount(user?.id)
+  const { count: unreadChannelCount, unreadIds: unreadChannelIds } = useUnreadChannelCount(user?.id)
   const { notifications, unreadCount: notifCount, markRead, markAllRead } = useNotifications(user?.id)
   const [showNotifs, setShowNotifs] = useState(false)
 
@@ -298,6 +309,30 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             onSave={saveShortcuts}
             onClose={() => setShowShortcutConfig(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Modal de verificació — apareix una sola vegada quan l'admin verifica l'usuari */}
+      <AnimatePresence>
+        {showVerifiedModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-xl)', padding: '40px 32px', maxWidth: '420px', width: '100%', textAlign: 'center', boxShadow: '0 0 40px rgba(15,110,86,0.2)' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 900, color: '#010906', margin: '0 auto 20px' }}>✓</div>
+              <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: '10px' }}>¡Estás verificado en FYB!</div>
+              <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '28px' }}>
+                El equipo de FYB ha verificado tu cuenta. A partir de ahora:<br />
+                <span style={{ color: 'var(--color-text)' }}>✓ Badge verificado visible en tu perfil</span><br />
+                <span style={{ color: 'var(--color-text)' }}>✓ Apareces en la sección Verificados de Tipsters</span><br />
+                <span style={{ color: 'var(--color-text)' }}>✓ Acceso prioritario a futuras funciones exclusivas</span>
+              </div>
+              <button onClick={() => setShowVerifiedModal(false)}
+                style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-lg)', padding: '12px 32px', cursor: 'pointer', fontWeight: 700, fontSize: '15px', fontFamily: 'var(--font-sans)' }}>
+                ¡Genial!
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -399,6 +434,11 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </span>
                     )}
+                    {item.id === 'canales' && unreadChannelCount > 0 && (
+                      <span style={{ marginLeft: 'auto', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
+                        {unreadChannelCount > 9 ? '9+' : unreadChannelCount}
+                      </span>
+                    )}
                   </button>
                 </div>
               ))}
@@ -451,6 +491,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 initialCanalCode={pendingCanalCode}
                 onCanalCodeUsed={() => setPendingCanalCode(null)}
                 onAddBet={handleAddBetFromCanal}
+                unreadChannelIds={unreadChannelIds}
               />
             </div>
           )}
@@ -493,7 +534,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {(visited.has('contacto') || visited.has('sugerencias')) && (
             <div style={{ display: (tab === 'contacto' || tab === 'sugerencias') ? 'block' : 'none' }}>
-              <Contacto initialTab={tab} />
+              <Contacto initialTab={tab} user={user} />
             </div>
           )}
 
