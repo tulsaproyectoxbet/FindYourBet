@@ -8,6 +8,7 @@ import Dashboard from './features/dashboard/Dashboard'
 import CanalPage from './features/dashboard/canales/CanalPage'
 import OfferPage from './features/dashboard/payments/OfferPage'
 import PaymentSuccess from './features/dashboard/payments/PaymentSuccess'
+import AccesoPage from './features/dashboard/payments/AccesoPage'
 import { supabase } from './lib/supabase'
 
 const SECRET_CODE = 'FYBM67'
@@ -230,7 +231,7 @@ function AppRoutes() {
     </div>
   )
 
-  const isPublicRoute = window.location.pathname.startsWith('/oferta/') || window.location.pathname.startsWith('/payment/')
+  const isPublicRoute = window.location.pathname.startsWith('/oferta/') || window.location.pathname.startsWith('/payment/') || window.location.pathname.startsWith('/acceso/')
   if (!unlocked && !isPublicRoute) return <GateScreen onUnlock={() => setUnlocked(true)} />
 
   return (
@@ -243,6 +244,7 @@ function AppRoutes() {
       <Route path="/canal/:code" element={<CanalPage />} />
       <Route path="/oferta/:id" element={<OfferPage user={user} />} />
       <Route path="/payment/success" element={<PaymentSuccess user={user} />} />
+      <Route path="/acceso/:token" element={<AccesoPage user={user} />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
