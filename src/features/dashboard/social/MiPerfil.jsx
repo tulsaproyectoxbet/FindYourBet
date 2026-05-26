@@ -68,10 +68,12 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
   const [saveError, setSaveError] = useState('')
   const fileInputRef = useRef(null)
 
+  // Depèn de user?.id (estable) en comptes de user (objecte) — evita refetches
+  // a cada esdeveniment de Supabase que canvia la referència del user.
   useEffect(() => {
     if (!user?.id) return
     fetchAll()
-  }, [user])
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchChannels = async () => {
     if (loadingChannels) return
@@ -124,10 +126,11 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
       if (prof) setEditForm({ name: prof.name || '', username: prof.username || '', bio: prof.bio || '' })
 
       if (bets && bets.length > 0) {
-        const resolved = bets.filter(b => b.status !== 'pending')
-        const won = resolved.filter(b => b.status === 'won').length
-        const lost = resolved.filter(b => b.status === 'lost').length
-        const { profit, stakeSum } = resolved.reduce(
+        // Per stats: només won/lost. 'void' (nul, diners retornats) està exclòs.
+        const counted = bets.filter(b => b.status === 'won' || b.status === 'lost')
+        const won = counted.filter(b => b.status === 'won').length
+        const lost = counted.filter(b => b.status === 'lost').length
+        const { profit, stakeSum } = counted.reduce(
           (acc, b) => ({
             stakeSum: acc.stakeSum + b.stake,
             profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake)
@@ -135,9 +138,13 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           { profit: 0, stakeSum: 0 }
         )
         const yieldVal = stakeSum > 0 ? (profit / stakeSum) * 100 : 0
-        const avgOdds = bets.length > 0 ? (bets.reduce((s, b) => s + b.odds, 0) / bets.length).toFixed(2) : '—'
-        setStats({ total: resolved.length, won, lost, yieldVal, avgOdds })
-        setRecentBets(resolved)
+        const avgOdds = counted.length > 0
+          ? (counted.reduce((s, b) => s + b.odds, 0) / counted.length).toFixed(2)
+          : '—'
+        setStats({ total: counted.length, won, lost, yieldVal, avgOdds })
+        // Per l'historial visible: won/lost/void (els nuls han d'aparèixer en blau)
+        const displayable = bets.filter(b => b.status === 'won' || b.status === 'lost' || b.status === 'void')
+        setRecentBets(displayable)
       }
     } catch (e) {
       // silent
@@ -516,7 +523,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                     style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < shownBets.length - 1 ? '0.5px solid var(--color-border)' : 'none', transition: 'background 0.15s', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : 'var(--color-error)', flexShrink: 0 }} />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : b.status === 'void' ? 'var(--color-info)' : 'var(--color-error)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.event}</div>
                       <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -535,9 +542,19 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: b.status === 'won' ? 'var(--color-primary-light)' : 'var(--color-error-light)', color: b.status === 'won' ? 'var(--color-primary)' : 'var(--color-error)', border: `0.5px solid ${b.status === 'won' ? 'var(--color-primary-border)' : 'var(--color-error-border)'}` }}>
-                        {b.status === 'won' ? '✓ Win' : '✗ Loss'}
-                      </span>
+                      {(() => {
+                        const isWon = b.status === 'won'
+                        const isVoid = b.status === 'void'
+                        const bg = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
+                        const fg = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
+                        const bd = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
+                        const label = isWon ? '✓ Win' : isVoid ? '● Nula' : '✗ Loss'
+                        return (
+                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: bg, color: fg, border: `0.5px solid ${bd}` }}>
+                            {label}
+                          </span>
+                        )
+                      })()}
                       <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                         {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                       </div>

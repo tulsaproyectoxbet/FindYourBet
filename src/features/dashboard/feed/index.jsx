@@ -67,7 +67,7 @@ export default function Feed({ user, onNavigateToChannel }) {
         <p>Picks de los tipsters que sigues y descubre nuevas apuestas.</p>
       </div>
 
-      <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', marginBottom: '20px', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: '10px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', marginBottom: '20px', width: 'fit-content' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ padding: '8px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: activeTab === t.id ? 'var(--color-primary)' : 'transparent', color: activeTab === t.id ? '#010906' : 'var(--color-text-muted)' }}>

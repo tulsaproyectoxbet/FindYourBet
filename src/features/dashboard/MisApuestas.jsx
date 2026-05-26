@@ -22,6 +22,8 @@ const NAVIGABLE = ['setmanal', 'mensual', 'anual']
 const STATUS_CONFIG = {
   won:     { label: 'Ganada',    accent: 'var(--color-primary)',    bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
   lost:    { label: 'Perdida',   accent: 'var(--color-error)',      bg: 'var(--color-error-light)',   border: 'var(--color-error-border)' },
+  // void = pick nul (diners retornats) — no compta a estadístiques
+  void:    { label: 'Nula',      accent: 'var(--color-info)',       bg: 'var(--color-info-light)',    border: 'var(--color-info-border)' },
   pending: { label: 'Pendiente', accent: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',       border: 'var(--color-border)' },
 }
 
@@ -93,7 +95,8 @@ function filterBets(allBets, period, offset) {
 }
 
 function calcStats(bets) {
-  const resolved = bets.filter(b => b.status !== 'pending')
+  // Només won/lost compten. 'void' (nul, diners retornats) no afecta cap stat.
+  const resolved = bets.filter(b => b.status === 'won' || b.status === 'lost')
   const won = bets.filter(b => b.status === 'won')
   const lost = bets.filter(b => b.status === 'lost')
   let yieldVal = 0
@@ -104,8 +107,10 @@ function calcStats(bets) {
     )
     yieldVal = stakeSum > 0 ? (profit / stakeSum) * 100 : 0
   }
-  const avgOdds = bets.length > 0
-    ? (bets.reduce((s, b) => s + b.odds, 0) / bets.length).toFixed(2)
+  // avg odds: exclou pending i void també — perquè un pick nul mai compta
+  const counted = bets.filter(b => b.status === 'won' || b.status === 'lost')
+  const avgOdds = counted.length > 0
+    ? (counted.reduce((s, b) => s + b.odds, 0) / counted.length).toFixed(2)
     : '—'
   return { won, lost, yieldVal, avgOdds }
 }
@@ -113,8 +118,9 @@ function calcStats(bets) {
 // ── Stats del panell dret ─────────────────────────────────────────────────────
 
 function calcStreaks(allBets) {
+  // Només won/lost — un pick nul no trenca cap ratxa
   const resolved = [...allBets]
-    .filter(b => b.status !== 'pending')
+    .filter(b => b.status === 'won' || b.status === 'lost')
     .sort((a, b) => new Date(a.date) - new Date(b.date))
 
   if (!resolved.length) return { best: 0, current: 0, currentType: null }
@@ -145,7 +151,7 @@ function getTopBets(allBets) {
 }
 
 function getStatsBySport(allBets) {
-  const resolved = allBets.filter(b => b.status !== 'pending')
+  const resolved = allBets.filter(b => b.status === 'won' || b.status === 'lost')
   const map = {}
   for (const b of resolved) {
     if (!map[b.sport]) map[b.sport] = { won: 0, total: 0, profit: 0, stake: 0 }
@@ -166,8 +172,9 @@ function getStatsBySport(allBets) {
 }
 
 function getRecentForm(allBets, n = 16) {
+  // Exclou pending i void — només W/L compten per la forma recent
   return [...allBets]
-    .filter(b => b.status !== 'pending')
+    .filter(b => b.status === 'won' || b.status === 'lost')
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, n)
     .reverse()
@@ -187,7 +194,7 @@ function StatSection({ title, children }) {
 }
 
 function StatsPanel({ allBets }) {
-  const resolved = allBets.filter(b => b.status !== 'pending')
+  const resolved = allBets.filter(b => b.status === 'won' || b.status === 'lost')
   const { best, current, currentType } = useMemo(() => calcStreaks(allBets), [allBets])
   const topBets = useMemo(() => getTopBets(allBets), [allBets])
   const sportStats = useMemo(() => getStatsBySport(allBets), [allBets])
@@ -350,9 +357,13 @@ function BetCard({ b, onResolveBet, onViewPost }) {
         {/* Botons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: 'auto' }}>
           {b.status === 'pending' && started && (
-            <div style={{ display: 'flex', gap: '5px' }}>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'won') }} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✓ Win</motion.button>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✗ Loss</motion.button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'won') }} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✓ Win</motion.button>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✗ Loss</motion.button>
+              </div>
+              {/* Nul: aposta anul·lada (diners retornats) — no afecta cap estadística */}
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'void') }} style={{ width: '100%', background: 'var(--color-info-light)', color: 'var(--color-info)', border: '0.5px solid var(--color-info-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>● Nula</motion.button>
             </div>
           )}
         </div>

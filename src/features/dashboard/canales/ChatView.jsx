@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import { Button } from '../../../components/ui/Button'
@@ -45,7 +46,8 @@ function calcChannelStats(messages, liveStatuses = {}, liveReviewStatuses = {}) 
     .map(b => ({ ...b, status: liveStatuses[b.id] ?? b.status, reviewStatus: liveReviewStatuses[b.id] ?? null }))
     // Exclou picks suspesos o invalidats de les estadístiques
     .filter(b => b.reviewStatus !== 'review' && b.reviewStatus !== 'invalid')
-  const resolved = enriched.filter(b => b.status !== 'pending')
+  // Només won/lost. 'void' (pick nul, diners retornats) no afecta cap stat.
+  const resolved = enriched.filter(b => b.status === 'won' || b.status === 'lost')
   const won = enriched.filter(b => b.status === 'won').length
   const lost = enriched.filter(b => b.status === 'lost').length
   let yieldVal = 0
@@ -63,6 +65,193 @@ function calcChannelStats(messages, liveStatuses = {}, liveReviewStatuses = {}) 
     ? (bets.reduce((s, b) => s + parseFloat(b.odds), 0) / bets.length).toFixed(2)
     : '—'
   return { total: bets.length, won, lost, yieldVal, avgOdds, resolved: resolved.length }
+}
+
+const FILTER_OPTIONS = [
+  { key: 'week',    label: '7 días' },
+  { key: 'month',   label: '1 mes' },
+  { key: '3months', label: '3 meses' },
+  { key: 'all',     label: 'Todo' },
+]
+const FILTER_DAYS = { week: 7, month: 30, '3months': 90, all: Infinity }
+const START_BANK = 1000
+
+function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName, onClose }) {
+  const [filter, setFilter] = useState('month')
+
+  const days = FILTER_DAYS[filter]
+
+  const allRows = messages
+    .filter(m => isBetMessage(m.content))
+    .map(m => {
+      const bet = parseBetMessage(m.content)
+      if (!bet) return null
+      const status = liveStatuses[bet.id] ?? bet.status
+      return { ...bet, status, date: new Date(m.created_at) }
+    })
+    .filter(Boolean)
+    .filter(r => {
+      if (days === Infinity) return true
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - days)
+      return r.date >= cutoff
+    })
+    .sort((a, b) => a.date - b.date)
+
+  const { result: rowsAsc } = allRows.reduce(
+    (acc, r) => {
+      let profit = null
+      let nextBank = acc.bank
+      if (r.status === 'won') { profit = r.stake * (r.odds - 1); nextBank = acc.bank + profit }
+      else if (r.status === 'lost') { profit = -r.stake; nextBank = acc.bank + profit }
+      else if (r.status === 'void') { profit = 0 }
+      return {
+        bank: nextBank,
+        result: [...acc.result, { ...r, profit, bankAfter: r.status === 'pending' ? null : nextBank }],
+      }
+    },
+    { bank: START_BANK, result: [] }
+  )
+  const rows = rowsAsc.reverse()
+
+  const resolved = allRows.filter(r => r.status === 'won' || r.status === 'lost')
+  const won    = allRows.filter(r => r.status === 'won').length
+  const lost   = allRows.filter(r => r.status === 'lost').length
+  const voided = allRows.filter(r => r.status === 'void').length
+  const { totalProfit, stakeSum } = resolved.reduce(
+    (acc, r) => ({
+      stakeSum: acc.stakeSum + (r.stake || 0),
+      totalProfit: acc.totalProfit + (r.status === 'won' ? (r.stake || 0) * ((r.odds || 1) - 1) : -(r.stake || 0)),
+    }),
+    { totalProfit: 0, stakeSum: 0 }
+  )
+  const yieldVal   = stakeSum > 0 ? (totalProfit / stakeSum) * 100 : 0
+  const pctAcierto = resolved.length > 0 ? (won / resolved.length) * 100 : 0
+  const SUMMARY = [
+    { label: 'Yield',     value: `${yieldVal >= 0 ? '+' : ''}${yieldVal.toFixed(1)}%`, color: yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
+    { label: 'Ganadas',   value: won,                                                    color: 'var(--color-primary)' },
+    { label: 'Perdidas',  value: lost,                                                   color: 'var(--color-error)' },
+    { label: 'Nulas',     value: voided,                                                 color: 'var(--color-info)' },
+    { label: 'Total',     value: allRows.length,                                         color: 'var(--color-text)' },
+    { label: '% Acierto', value: `${pctAcierto.toFixed(0)}%`,                           color: 'var(--color-text)' },
+  ]
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', boxSizing: 'border-box', overflowY: 'auto' }}
+      onClick={onClose}>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.22 }}
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: '860px', background: 'var(--color-bg)', borderRadius: 'var(--radius-xl)', border: '0.5px solid var(--color-border)', overflow: 'hidden', marginTop: '8px', marginBottom: '8px' }}>
+
+        {/* HEADER */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', background: 'var(--color-bg)' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text)' }}>Tabla estadística</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+              {channelName} · @{ownerUsername}
+            </div>
+          </div>
+          {/* Filtres de periode */}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {FILTER_OPTIONS.map(opt => (
+              <button key={opt.key} onClick={() => setFilter(opt.key)}
+                style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: filter === opt.key ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: filter === opt.key ? '#010906' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.12s', whiteSpace: 'nowrap' }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={onClose}
+            style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 12px', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
+            ✕
+          </button>
+        </div>
+
+        {/* RESUM ESTADÍSTIC */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0', borderBottom: '0.5px solid var(--color-border)' }}>
+          {SUMMARY.map((s, i) => (
+            <div key={i} style={{ padding: '14px 16px', borderRight: i < 5 ? '0.5px solid var(--color-border)' : 'none', background: 'var(--color-bg-soft)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>{s.label}</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* TAULA */}
+        {allRows.length === 0 ? (
+          <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '14px' }}>
+            Sin picks en este periodo
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'var(--color-bg-soft)', position: 'sticky', top: 0 }}>
+                  {[
+                    { h: '#',     align: 'center' },
+                    { h: 'Fecha', align: 'left'   },
+                    { h: 'Pick',  align: 'left'   },
+                    { h: 'Stake', align: 'right'  },
+                    { h: 'Cuota', align: 'right'  },
+                    { h: 'Res.',  align: 'center' },
+                    { h: '+/-',   align: 'right'  },
+                  ].map(({ h, align }) => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: align, fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap', borderBottom: '0.5px solid var(--color-border)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const isWon  = r.status === 'won'
+                  const isLost = r.status === 'lost'
+                  const isVoid = r.status === 'void'
+                  const resColor = isWon ? 'var(--color-primary)' : isLost ? 'var(--color-error)' : isVoid ? 'var(--color-info)' : 'var(--color-text-muted)'
+                  const resBg    = isWon ? 'var(--color-primary-light)' : isLost ? 'var(--color-error-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-bg-soft)'
+                  const resLabel = isWon ? 'W' : isLost ? 'L' : isVoid ? 'N' : '⏳'
+                  const profitStr   = r.profit === null ? '—' : r.profit > 0 ? `+${r.profit.toFixed(2)}u` : `${r.profit.toFixed(2)}u`
+                  const profitColor = r.profit === null ? 'var(--color-text-muted)' : r.profit > 0 ? 'var(--color-primary)' : r.profit < 0 ? 'var(--color-error)' : 'var(--color-info)'
+                  const num = rows.length - i
+                  const dateStr = r.date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                  const event = r.event || '—'
+                  const pick  = r.pick  || ''
+                  return (
+                    <tr key={r.id || i} style={{ borderBottom: '0.5px solid var(--color-border)', background: i % 2 === 0 ? 'transparent' : 'var(--color-bg-soft)' }}>
+                      <td style={{ padding: '9px 12px', color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '11px' }}>{num}</td>
+                      <td style={{ padding: '9px 12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{dateStr}</td>
+                      <td style={{ padding: '9px 12px', color: 'var(--color-text)', maxWidth: '200px' }}>
+                        <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={event}>{event}</div>
+                        {pick && <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pick}</div>}
+                      </td>
+                      <td style={{ padding: '9px 12px', color: 'var(--color-text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{r.stake}</td>
+                      <td style={{ padding: '9px 12px', color: 'var(--color-warning)', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{parseFloat(r.odds || 0).toFixed(2)}</td>
+                      <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                        <span style={{ background: resBg, color: resColor, border: `0.5px solid ${resColor}44`, borderRadius: '4px', padding: '3px 8px', fontWeight: 800, fontSize: '11px' }}>{resLabel}</span>
+                      </td>
+                      <td style={{ padding: '9px 12px', color: profitColor, fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }}>{profitStr}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* FOOTER */}
+        <div style={{ padding: '12px 20px', borderTop: '0.5px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            {rows.length} picks
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>FindYourBet</div>
+        </div>
+
+      </motion.div>
+    </motion.div>,
+    document.body
+  )
 }
 
 function InfoSection({ title, children }) {
@@ -132,6 +321,7 @@ function MemberRow({ profile, userId, isChannelOwner, isMemberAdmin, canKick, on
 
 function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, onUpdateChannel, onDeleteChannel, currentUser }) {
   const { adminMode } = useAdminMode()
+  const [showEstadisticas, setShowEstadisticas] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ name: channel.name, description: channel.description || '' })
   const [saving, setSaving] = useState(false)
@@ -356,7 +546,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
         {/* ESTADÍSTICAS */}
         {stats.total > 0 && (
           <InfoSection title="📊 Estadísticas">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
               {[
                 { label: 'Yield', value: `${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(1)}%`, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
                 { label: 'W / L', value: `${stats.won} / ${stats.lost}`, color: 'var(--color-text)' },
@@ -369,8 +559,26 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
                 </div>
               ))}
             </div>
+            <button onClick={() => setShowEstadisticas(true)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'background 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}>
+              📊 Extraer tabla estadística
+            </button>
           </InfoSection>
         )}
+
+        <AnimatePresence>
+          {showEstadisticas && (
+            <EstadisticasModal
+              messages={messages}
+              liveStatuses={liveStatuses}
+              ownerUsername={ownerProfile?.username || 'tipster'}
+              channelName={channel.name}
+              onClose={() => setShowEstadisticas(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* CONFIGURACIÓ — only owner */}
         {isOwner && (

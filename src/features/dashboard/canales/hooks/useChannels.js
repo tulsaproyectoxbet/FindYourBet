@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { isAdminUserId } from '../../../../lib/adminUsers'
 
@@ -16,16 +16,27 @@ export function useChannels(user) {
   const [memberCounts, setMemberCounts] = useState({})
   const [lastMessages, setLastMessages] = useState({})
   const [loading, setLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
 
+  // Depèn de user?.id (primitiu estable). Si depenia de `user` (objecte),
+  // qualsevol esdeveniment d'auth re-disparava la query encara que la sessió
+  // fos la mateixa, deixant l'usuari amb una UI buida durant 10s de safety timer
+  // si l'API anava lenta. Ara només refrescarem si l'usuari realment canvia.
   useEffect(() => {
     if (!user?.id || user.id === 'dev-skip') { setLoading(false); return }
     fetchChannels()
-  }, [user])
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchChannels = async () => {
-    setLoading(true)
-    // Safety net: si una query es penja, mai deixar la UI atrapada en "Cargando"
-    const safetyTimer = setTimeout(() => setLoading(false), 10000)
+  const fetchChannels = async ({ silent = false, attempt = 0 } = {}) => {
+    // Només mostrem "loading" la primera vegada. Els refetches (join, leave,
+    // create) són silenciosos perquè ja tenim dades que mostrar mentrestant.
+    if (!silent && !hasLoadedRef.current && attempt === 0) setLoading(true)
+    // Safety net: si una query es penja >5s, sortim del loading i intentem retry
+    // automàtic (sovint el JWT s'ha refrescat i el segon intent va ràpid).
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+      if (attempt === 0 && !hasLoadedRef.current) fetchChannels({ silent: true, attempt: 1 })
+    }, 5000)
     try {
       // Canals propis: el propietari els ha eliminat → els amaguem (ja no els ha de veure)
       const { data: own } = await supabase
@@ -79,6 +90,7 @@ export function useChannels(user) {
       setMemberCounts(counts)
     } finally {
       clearTimeout(safetyTimer)
+      hasLoadedRef.current = true
       setLoading(false)
     }
   }

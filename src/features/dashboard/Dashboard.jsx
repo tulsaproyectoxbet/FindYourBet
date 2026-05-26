@@ -478,7 +478,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
         <div className="dash-nav-right">
           {/* CAMPANA NOTIFICACIONS */}
           <div style={{ position: 'relative' }}>
-            <motion.button whileTap={{ scale: 0.9 }} onClick={() => { const next = !showNotifs; setShowNotifs(next); if (next) markAllRead() }}
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => { const next = !showNotifs; setShowNotifs(next); if (!next) markAllRead() }}
               style={{ position: 'relative', background: showNotifs ? 'var(--color-bg-soft)' : 'none', border: '0.5px solid', borderColor: showNotifs ? 'var(--color-border)' : 'transparent', borderRadius: 'var(--radius-md)', cursor: 'pointer', padding: '7px 10px', fontSize: '18px', display: 'flex', alignItems: 'center' }}>
               🔔
               {notifCount > 0 && (
@@ -491,7 +491,8 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
               {showNotifs && (
                 <NotificationsPanel
                   notifications={notifications}
-                  onClose={() => setShowNotifs(false)}
+                  onClose={() => { setShowNotifs(false); markAllRead() }}
+                  onMarkAllRead={markAllRead}
                   currentUser={user}
                   onViewProfile={(userId) => { setNotifProfileUserId(userId); setShowNotifs(false) }}
                   onViewPost={(msgId) => { setPostModalId(msgId); setShowNotifs(false) }}

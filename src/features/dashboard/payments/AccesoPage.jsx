@@ -102,12 +102,12 @@ export default function AccesoPage({ user }) {
 
         {/* Codi alternatiu */}
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Codi d'accés alternatiu</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Código de acceso alternativo</div>
           <div style={{ fontFamily: 'monospace', fontSize: '20px', fontWeight: 800, letterSpacing: '4px', color: 'var(--color-text)' }}>
             {channel.invite_code.toUpperCase()}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-            Canales → cerca per codi a FindYourBet
+            Canales → busca por código en FindYourBet
           </div>
         </div>
 

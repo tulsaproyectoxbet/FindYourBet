@@ -55,7 +55,8 @@ function filterBetsByPeriod(bets, period) {
 }
 
 function calcStats(bets) {
-  const resolved = bets.filter(b => b.status !== 'pending')
+  // 'void' = pick nul (anul·lat, diners retornats) — exclòs de TOTES les estadístiques
+  const resolved = bets.filter(b => b.status === 'won' || b.status === 'lost')
   const won = bets.filter(b => b.status === 'won')
   const lost = bets.filter(b => b.status === 'lost')
   let yieldVal = 0
@@ -69,8 +70,10 @@ function calcStats(bets) {
     )
     yieldVal = totals.stakeSum > 0 ? (totals.profit / totals.stakeSum) * 100 : 0
   }
-  const avgOdds = bets.length > 0
-    ? (bets.reduce((s, b) => s + b.odds, 0) / bets.length).toFixed(2)
+  // avg odds: només counted (no pending, no void) — perquè els nuls no afectin l'estadística
+  const counted = bets.filter(b => b.status === 'won' || b.status === 'lost')
+  const avgOdds = counted.length > 0
+    ? (counted.reduce((s, b) => s + b.odds, 0) / counted.length).toFixed(2)
     : '—'
   return { won, lost, yieldVal, avgOdds }
 }
@@ -113,13 +116,16 @@ export function useBets(user) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [period, setPeriod] = useState('total')
 
+  // Depèn de user?.id, no de l'objecte user. Evita refetches amb flash de loading
+  // a cada esdeveniment de Supabase (SIGNED_IN, USER_UPDATED, TOKEN_REFRESHED, etc.)
   useEffect(() => {
     if (!user?.id || user.id === 'dev-skip') { setLoadingBets(false); return }
     fetchBets()
-  }, [user])
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchBets = async () => {
-    setLoadingBets(true)
+    // Safety net per si Supabase es penja
+    const safetyTimer = setTimeout(() => setLoadingBets(false), 10000)
     try {
       const { data, error } = await supabase
         .from('bets').select('*')
@@ -129,6 +135,7 @@ export function useBets(user) {
     } catch (e) {
       // silent
     } finally {
+      clearTimeout(safetyTimer)
       setLoadingBets(false)
     }
   }

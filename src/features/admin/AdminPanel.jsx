@@ -36,8 +36,8 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
             {bet.pick && bet.pick !== '-' && <span>Pick: {bet.pick}</span>}
             <span>Cuota: {parseFloat(bet.odds || 0).toFixed(2)}</span>
             <span>Stake: {bet.stake}</span>
-            <span style={{ color: bet.status === 'won' ? 'var(--color-primary)' : bet.status === 'lost' ? 'var(--color-error)' : 'var(--color-text-muted)', fontWeight: 600 }}>
-              {bet.status === 'won' ? '✓ Ganada' : bet.status === 'lost' ? '✗ Perdida' : '⏳ Pendiente'}
+            <span style={{ color: bet.status === 'won' ? 'var(--color-primary)' : bet.status === 'lost' ? 'var(--color-error)' : bet.status === 'void' ? 'var(--color-info)' : 'var(--color-text-muted)', fontWeight: 600 }}>
+              {bet.status === 'won' ? '✓ Ganada' : bet.status === 'lost' ? '✗ Perdida' : bet.status === 'void' ? '● Nula' : '⏳ Pendiente'}
             </span>
           </div>
           <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

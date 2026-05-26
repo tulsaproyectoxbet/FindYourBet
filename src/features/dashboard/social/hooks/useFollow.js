@@ -13,7 +13,8 @@ export function useFollow(currentUserId) {
   }, [currentUserId])
 
   const fetchFollows = async () => {
-    setLoading(true)
+    // Safety net per si Supabase es penja, no deixar la UI en loading per sempre
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
       const [{ data: followingData }, { data: followersData }] = await Promise.all([
         supabase.from('follows').select('following_id').eq('follower_id', currentUserId),
@@ -24,6 +25,7 @@ export function useFollow(currentUserId) {
     } catch (e) {
       // silent
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

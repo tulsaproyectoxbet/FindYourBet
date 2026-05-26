@@ -27,6 +27,7 @@ function fmtTime(ts) {
 const STATUS_CFG = {
   won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
   lost:    { label: 'Perdida',   color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
+  void:    { label: 'Nula',      color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
   pending: { label: 'Pendiente', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
 }
 
@@ -275,7 +276,7 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
     load()
   }, [initialMessageId, betId, currentUser?.id])
 
-  // Admin: edita el resultat del pick (status: won/lost/pending)
+  // Admin: edita el resultat del pick (status: won/lost/pending/void)
   const handleAdminEditResult = async () => {
     const betId = data?.bet?.id
     if (!betId || !editStatus) return
@@ -724,6 +725,7 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                 <option value="pending">⏳ Pendiente</option>
                 <option value="won">✓ Ganada</option>
                 <option value="lost">✗ Perdida</option>
+                <option value="void">● Nula (devuelta)</option>
               </select>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowEditResult(false)}

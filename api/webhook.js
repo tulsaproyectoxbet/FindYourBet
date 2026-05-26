@@ -2,6 +2,9 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 
+// Imprescindible: Vercel no ha de parsejar el body perquè Stripe necessita els bytes originals per verificar la signatura
+export const config = { api: { bodyParser: false } }
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -86,7 +89,7 @@ async function sendAccessEmail({ to, channelName, tipsterUsername, offerName, ac
         <!-- Footer -->
         <tr><td style="background:#f9f9f9;border-top:1px solid #eee;padding:20px 40px;text-align:center;">
           <p style="margin:0;font-size:12px;color:#aaa;">
-            Si tens algun problema, escriu-nos a <a href="mailto:fyourbet@gmail.com" style="color:#0F6E56;">fyourbet@gmail.com</a>
+            Si tienes algún problema, escríbenos a <a href="mailto:fyourbet@gmail.com" style="color:#0F6E56;">fyourbet@gmail.com</a>
           </p>
           <p style="margin:6px 0 0;font-size:11px;color:#ccc;">FindYourBet · fyourbet.com</p>
         </td></tr>
@@ -104,7 +107,7 @@ async function sendAccessEmail({ to, channelName, tipsterUsername, offerName, ac
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: 'FindYourBet', email: 'hola@fyourbet.com' },
+      sender: { name: 'FindYourBet', email: 'fyourbet@gmail.com' },
       to: [{ email: to }],
       subject: `Tu acceso al canal ${channelName} - FindYourBet`,
       htmlContent: html,

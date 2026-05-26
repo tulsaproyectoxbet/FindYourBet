@@ -39,7 +39,8 @@ function getPeriodRange(period) {
 
 function buildBankData(allBets, period) {
   const sorted = [...allBets]
-    .filter(b => b.status !== 'pending')
+    // Només won/lost. 'void' (nul, diners retornats) no compta a estadístiques.
+    .filter(b => b.status === 'won' || b.status === 'lost')
     .sort((a, b) => new Date(a.date) - new Date(b.date))
 
   // Full bank (always all bets) — for the KPI cards
@@ -186,10 +187,13 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
 
   const totalBenefit = parseFloat((finalBank - INITIAL_BANK).toFixed(2))
 
+  // Total = won + lost (NO inclou pending ni void). Els nuls no compten enlloc.
+  const totalCounted = won.length + lost.length
+
   const KPIs = [
     { label: 'Yield', value: `${yieldVal.toFixed(2)}%`, colorClass: yieldVal >= 0 ? 'green' : 'red', sub: 'Beneficio sobre lo apostado' },
     { label: 'W / L', value: `${won.length} / ${lost.length}`, colorClass: '', sub: 'Ganadas / Perdidas' },
-    { label: 'Total Apuestas', value: bets.length, colorClass: '', sub: 'Historial completo' },
+    { label: 'Total Apuestas', value: totalCounted, colorClass: '', sub: 'Resueltas (sin nulas ni pendientes)' },
     { label: 'Cuota Media', value: avgOdds, colorClass: 'yellow', sub: 'Promedio de cuotas' },
     { label: 'BANK', value: fmtEur(finalBank), colorClass: finalBank >= INITIAL_BANK ? 'green' : 'red', sub: 'Capital acumulado' },
     { label: 'BENEFICIO', value: `${totalBenefit >= 0 ? '+' : ''}${fmtEur(totalBenefit)}`, colorClass: totalBenefit >= 0 ? 'green' : 'red', sub: 'Sobre el bank inicial: 1.000,00€' },

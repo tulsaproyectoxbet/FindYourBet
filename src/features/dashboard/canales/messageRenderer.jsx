@@ -41,9 +41,22 @@ export function BetCard({ bet, timeStr }) {
       .then(({ data }) => { if (data?.status) setLiveStatus(data.status) })
   }, [bet.id, bet.status])
 
-  const statusColor = liveStatus === 'won' ? 'var(--color-primary)' : liveStatus === 'lost' ? 'var(--color-error)' : 'var(--color-text-muted)'
-  const statusLabel = liveStatus === 'won' ? '✓ Ganada' : liveStatus === 'lost' ? '✗ Perdida' : '⏳ Pendiente'
-  const statusBg = liveStatus === 'won' ? 'var(--color-primary-light)' : liveStatus === 'lost' ? 'var(--color-error-light)' : 'var(--color-bg-soft)'
+  // 'void' = pick nul (anul·lat, diners retornats) — apareix en blau
+  const statusColor =
+    liveStatus === 'won'  ? 'var(--color-primary)'
+    : liveStatus === 'lost' ? 'var(--color-error)'
+    : liveStatus === 'void' ? 'var(--color-info)'
+    : 'var(--color-text-muted)'
+  const statusLabel =
+    liveStatus === 'won'  ? '✓ Ganada'
+    : liveStatus === 'lost' ? '✗ Perdida'
+    : liveStatus === 'void' ? '● Nula'
+    : '⏳ Pendiente'
+  const statusBg =
+    liveStatus === 'won'  ? 'var(--color-primary-light)'
+    : liveStatus === 'lost' ? 'var(--color-error-light)'
+    : liveStatus === 'void' ? 'var(--color-info-light)'
+    : 'var(--color-bg-soft)'
 
   const isPhoto = !!bet.imageUrl
 

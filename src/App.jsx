@@ -185,13 +185,29 @@ function AppRoutes() {
             alert(`Tu cuenta ha sido bloqueada.${built.banned_reason ? `\n\nMotivo: ${built.banned_reason}` : ''}`)
             return
           }
-          // Si el perfil no s'ha pogut carregar (username null), conservem el que ja teníem
-          setUser(prev => ({
-            ...built,
-            username: built.username ?? prev?.username ?? null,
-            name: built.username ? built.name : (prev?.name ?? built.name),
-            avatar_url: built.avatar_url ?? prev?.avatar_url ?? null,
-          }))
+          // Si el perfil no s'ha pogut carregar (username null), conservem el que ja teníem.
+          // CRÍTIC: si les dades essencials no canvien, retornem la mateixa referència.
+          // Així evitem que els components amb deps [user] facin refetch innecessàriament
+          // a cada esdeveniment de Supabase (SIGNED_IN, USER_UPDATED, etc.).
+          setUser(prev => {
+            const next = {
+              ...built,
+              username: built.username ?? prev?.username ?? null,
+              name: built.username ? built.name : (prev?.name ?? built.name),
+              avatar_url: built.avatar_url ?? prev?.avatar_url ?? null,
+            }
+            if (prev
+              && prev.id === next.id
+              && prev.username === next.username
+              && prev.email === next.email
+              && prev.avatar_url === next.avatar_url
+              && prev.is_verified === next.is_verified
+              && prev.banned === next.banned
+              && prev.needsOnboarding === next.needsOnboarding) {
+              return prev
+            }
+            return next
+          })
         } catch {
           setUser(prev => prev ?? { id: session.user.id, name: session.user.email, email: session.user.email, avatar_url: null })
         }

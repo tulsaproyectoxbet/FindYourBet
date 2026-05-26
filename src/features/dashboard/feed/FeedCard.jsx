@@ -20,6 +20,7 @@ function timeAgo(ts) {
 const STATUS_CFG = {
   won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
   lost:    { label: 'Perdida',   color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
+  void:    { label: 'Nula',      color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
   pending: { label: 'Pendiente', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
 }
 

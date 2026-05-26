@@ -182,9 +182,11 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       setFollowingCount(fingCount || 0)
 
       if (resolvedBets && resolvedBets.length > 0) {
-        const won = resolvedBets.filter(b => b.status === 'won').length
-        const lost = resolvedBets.filter(b => b.status === 'lost').length
-        const { profit, stakeSum } = resolvedBets.reduce(
+        // Per stats: només won/lost. 'void' (nul, diners retornats) està exclòs.
+        const countedBets = resolvedBets.filter(b => b.status === 'won' || b.status === 'lost')
+        const won = countedBets.filter(b => b.status === 'won').length
+        const lost = countedBets.filter(b => b.status === 'lost').length
+        const { profit, stakeSum } = countedBets.reduce(
           (acc, b) => ({
             stakeSum: acc.stakeSum + b.stake,
             profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake)
@@ -192,8 +194,12 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           { profit: 0, stakeSum: 0 }
         )
         const yieldVal = stakeSum > 0 ? (profit / stakeSum) * 100 : 0
-        const avgOdds = (resolvedBets.reduce((s, b) => s + b.odds, 0) / resolvedBets.length).toFixed(2)
-        setStats({ total: resolvedBets.length, won, lost, yieldVal, avgOdds })
+        const avgOdds = countedBets.length > 0
+          ? (countedBets.reduce((s, b) => s + b.odds, 0) / countedBets.length).toFixed(2)
+          : '—'
+        // total mostra només els que han comptat, així no es contradiu amb won + lost
+        setStats({ total: countedBets.length, won, lost, yieldVal, avgOdds })
+        // Pero el historial visible inclou tot (incloent els nuls en blau)
         setBets(resolvedBets)
       }
     } catch (e) {
@@ -678,7 +684,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                     style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < shownBets.length - 1 ? '0.5px solid var(--color-border)' : 'none', transition: 'background 0.15s', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : 'var(--color-error)', flexShrink: 0 }} />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : b.status === 'void' ? 'var(--color-info)' : 'var(--color-error)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isPrivateForViewer ? 'italic' : 'normal', color: isPrivateForViewer ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
                         {isPrivateForViewer ? '🔒 Pick privado' : b.event}
@@ -700,9 +706,19 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: b.status === 'won' ? 'var(--color-primary-light)' : 'var(--color-error-light)', color: b.status === 'won' ? 'var(--color-primary)' : 'var(--color-error)', border: `0.5px solid ${b.status === 'won' ? 'var(--color-primary-border)' : 'var(--color-error-border)'}` }}>
-                        {b.status === 'won' ? '✓ Win' : '✗ Loss'}
-                      </span>
+                      {(() => {
+                        const isWon = b.status === 'won'
+                        const isVoid = b.status === 'void'
+                        const bg = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
+                        const fg = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
+                        const bd = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
+                        const label = isWon ? '✓ Win' : isVoid ? '● Nula' : '✗ Loss'
+                        return (
+                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: bg, color: fg, border: `0.5px solid ${bd}` }}>
+                            {label}
+                          </span>
+                        )
+                      })()}
                       <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                         {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                       </div>

@@ -65,6 +65,8 @@ function TipsterCard({ tipster, isFollowing, isMutual, onClick }) {
 function enrichWithStats(profiles, bets) {
   const statsMap = {}
   for (const b of (bets || [])) {
+    // Només won/lost compten. 'void' (nul) i 'pending' ignorats per stats.
+    if (b.status !== 'won' && b.status !== 'lost') continue
     if (!statsMap[b.user_id]) statsMap[b.user_id] = { won: 0, lost: 0, total: 0, profit: 0, stakeSum: 0, oddsSum: 0 }
     const s = statsMap[b.user_id]
     s.total++
@@ -123,12 +125,17 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
   const [selectedUserId, setSelectedUserId] = useState(null)
   const { follow, unfollow, isFollowing, isFollower, isMutual } = useFollow(user?.id)
 
-  // Carregar siguiendo per defecte en muntar
-  useEffect(() => { loadSiguiendo() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Carregar siguiendo per defecte. Depenem de user?.id (no de l'objecte user)
+  // perquè si user prop és null al muntar, el fetch retorna i sense aquesta dep
+  // mai més es disparava. Ara es dispara tan aviat com user.id estigui disponible.
+  useEffect(() => { if (user?.id) loadSiguiendo() }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadSugeridos = async () => {
-    setLoading(true)
-    const safetyTimer = setTimeout(() => setLoading(false), 10000)
+  const loadSugeridos = async (attempt = 0) => {
+    if (attempt === 0) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+      if (attempt === 0) loadSugeridos(1)
+    }, 5000)
     try {
       const uid = user?.id || ''
 
@@ -200,53 +207,82 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
     }
   }
 
-  const loadSiguiendo = async () => {
+  // attempt: si és un retry no mostrem "Cargando" — l'usuari ja ho ha demanat
+  const loadSiguiendo = async (attempt = 0) => {
     if (!user?.id) return
-    setFollowingLoading(true)
-    const { data: followRows } = await supabase
-      .from('follows')
-      .select('following_id, created_at')
-      .eq('follower_id', user.id)
+    if (attempt === 0) setFollowingLoading(true)
+    // Safety: si una query es penja >5s, sortim del loading. Si era el primer intent
+    // i no hem aconseguit dades, retry automàtic (sovint el JWT s'ha refrescat entretant).
+    const safetyTimer = setTimeout(() => {
+      setFollowingLoading(false)
+      if (attempt === 0) loadSiguiendo(1)
+    }, 5000)
+    try {
+      const { data: followRows } = await supabase
+        .from('follows')
+        .select('following_id, created_at')
+        .eq('follower_id', user.id)
 
-    if (!followRows?.length) { setFollowing([]); setFollowingLoading(false); return }
+      if (!followRows?.length) { setFollowing([]); return }
 
-    const ids = followRows.map(f => f.following_id)
-    const followDateMap = {}
-    followRows.forEach(f => { followDateMap[f.following_id] = f.created_at })
+      const ids = followRows.map(f => f.following_id)
+      const followDateMap = {}
+      followRows.forEach(f => { followDateMap[f.following_id] = f.created_at })
 
-    const [{ data: profiles }, { data: bets }] = await Promise.all([
-      supabase.from('profiles').select('id, username, avatar_url, bio, is_verified').in('id', ids),
-      supabase.from('bets').select('user_id, stake, status, odds').in('user_id', ids).in('status', ['won', 'lost']).limit(2000),
-    ])
+      const [{ data: profiles }, { data: bets }] = await Promise.all([
+        supabase.from('profiles').select('id, username, avatar_url, bio, is_verified').in('id', ids),
+        supabase.from('bets').select('user_id, stake, status, odds').in('user_id', ids).in('status', ['won', 'lost']).limit(2000),
+      ])
 
-    const enriched = enrichWithStats(profiles || [], bets || [])
-      .map(p => ({ ...p, _followedAt: followDateMap[p.id] }))
+      const enriched = enrichWithStats(profiles || [], bets || [])
+        .map(p => ({ ...p, _followedAt: followDateMap[p.id] }))
 
-    setFollowing(enriched)
-    setFollowingLoading(false)
+      setFollowing(enriched)
+    } catch (e) {
+      // Si era el primer intent, dispara retry. Sinó deixem llista buida.
+      if (attempt === 0) {
+        clearTimeout(safetyTimer)
+        return loadSiguiendo(1)
+      }
+      setFollowing([])
+    } finally {
+      clearTimeout(safetyTimer)
+      setFollowingLoading(false)
+    }
   }
 
-  const loadVerificados = async () => {
+  const loadVerificados = async (attempt = 0) => {
     if (!user?.id) return
-    setVerificadosLoading(true)
-    const { data: followRows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
-    const followingSet = new Set((followRows || []).map(f => f.following_id))
+    if (attempt === 0) setVerificadosLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setVerificadosLoading(false)
+      if (attempt === 0) loadVerificados(1)
+    }, 5000)
+    try {
+      const { data: followRows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
+      const followingSet = new Set((followRows || []).map(f => f.following_id))
 
-    // Tots els perfils verificats que l'usuari no segueix
-    const { data: profiles } = await supabase.from('profiles')
-      .select('id, username, avatar_url, bio, is_verified')
-      .eq('is_verified', true)
-      .neq('id', user.id)
+      // Tots els perfils verificats que l'usuari no segueix
+      const { data: profiles } = await supabase.from('profiles')
+        .select('id, username, avatar_url, bio, is_verified')
+        .eq('is_verified', true)
+        .neq('id', user.id)
 
-    const unfolloedVerified = (profiles || []).filter(p => !followingSet.has(p.id))
-    if (!unfolloedVerified.length) { setVerificados([]); setVerificadosLoading(false); return }
+      const unfolloedVerified = (profiles || []).filter(p => !followingSet.has(p.id))
+      if (!unfolloedVerified.length) { setVerificados([]); return }
 
-    const ids = unfolloedVerified.map(p => p.id)
-    const { data: bets } = await supabase.from('bets').select('user_id, stake, status, odds')
-      .in('user_id', ids).in('status', ['won', 'lost']).limit(2000)
+      const ids = unfolloedVerified.map(p => p.id)
+      const { data: bets } = await supabase.from('bets').select('user_id, stake, status, odds')
+        .in('user_id', ids).in('status', ['won', 'lost']).limit(2000)
 
-    setVerificados(enrichWithStats(unfolloedVerified, bets || []))
-    setVerificadosLoading(false)
+      setVerificados(enrichWithStats(unfolloedVerified, bets || []))
+    } catch (e) {
+      if (attempt === 0) { clearTimeout(safetyTimer); return loadVerificados(1) }
+      setVerificados([])
+    } finally {
+      clearTimeout(safetyTimer)
+      setVerificadosLoading(false)
+    }
   }
 
   const handleTabChange = (tab) => {
@@ -441,6 +477,18 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM }) {
               )}
 
               {followingLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px' }}>⏳ Cargando...</div>}
+
+              {/* Fallback: si despres del retry automatic seguim sense dades, oferim retry manual */}
+              {!followingLoading && following === null && (
+                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+                  <div style={{ fontWeight: 600, marginBottom: '12px' }}>No se han podido cargar los tipsters</div>
+                  <button onClick={() => loadSiguiendo()}
+                    style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '10px 22px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
+                    Reintentar
+                  </button>
+                </div>
+              )}
 
               {!followingLoading && following !== null && following.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>

@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 
-// Polling intel·ligent: pausa quan el navegador no és visible
+// Polling intel·ligent: pausa quan el navegador no és visible.
+// Quan torna la visibilitat, NO dispara la fetch immediatament — esperem fins al
+// pròxim interval. Disparar immediatament feia que totes les pollings de l'app
+// (notifs + DMs + canals + feed) es disparessin alhora i saturessin Supabase
+// quan l'usuari tornava a la pestanya, causant "Cargando" intermitent.
 export function usePolling(fn, intervalMs, enabled = true) {
   const fnRef = useRef(fn)
   fnRef.current = fn
@@ -23,8 +27,7 @@ export function usePolling(fn, intervalMs, enabled = true) {
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
-        fnRef.current()
-        start()
+        start() // sense fire immediat — evita burst de requests
       } else {
         stop()
       }

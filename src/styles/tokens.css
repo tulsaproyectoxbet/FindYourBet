@@ -34,6 +34,10 @@
   --color-error-border: rgba(255, 77, 114, 0.25);
   --color-warning: #f59e0b;
   --color-success: #00ff8a;
+  /* Info/blau — usat per picks nuls (apostes anul·lades, diners retornats) */
+  --color-info: #3b82f6;
+  --color-info-light: rgba(59, 130, 246, 0.12);
+  --color-info-border: rgba(59, 130, 246, 0.3);
 
   /* ── Typography ── */
   --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;

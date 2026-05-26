@@ -184,10 +184,11 @@ export function useFeed(currentUserId) {
       const tipsterIds = [...new Set([...enrichedFollowing, ...enrichedDiscover].map(p => p.user_id))]
       let tipsterYields = {}
       if (tipsterIds.length) {
+        // 'void' (nul, diners retornats) està exclòs del càlcul de yield
         const { data: tipsterBets } = await supabase.from('bets')
           .select('user_id, stake, odds, status')
           .in('user_id', tipsterIds)
-          .neq('status', 'pending')
+          .in('status', ['won', 'lost'])
           .limit(500)
         const byTipster = {}
         for (const b of (tipsterBets || [])) {
@@ -250,11 +251,16 @@ export function useFeed(currentUserId) {
       await supabase.from('post_likes').delete().eq('message_id', messageId).eq('user_id', currentUserId)
     } else {
       await supabase.from('post_likes').insert({ message_id: messageId, user_id: currentUserId })
-      const post = [...followingFeed, ...discoverFeed].find(p => p.id === messageId)
-      if (post) {
+      // Busca el propietari del post — primer a l'estat, sinó a la DB (pot no estar al feed si el pick ja está resolt)
+      let ownerId = [...followingFeed, ...discoverFeed].find(p => p.id === messageId)?.user_id
+      if (!ownerId) {
+        const { data: msg } = await supabase.from('channel_messages').select('user_id').eq('id', messageId).single()
+        ownerId = msg?.user_id
+      }
+      if (ownerId) {
         await insertNotification({
-          userId: post.user_id, type: 'like', fromUserId: currentUserId,
-          fromUsername: myUsername, messageId, preview: post.bet?.event || '',
+          userId: ownerId, type: 'like', fromUserId: currentUserId,
+          fromUsername: myUsername, messageId, preview: '',
         })
       }
     }

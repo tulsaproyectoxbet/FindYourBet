@@ -48,7 +48,8 @@ function getPeriodRange(period) {
 }
 
 function calcYieldFromBets(bets) {
-  const resolved = bets.filter(b => b.status !== 'pending')
+  // 'void' (nul, diners retornats) està exclòs del càlcul de yield
+  const resolved = bets.filter(b => b.status === 'won' || b.status === 'lost')
   if (resolved.length < MIN_BETS) return null
   const { profit, stakeSum } = resolved.reduce(
     (acc, b) => ({
@@ -79,7 +80,7 @@ function matchesSport(bet, sport) {
 
 function getBestCombination(userBets, selectedSports) {
   const validSports = selectedSports.filter(sport => {
-    const sportBets = userBets.filter(b => matchesSport(b, sport) && b.status !== 'pending')
+    const sportBets = userBets.filter(b => matchesSport(b, sport) && (b.status === 'won' || b.status === 'lost'))
     return sportBets.length >= MIN_BETS
   })
   if (validSports.length === 0) return null
@@ -146,7 +147,7 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
       .map(([userId, userBets]) => {
         let finalBets, usedSports
         if (isTodos) {
-          const resolved = userBets.filter(b => b.status !== 'pending')
+          const resolved = userBets.filter(b => b.status === 'won' || b.status === 'lost')
           if (resolved.length < MIN_BETS) return null
           finalBets = userBets
           usedSports = null
@@ -157,7 +158,7 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
           usedSports = best.sports
         }
 
-        const resolved = finalBets.filter(b => b.status !== 'pending')
+        const resolved = finalBets.filter(b => b.status === 'won' || b.status === 'lost')
         const won = finalBets.filter(b => b.status === 'won').length
         const lost = finalBets.filter(b => b.status === 'lost').length
         const yieldVal = calcYieldFromBets(finalBets)
