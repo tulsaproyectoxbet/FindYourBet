@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { Button } from '../../../components/ui/Button'
 import { useChannels } from './hooks/useChannels'
 import ChannelCard from './ChannelCard'
+import LeaveChannelModal from './LeaveChannelModal'
 import ChatView from './ChatView'
 import PreviewView from './PreviewView'
 import { useAdminMode } from '../../../contexts/AdminModeContext'
@@ -103,6 +104,19 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
   const [showFilters, setShowFilters] = useState(false)
   const [miniMenuId, setMiniMenuId] = useState(null)
   const [miniMuteId, setMiniMuteId] = useState(null)
+  const [leaveTarget, setLeaveTarget] = useState(null) // { id, name }
+
+  // Sortida de canal: la primera vegada (o sempre) es confirma amb modal. Si l'usuari
+  // marca "No volver a preguntar", desem la preferència i les pròximes sortides són directes.
+  const LEAVE_SKIP_KEY = 'fyb_skip_leave_confirm'
+  const performLeave = (channelId) => {
+    leaveChannel(channelId)
+    if (activeChannel?.id === channelId) closeActiveChannel()
+  }
+  const requestLeave = (channelId, channelName) => {
+    if (localStorage.getItem(LEAVE_SKIP_KEY) === '1') { performLeave(channelId); return }
+    setLeaveTarget({ id: channelId, name: channelName })
+  }
 
   useEffect(() => {
     if (!initialCanalCode || loading) return
@@ -338,7 +352,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
             user={user}
             onBack={closeActiveChannel}
             memberCount={activeMemberCount}
-            onLeave={() => { leaveChannel(activeChannel.id); closeActiveChannel() }}
+            onLeave={() => requestLeave(activeChannel.id, activeChannel.name)}
             onDeleteChannel={async (channelId) => { await deleteChannel(channelId); closeActiveChannel() }}
             onOpenCanal={handleOpenByCode}
             onAddBet={onAddBet}
@@ -778,8 +792,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
                                   if (activeChannel?.id === ch.id) setActiveChannel(null)
                                 }
                               } else {
-                                leaveChannel(ch.id)
-                                if (activeChannel?.id === ch.id) setActiveChannel(null)
+                                requestLeave(ch.id, ch.name)
                               }
                               setMiniMenuId(null)
                             }} style={{ ...miniMenuBtnStyle, color: 'var(--color-error)' }}>
@@ -816,6 +829,20 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {leaveTarget && (
+          <LeaveChannelModal
+            channelName={leaveTarget.name}
+            onConfirm={(dontAsk) => {
+              if (dontAsk) localStorage.setItem(LEAVE_SKIP_KEY, '1')
+              performLeave(leaveTarget.id)
+              setLeaveTarget(null)
+            }}
+            onClose={() => setLeaveTarget(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

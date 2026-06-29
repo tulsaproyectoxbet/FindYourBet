@@ -5,6 +5,7 @@ import { StickerPicker } from '../StickerPicker'
 import { VoicePlayer, VoiceRecordButton } from '../VoiceMessage'
 import Username from '../../../components/ui/Username'
 import { usePolling } from '../../../hooks/usePolling'
+import { MUTE_DURATIONS } from '../../../hooks/useMutes'
 import ForwardModal from './ForwardModal'
 import ForwardedChannelModal from '../canales/ForwardedChannelModal'
 import PinDurationModal from '../canales/PinDurationModal'
@@ -178,7 +179,7 @@ function NewMessagesDivider() {
   )
 }
 
-export default function DMView({ conversation, currentUser, onBack, onSend, onFetchMessages, onMarkRead, onUnreadChange, onBlock, onReport, onViewProfile, onAccept, onNavigateToChannel, compact = false }) {
+export default function DMView({ conversation, currentUser, onBack, onSend, onFetchMessages, onMarkRead, onUnreadChange, onBlock, onReport, onViewProfile, onAccept, onNavigateToChannel, isPinned, onTogglePin, isMutedConv, onMuteConv, onUnmuteConv, onDeleteConv, compact = false }) {
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -189,8 +190,8 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   const markedRef = useRef(new Set())
   const observerRef = useRef(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [showMuteSub, setShowMuteSub] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
-  const [muted, setMuted] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [pastedImage, setPastedImage] = useState(null)
@@ -485,10 +486,19 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
     e.target.value = ''
   }
 
+  const closeMenu = () => { setShowMenu(false); setShowMuteSub(false) }
+
+  // Mateixes accions que el menú de 3 punts de la llista de converses.
   const menuItems = [
-    { icon: muted ? '🔔' : '🔕', label: muted ? 'Activar notificaciones' : 'Silenciar', action: () => { setMuted(!muted); setShowMenu(false) } },
-    { icon: '🚩', label: 'Reportar', action: () => { onReport?.(conversation.id); setShowMenu(false) } },
-    { icon: '🚫', label: 'Bloquear', action: () => { onBlock?.(conversation.id); setShowMenu(false) }, danger: true },
+    { icon: isPinned ? '📍' : '📌', label: isPinned ? 'Desanclar' : 'Anclar', action: () => { onTogglePin?.(); closeMenu() } },
+    {
+      icon: isMutedConv ? '🔔' : '🔕', label: isMutedConv ? 'Activar notificaciones' : 'Silenciar',
+      // Si està silenciat, reactiva directament; si no, obre el submenú de durades.
+      action: () => { if (isMutedConv) { onUnmuteConv?.(); closeMenu() } else { setShowMuteSub(true) } },
+    },
+    { icon: '🗑️', label: 'Eliminar chat', action: () => { onDeleteConv?.(); closeMenu() }, danger: true },
+    { icon: '🚫', label: 'Bloquear', action: () => { onBlock?.(); closeMenu() }, danger: true },
+    { icon: '🚩', label: 'Reportar', action: () => { onReport?.(); closeMenu() } },
   ]
 
   const isPending = !conversation.otherAccepted && conversation.user1_id === currentUser.id
@@ -524,15 +534,25 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           </button>
           {showMenu && (
             <>
-              <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
+              <div onClick={closeMenu} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
               <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                 style={{ position: 'absolute', top: '36px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '180px', overflow: 'hidden' }}>
-                {menuItems.map((item, i) => (
-                  <button key={i} onClick={item.action}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: item.danger ? 'var(--color-error)' : 'var(--color-text)', textAlign: 'left', borderBottom: i < menuItems.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
-                    <span>{item.icon}</span><span>{item.label}</span>
-                  </button>
-                ))}
+                {showMuteSub ? (
+                  // Submenú de durades de silenci (igual que a la llista).
+                  MUTE_DURATIONS.map((d, i) => (
+                    <button key={i} onClick={() => { onMuteConv?.(d.ms); closeMenu() }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text)', textAlign: 'left', borderBottom: i < MUTE_DURATIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
+                      {d.label}
+                    </button>
+                  ))
+                ) : (
+                  menuItems.map((item, i) => (
+                    <button key={i} onClick={item.action}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: item.danger ? 'var(--color-error)' : 'var(--color-text)', textAlign: 'left', borderBottom: i < menuItems.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
+                      <span>{item.icon}</span><span>{item.label}</span>
+                    </button>
+                  ))
+                )}
               </motion.div>
             </>
           )}
@@ -702,7 +722,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
             {conversation.otherUsername} quiere enviarte un mensaje
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button onClick={() => onBlock?.(conversation.id)}
+            <button onClick={() => onDeleteConv?.()}
               style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
               Rechazar
             </button>

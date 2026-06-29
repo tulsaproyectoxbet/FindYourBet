@@ -17,19 +17,51 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
   const [details, setDetails] = useState('')
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+
+  // Throttle global de reports: evita saturar la BD amb inserts repetits.
+  const REPORT_COOLDOWN_MS = 10000
 
   const handleSubmit = async () => {
     if (!reason || sending) return
+    setError('')
+
+    // 1) Rate limit client: com a molt un report cada 10 segons.
+    const last = parseInt(localStorage.getItem('fyb_last_report_at') || '0', 10)
+    if (Date.now() - last < REPORT_COOLDOWN_MS) {
+      const wait = Math.ceil((REPORT_COOLDOWN_MS - (Date.now() - last)) / 1000)
+      setError(`Espera ${wait}s antes de enviar otro reporte.`)
+      return
+    }
+
     setSending(true)
-    await supabase.from('user_reports').insert({
-      reporter_id: reporterId,
-      reported_id: reportedId,
-      reason,
-      details: reason === 'Otro' && details.trim() ? details.trim() : null,
-      status: 'pending',
-    })
-    setSending(false)
-    setSent(true)
+    try {
+      // 2) Dedup: només compta el PRIMER report d'aquest usuari sobre l'altre.
+      // Si ja n'hi ha un, no inserim un duplicat (es mostra com enviat igualment).
+      const { data: existing } = await supabase
+        .from('user_reports')
+        .select('id')
+        .eq('reporter_id', reporterId)
+        .eq('reported_id', reportedId)
+        .limit(1)
+        .maybeSingle()
+
+      if (!existing) {
+        await supabase.from('user_reports').insert({
+          reporter_id: reporterId,
+          reported_id: reportedId,
+          reason,
+          details: reason === 'Otro' && details.trim() ? details.trim() : null,
+          status: 'pending',
+        })
+      }
+      localStorage.setItem('fyb_last_report_at', String(Date.now()))
+      setSent(true)
+    } catch {
+      setError('No se pudo enviar el reporte. Inténtalo de nuevo.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -96,6 +128,11 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
                 />
               )}
 
+              {error && (
+                <div style={{ fontSize: '12px', color: 'var(--color-error)', background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', padding: '8px 12px', marginBottom: '12px' }}>
+                  {error}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: reason === 'Otro' ? 0 : '4px' }}>
                 <button onClick={onClose}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>

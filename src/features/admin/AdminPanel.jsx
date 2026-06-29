@@ -472,9 +472,38 @@ function VerificadosTab() {
   )
 }
 
+// Agrupa reports per usuari reportat. Dedupa per reporter (només compta el PRIMER
+// report de cada persona) i ordena pels qui tenen més denúncies — els més prioritaris
+// surten primer. Cada grup és plegable: en obrir-lo es veuen els motius de cada reporter.
+function groupReports(reports) {
+  const groups = new Map()
+  // Ascendent perquè, en dedupar, conservem el report MÉS ANTIC de cada reporter.
+  const ordered = [...reports].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  for (const r of ordered) {
+    const key = r.reported_id || r.reported?.username || r.id
+    if (!groups.has(key)) {
+      groups.set(key, { key, reportedUsername: r.reported?.username || '?', byReporter: new Map(), all: [] })
+    }
+    const g = groups.get(key)
+    g.all.push(r)
+    // Només el primer report de cada reporter compta (dedup).
+    if (!g.byReporter.has(r.reporter_id)) g.byReporter.set(r.reporter_id, r)
+  }
+  return [...groups.values()]
+    .map(g => {
+      const unique = [...g.byReporter.values()]
+      const hasPending = g.all.some(r => r.status === 'pending')
+      const lastAt = g.all.reduce((max, r) => Math.max(max, new Date(r.created_at).getTime()), 0)
+      return { ...g, unique, count: unique.length, hasPending, lastAt }
+    })
+    // Prioritat: més denunciants primer; a igualtat, el més recent a dalt.
+    .sort((a, b) => (b.count - a.count) || (b.lastAt - a.lastAt))
+}
+
 function UserReportsTab() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(() => new Set())
 
   const fetchReports = async () => {
     setLoading(true)
@@ -482,9 +511,9 @@ function UserReportsTab() {
     try {
       const { data } = await supabase
         .from('user_reports')
-        .select('id, reason, details, status, created_at, reporter:profiles!reporter_id(username), reported:profiles!reported_id(username)')
+        .select('id, reporter_id, reported_id, reason, details, status, created_at, reporter:profiles!reporter_id(username), reported:profiles!reported_id(username)')
         .order('created_at', { ascending: false })
-        .limit(100)
+        .limit(200)
       setReports(data || [])
     } catch {
       setReports([])
@@ -496,13 +525,18 @@ function UserReportsTab() {
 
   useEffect(() => { fetchReports() }, [])
 
-  const markReviewed = async (id) => {
-    await supabase.from('user_reports').update({ status: 'reviewed' }).eq('id', id)
-    setReports(prev => prev.map(r => r.id === id ? { ...r, status: 'reviewed' } : r))
+  // Marca com revisats TOTS els reports d'un usuari reportat alhora.
+  const markGroupReviewed = async (group) => {
+    const ids = group.all.map(r => r.id)
+    await supabase.from('user_reports').update({ status: 'reviewed' }).in('id', ids)
+    setReports(prev => prev.map(r => ids.includes(r.id) ? { ...r, status: 'reviewed' } : r))
   }
 
-  const pending = reports.filter(r => r.status === 'pending')
-  const reviewed = reports.filter(r => r.status === 'reviewed')
+  const toggle = (key) => setExpanded(prev => {
+    const n = new Set(prev)
+    n.has(key) ? n.delete(key) : n.add(key)
+    return n
+  })
 
   if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando...</div>
 
@@ -513,46 +547,67 @@ function UserReportsTab() {
     </div>
   )
 
-  const ReportRow = ({ r }) => (
-    <div style={{ background: 'var(--color-bg)', border: `0.5px solid ${r.status === 'pending' ? 'var(--color-warning, #f59e0b)' : 'var(--color-border)'}`, borderLeft: `3px solid ${r.status === 'pending' ? 'var(--color-warning, #f59e0b)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', padding: '14px 16px', marginBottom: '8px', opacity: r.status === 'reviewed' ? 0.6 : 1 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-              <strong style={{ color: 'var(--color-text)' }}>{r.reporter?.username || '?'}</strong>
-              {' reporta a '}
-              <strong style={{ color: 'var(--color-error)' }}>{r.reported?.username || '?'}</strong>
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', padding: '2px 8px', borderRadius: '999px' }}>
-              {new Date(r.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+  const groups = groupReports(reports)
+  const pendingGroups = groups.filter(g => g.hasPending)
+  const reviewedGroups = groups.filter(g => !g.hasPending)
+
+  const GroupCard = ({ g }) => {
+    const isOpen = expanded.has(g.key)
+    return (
+      <div style={{ background: 'var(--color-bg)', border: `0.5px solid ${g.hasPending ? 'var(--color-warning, #f59e0b)' : 'var(--color-border)'}`, borderLeft: `3px solid ${g.hasPending ? 'var(--color-warning, #f59e0b)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', marginBottom: '8px', opacity: g.hasPending ? 1 : 0.65, overflow: 'hidden' }}>
+        {/* Capçalera plegable: usuari reportat + nombre de denunciants */}
+        <div onClick={() => toggle(g.key)}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '14px 16px', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
+            <strong style={{ fontSize: '14px', color: 'var(--color-error)' }}>{g.reportedUsername}</strong>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', background: g.count > 1 ? 'var(--color-error)' : 'var(--color-text-muted)', padding: '2px 9px', borderRadius: '999px' }}>
+              {g.count} {g.count === 1 ? 'reporte' : 'personas'}
             </span>
           </div>
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: r.details ? '4px' : 0 }}>{r.reason}</div>
-          {r.details && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>{r.details}</div>}
+          {g.hasPending ? (
+            <button onClick={(e) => { e.stopPropagation(); markGroupReviewed(g) }}
+              style={{ padding: '5px 12px', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
+              ✓ Marcar revisado
+            </button>
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, flexShrink: 0 }}>✓ Revisado</span>
+          )}
         </div>
-        {r.status === 'pending' ? (
-          <button onClick={() => markReviewed(r.id)}
-            style={{ padding: '5px 12px', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-            ✓ Marcar revisado
-          </button>
-        ) : (
-          <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600 }}>✓ Revisado</span>
+        {/* Detall: motiu de cada reporter (dedupat) */}
+        {isOpen && (
+          <div style={{ borderTop: '0.5px solid var(--color-border)', padding: '8px 16px 12px' }}>
+            {g.unique.map(r => (
+              <div key={r.id} style={{ padding: '10px 0', borderBottom: '0.5px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                    Reportado por <strong style={{ color: 'var(--color-text)' }}>{r.reporter?.username || '?'}</strong>
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', padding: '2px 8px', borderRadius: '999px' }}>
+                    {new Date(r.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: r.details ? '4px' : 0 }}>{r.reason}</div>
+                {r.details && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>{r.details}</div>}
+              </div>
+            ))}
+          </div>
         )}
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div>
       <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-        {pending.length} pendiente{pending.length !== 1 ? 's' : ''} · {reviewed.length} revisado{reviewed.length !== 1 ? 's' : ''} ·{' '}
+        {pendingGroups.length} usuario{pendingGroups.length !== 1 ? 's' : ''} pendiente{pendingGroups.length !== 1 ? 's' : ''} · {reviewedGroups.length} revisado{reviewedGroups.length !== 1 ? 's' : ''} ·{' '}
         <button onClick={fetchReports} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)', padding: 0 }}>Actualizar</button>
       </div>
-      {pending.map(r => <ReportRow key={r.id} r={r} />)}
-      {reviewed.length > 0 && pending.length > 0 && (
+      {pendingGroups.map(g => <GroupCard key={g.key} g={g} />)}
+      {reviewedGroups.length > 0 && pendingGroups.length > 0 && (
         <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '16px 0 10px' }}>Revisados</div>
       )}
-      {reviewed.map(r => <ReportRow key={r.id} r={r} />)}
+      {reviewedGroups.map(g => <GroupCard key={g.key} g={g} />)}
     </div>
   )
 }

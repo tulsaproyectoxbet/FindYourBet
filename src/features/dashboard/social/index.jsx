@@ -9,6 +9,7 @@ import { useResizablePanel } from '../../../hooks/useResizablePanel'
 import DMView from './DMView'
 import ProfileView from './ProfileView'
 import ReportUserModal from './ReportUserModal'
+import BlockUserModal from './BlockUserModal'
 import Username from '../../../components/ui/Username'
 import { isAdminUserId } from '../../../lib/adminUsers'
 import { formatMsgPreview } from '../../../lib/formatMsgPreview'
@@ -38,6 +39,9 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
   const [miniMenuId, setMiniMenuId] = useState(null)
   const [miniMuteId, setMiniMuteId] = useState(null)
   const [reportTarget, setReportTarget] = useState(null) // { id, username }
+  const [blockTarget, setBlockTarget] = useState(null) // { id, username, convId }
+  // S'incrementa en bloquejar la conversa oberta per forçar-ne el remount (mode lectura).
+  const [blockBump, setBlockBump] = useState(0)
 
   const [view, setView] = useState('list') // 'list' | 'dm' | 'profile' | 'search'
   const [activeConv, setActiveConv] = useState(null)
@@ -105,7 +109,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
       <div className="canales-chat-panel">
         {activeConv ? (
           <DMView
-            key={activeConv.id}
+            key={`${activeConv.id}-${blockBump}`}
             conversation={activeConv}
             currentUser={user}
             onBack={() => { setView('list'); setActiveConv(null); onRefreshUnread?.() }}
@@ -113,8 +117,20 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
             onFetchMessages={fetchMessages}
             onMarkRead={markDmRead}
             onUnreadChange={onActiveUnreadChange}
-            onBlock={(id) => { blockUser(id); setView('list'); setActiveConv(null) }}
-            onReport={() => alert('Conversación reportada.')}
+            // Menú de la capçalera del xat — mateixes accions que els 3 punts de la llista.
+            isPinned={isDMPinned(activeConv.id)}
+            onTogglePin={() => isDMPinned(activeConv.id) ? unpinDM(activeConv.id) : pinDM(activeConv.id)}
+            isMutedConv={isMuted(`dm_${activeConv.id}`)}
+            onMuteConv={(ms) => mute(`dm_${activeConv.id}`, ms)}
+            onUnmuteConv={() => unmute(`dm_${activeConv.id}`)}
+            onDeleteConv={() => {
+              if (window.confirm(`¿Eliminar la conversación con ${activeConv.otherUsername}?`)) {
+                blockUser(activeConv.id)
+                setView('list'); setActiveConv(null)
+              }
+            }}
+            onBlock={() => setBlockTarget({ id: activeConv.otherId, username: activeConv.otherUsername, convId: activeConv.id })}
+            onReport={() => setReportTarget({ id: activeConv.otherId, username: activeConv.otherUsername })}
             onViewProfile={(userId) => { setActiveProfile(userId); setView('profile') }}
             onAccept={async (id) => {
               await acceptConversation(id)
@@ -307,14 +323,8 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                             }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-error)' }}>
                               🗑️ Eliminar chat
                             </button>
-                            <button onClick={async () => {
-                              if (window.confirm(`¿Bloquear a ${c.otherUsername}?`)) {
-                                await supabase.from('blocks').upsert({ blocker_id: user.id, blocked_id: c.otherId })
-                                blockUser(c.id)
-                                if (activeConv?.id === c.id) { setView('list'); setActiveConv(null) }
-                              }
-                              setMiniMenuId(null)
-                            }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-error)' }}>
+                            <button onClick={() => { setBlockTarget({ id: c.otherId, username: c.otherUsername, convId: c.id }); setMiniMenuId(null) }}
+                              style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-error)' }}>
                               🚫 Bloquear
                             </button>
                             <button onClick={() => { setReportTarget({ id: c.otherId, username: c.otherUsername }); setMiniMenuId(null) }}
@@ -358,6 +368,23 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
         )}
       </div>
     </div>
+
+    <AnimatePresence>
+      {blockTarget && (
+        <BlockUserModal
+          username={blockTarget.username}
+          onConfirm={async () => {
+            await supabase.from('blocks').upsert({ blocker_id: user.id, blocked_id: blockTarget.id })
+            // NO esborrem la conversa: queda accessible en mode lectura (sense input).
+            // Si la tenim oberta, en forcem el remount perquè DMView re-detecti el bloqueig.
+            if (activeConv?.id === blockTarget.convId) setBlockBump(b => b + 1)
+          }}
+          // Si l'usuari accepta reportar després de bloquejar, reobrim el flux de report.
+          onReport={() => setReportTarget({ id: blockTarget.id, username: blockTarget.username })}
+          onClose={() => setBlockTarget(null)}
+        />
+      )}
+    </AnimatePresence>
 
     <AnimatePresence>
       {reportTarget && (

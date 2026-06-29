@@ -31,6 +31,9 @@ import { ProfileNavContext } from '../../contexts/ProfileNavContext'
 import { AdminModeProvider } from '../../contexts/AdminModeContext'
 import './dashboard.css'
 
+// Versió mostrada al modal BETA. Actualitzar a mà a cada fita rellevant del producte.
+const APP_VERSION = 'v0.9 · Beta privada'
+
 const SHORTCUT_OPTIONS = [
   { id: 'miperfil',     label: 'Perfil',           icon: '👤' },
   { id: 'estadisticas', label: 'Estadísticas',      icon: '📊' },
@@ -246,6 +249,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   }
 
   const [showVerifiedModal, setShowVerifiedModal] = useState(false)
+  const [showBetaModal, setShowBetaModal] = useState(false)
   const [adminWarning, setAdminWarning] = useState(null)
   const [deletedChannels, setDeletedChannels] = useState([])
   const [recentPurchase, setRecentPurchase] = useState(null)
@@ -507,11 +511,103 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
         )}
       </AnimatePresence>
 
+      {/* Modal BETA — explica què és FYB, l'objectiu, com usar-la, què inclou ara i què arribarà */}
+      <AnimatePresence>
+        {showBetaModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowBetaModal(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 310, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', maxWidth: '560px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 0 40px rgba(0,0,0,0.4)' }}>
+              {/* Capçalera fixa */}
+              <div style={{ padding: '28px 28px 18px', borderBottom: '0.5px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '21px', fontWeight: 800 }}>FindYour<span style={{ color: 'var(--color-primary)' }}>Bet</span></div>
+                  <button onClick={() => setShowBetaModal(false)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: '4px' }}>✕</button>
+                </div>
+                <span style={{ display: 'inline-block', background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '0.5px solid var(--color-primary-border)', borderRadius: '999px', padding: '3px 10px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px' }}>
+                  {APP_VERSION}
+                </span>
+              </div>
+
+              {/* Cos amb scroll */}
+              <div style={{ padding: '20px 28px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                <section>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🎯 Qué es y qué buscamos</div>
+                  <p style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.65, margin: 0 }}>
+                    FindYourBet es una <strong>red social de apuestas deportivas</strong>, no un simple tracker. Nuestro objetivo es que las apuestas dejen de ser algo opaco y solitario: aquí registras tus picks, ves tu rendimiento real con datos verificables y descubres a los tipsters que de verdad ganan a largo plazo.
+                  </p>
+                  <p style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.65, margin: '10px 0 0' }}>
+                    Queremos construir una comunidad <strong>transparente y honesta</strong>, donde el rendimiento se demuestre con números y no con promesas. Apuesta siempre con responsabilidad.
+                  </p>
+                </section>
+
+                <section>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🧭 Cómo usarla</div>
+                  <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li><strong>Registra tus apuestas</strong> en el Historial para que tus estadísticas (yield, acierto, racha) sean reales.</li>
+                    <li><strong>Sigue a tipsters</strong> y entra en sus canales para ver sus picks y análisis en tiempo real.</li>
+                    <li><strong>Participa</strong>: comenta, da like, comparte picks por DM y compite en los rankings con tus amigos.</li>
+                    <li>Si eres tipster, <strong>crea tu canal</strong> y comparte tu metodología con la comunidad.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>✅ Qué incluye ahora</div>
+                  <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li>Registro de apuestas con estadísticas e historial completo</li>
+                    <li>Canales públicos con chat, picks y encuestas</li>
+                    <li>Feed de picks (Siguiendo + Para ti)</li>
+                    <li>Descubrimiento de tipsters y verificación</li>
+                    <li>Perfiles, follows, mensajes directos y comunidad</li>
+                    <li>Rankings globales por yield y ranking entre amigos</li>
+                    <li>Likes, comentarios y notificaciones</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🚧 Próximamente</div>
+                  <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li><strong>Canales privados</strong> (por enlace, VIP de pago y stakazos) — todavía no disponibles</li>
+                    <li>Actualizaciones en <strong>tiempo real</strong> (sin esperas de recarga)</li>
+                    <li><strong>Renovación automática</strong> de suscripciones VIP</li>
+                    <li>Sistema de <strong>ranking completo</strong> con tiers y puntuación 0–100</li>
+                    <li>Perfiles públicos de tipster optimizados para compartir</li>
+                    <li>Guías de uso integradas en cada función</li>
+                  </ul>
+                </section>
+
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.6, background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+                  Estás usando una <strong>beta privada</strong>: algunas cosas pueden cambiar o fallar. Tu feedback nos ayuda a mejorar — escríbenos desde <strong>Contacto / Sugerencias</strong>.
+                </div>
+              </div>
+
+              {/* Peu fix */}
+              <div style={{ padding: '16px 28px 22px', borderTop: '0.5px solid var(--color-border)' }}>
+                <button onClick={() => setShowBetaModal(false)}
+                  style={{ width: '100%', background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-lg)', padding: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '15px', fontFamily: 'var(--font-sans)' }}>
+                  Entendido
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* NAV */}
       <motion.nav className="dash-nav"
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="dash-nav-left">
-          <div className="dash-logo" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>FindYour<span>Bet</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="dash-logo" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>FindYour<span>Bet</span></div>
+            {/* Botó BETA: obre el modal amb l'estat actual del producte, versió i roadmap */}
+            <motion.button whileTap={{ scale: 0.94 }} onClick={() => setShowBetaModal(true)} title="Qué es FindYourBet y en qué punto está"
+              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '0.5px solid var(--color-primary-border)', borderRadius: '999px', padding: '3px 10px', fontSize: '10px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'var(--font-sans)', lineHeight: 1.4 }}>
+              Beta
+            </motion.button>
+          </div>
           <div className="dash-nav-tabs">
             {shortcuts.map(id => {
               const opt = SHORTCUT_OPTIONS.find(o => o.id === id)
