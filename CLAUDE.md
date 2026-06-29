@@ -16,6 +16,8 @@ Producte en beta privada (gate code `FYBM67`). Idioma de la UI: castellà. Conve
 
 Deploy: `master` → push a `upstream` (`tulsaproyectoxbet/FindYourBet`) → sync fork `FYBet/FindYourBet` → Vercel desplega automàticament a `fyourbet.com` (DNS via Cloudflare).
 
+**Branques:** Tot el codi viu a `master`. La branca `main` només conté documentació (README, LICENSE). Quan l'usuari demani fer push o pull, sempre és sobre `master`, mai sobre `main`.
+
 ---
 
 ## Comandes
