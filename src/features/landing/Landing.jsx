@@ -360,7 +360,7 @@ export default function Landing({ navigate, user }) {
               >
                 Ir al Dashboard
               </Button>
-              <div className="nav-user-chip">
+              <div className="nav-user-chip" style={{ cursor: 'pointer' }} onClick={() => navigate('dashboard')}>
                 <span className="nav-user-dot" />
                 <span className="nav-user-name">{user.username || user.email}</span>
               </div>
