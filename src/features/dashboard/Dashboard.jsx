@@ -338,13 +338,20 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   const [showNotifs, setShowNotifs] = useState(false)
 
   const [pendingCanalCode, setPendingCanalCode] = useState(null)
+  const [pendingCanalAction, setPendingCanalAction] = useState(null)
   const [notifProfileUserId, setNotifProfileUserId] = useState(null)
   const [postModalId, setPostModalId] = useState(null)
 
   useEffect(() => {
     const canalCode = searchParams.get('canal')
+    const action = searchParams.get('action')
     if (canalCode) {
       setPendingCanalCode(canalCode)
+      setTab('canales')
+      navigate('/dashboard', { replace: true })
+    }
+    if (action === 'buscar' || action === 'crear') {
+      setPendingCanalAction(action)
       setTab('canales')
       navigate('/dashboard', { replace: true })
     }
@@ -756,6 +763,8 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 user={user}
                 initialCanalCode={pendingCanalCode}
                 onCanalCodeUsed={() => setPendingCanalCode(null)}
+                initialAction={pendingCanalAction}
+                onActionUsed={() => setPendingCanalAction(null)}
                 onAddBet={handleAddBetFromCanal}
                 unreadChannelCounts={unreadChannelCounts}
                 onActiveUnreadChange={setChannelUnreadCount}

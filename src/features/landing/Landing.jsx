@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { motion, useInView, animate } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { fadeUp, stagger } from '../../lib/animations'
 import { Button } from '../../components/ui/Button'
 import './landing.css'
@@ -252,8 +253,9 @@ function TipsterRain() {
   )
 }
 
-function Hero({ navigate }) {
+function Hero({ user }) {
   const ref = useRef(null)
+  const rrNavigate = useNavigate()
 
   const onMove = (e) => {
     const el = ref.current
@@ -261,6 +263,16 @@ function Hero({ navigate }) {
     const r = el.getBoundingClientRect()
     el.style.setProperty('--mx', `${e.clientX - r.left}px`)
     el.style.setProperty('--my', `${e.clientY - r.top}px`)
+  }
+
+  const handleUnirte = () => {
+    if (user) rrNavigate('/dashboard?action=buscar')
+    else rrNavigate('/register?redirect=' + encodeURIComponent('/dashboard?action=buscar'))
+  }
+
+  const handleCrear = () => {
+    if (user) rrNavigate('/dashboard?action=crear')
+    else rrNavigate('/register?redirect=' + encodeURIComponent('/dashboard?action=crear'))
   }
 
   return (
@@ -276,8 +288,8 @@ function Hero({ navigate }) {
       </motion.p>
 
       <motion.div className="hero-btns" variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-        <Button onClick={() => navigate('register')}>Unirte gratis</Button>
-        <Button variant="ghost" onClick={() => navigate('register')}>Crear mi canal</Button>
+        <Button onClick={handleUnirte}>Unirte gratis</Button>
+        <Button variant="ghost" onClick={handleCrear}>Crear mi canal</Button>
       </motion.div>
 
       <motion.div
@@ -362,7 +374,7 @@ export default function Landing({ navigate, user }) {
         </div>
       </motion.nav>
 
-      <Hero navigate={navigate} />
+      <Hero user={user} />
 
       <motion.div className="stats-bar" initial="hidden" animate="visible" variants={stagger}>
         {STATS.map((s, i) => (

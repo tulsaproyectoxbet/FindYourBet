@@ -65,7 +65,7 @@ function resolveChannelType(f) {
   return null
 }
 
-export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAddBet, unreadChannelCounts = new Map(), onActiveUnreadChange, onRefreshUnread }) {
+export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initialAction, onActionUsed, onAddBet, unreadChannelCounts = new Map(), onActiveUnreadChange, onRefreshUnread }) {
   const { adminMode } = useAdminMode()
   const { myChannels, joinedChannels, memberCounts, lastMessages, loading, createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const { pin, unpin, isPinned } = usePinnedChannels('fyb_pinned_channels')
@@ -123,6 +123,13 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, onAdd
     onCanalCodeUsed?.()
     handleOpenByCode(initialCanalCode)
   }, [initialCanalCode, loading])
+
+  useEffect(() => {
+    if (!initialAction || loading) return
+    onActionUsed?.()
+    if (initialAction === 'buscar') handleOpenSearch()
+    if (initialAction === 'crear') { setShowCreate(true); setShowSearch(false) }
+  }, [initialAction, loading])
 
   const handleOpenByCode = async (code) => {
     const channel = await findChannelByCode(code)
