@@ -311,6 +311,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
   const [contactTipsters, setContactTipsters]   = useState(null)
   const [forYouTipsters, setForYouTipsters]     = useState(null)
   const [sugeridosLoading, setSugeridosLoading] = useState(false)
+  const [onlyVerified, setOnlyVerified]         = useState(false) // toggle: mostrar només verificats
 
   // Siguiendo
   const [following, setFollowing]               = useState(null)
@@ -503,8 +504,9 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       const verified    = candidates.filter(p => p.is_verified)
       const contacts    = candidates.filter(p => !p.is_verified && p._mutualConnections > 0).sort((a, b) => b._mutualConnections - a._mutualConnections).slice(0, 12)
       const contactIds  = new Set(contacts.map(p => p.id))
-      const verifiedIds = new Set(verified.map(p => p.id))
-      const forYou      = candidates.filter(p => !verifiedIds.has(p.id) && !contactIds.has(p.id)).slice(0, 20)
+      // Descubre inclou TOTHOM (verificats inclosos); només exclou els d'"En común".
+      // Els verificats també tenen la seva vista pròpia amb el toggle "Solo verificados".
+      const forYou      = candidates.filter(p => !contactIds.has(p.id)).slice(0, 20)
 
       setVerifiedTipsters(verified)
       setContactTipsters(contacts)
@@ -744,49 +746,69 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
               )}
               {!sugeridosLoading && (
                 <>
-                  {verifiedTipsters?.length > 0 && (
-                    <div style={{ marginBottom: '32px' }}>
-                      <SectionLabel label="✓ Verificados" />
+                  {/* Toggle: mostrar només verificats (per defecte OFF → En común / Descubre) */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '10px' }}>
+                    <button onClick={() => setOnlyVerified(v => !v)}
+                      title="Mostrar solo tipsters verificados"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', background: onlyVerified ? 'var(--color-primary-light)' : 'var(--color-bg)', border: `0.5px solid ${onlyVerified ? 'var(--color-primary-border)' : 'var(--color-border)'}`, color: onlyVerified ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '13px', fontWeight: 700, padding: '7px 14px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
+                      {/* "Semàfor": punt verd quan està actiu */}
+                      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: onlyVerified ? 'var(--color-primary)' : 'var(--color-border)', boxShadow: onlyVerified ? '0 0 6px var(--color-primary)' : 'none', transition: 'all 0.15s' }} />
+                      ✓ Solo verificados
+                    </button>
+                    <button onClick={loadSugeridos}
+                      style={{ background: 'none', border: '0.5px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '12px', fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                      🔄 Actualizar
+                    </button>
+                  </div>
+
+                  {onlyVerified ? (
+                    /* Només verificats */
+                    verifiedTipsters?.length > 0 ? (
                       <TipsterGrid tipsters={verifiedTipsters} {...cardCallbacks} />
-                    </div>
-                  )}
-                  {(contactTipsters?.length > 0 || forYouTipsters?.length > 0) && (
-                    <div className="tipsters-pair-grid">
-                      <div>
-                        {contactTipsters?.length > 0 && (
-                          <>
-                            {/* Mateixa capçalera (alçada + centrat) que "Descubre" perquè els labels quedin alineats */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '30px', marginTop: '4px', marginBottom: '12px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1.2px' }}>👥 En común</span>
-                            </div>
-                            <TipsterGrid tipsters={contactTipsters} {...cardCallbacks} />
-                          </>
-                        )}
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
+                        <div style={{ fontSize: '40px', marginBottom: '12px' }}>✓</div>
+                        <div style={{ fontWeight: 600 }}>No hay tipsters verificados por ahora</div>
                       </div>
-                      <div>
-                        {forYouTipsters?.length > 0 && (
-                          <>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '30px', marginTop: '4px', marginBottom: '12px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1.2px' }}>🔥 Descubre</span>
-                              <button onClick={loadSugeridos}
-                                style={{ background: 'none', border: '0.5px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                                🔄 Actualizar
-                              </button>
-                            </div>
-                            <TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} />
-                          </>
-                        )}
+                    )
+                  ) : (() => {
+                    // En común / Descubre. Si només una secció té tipsters, ocupa tot l'ample
+                    // (una sola graella, ~4 columnes). Si totes dues en tenen, graella de 2 columnes.
+                    const hasCommon = contactTipsters?.length > 0
+                    const hasDiscover = forYouTipsters?.length > 0
+                    const sectionHead = (label) => (
+                      <div style={{ display: 'flex', alignItems: 'center', minHeight: '30px', marginTop: '4px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1.2px' }}>{label}</span>
                       </div>
-                    </div>
-                  )}
-                  {verifiedTipsters !== null && contactTipsters !== null && forYouTipsters !== null &&
-                    verifiedTipsters.length === 0 && contactTipsters.length === 0 && forYouTipsters.length === 0 && (
-                    <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
-                      <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎯</div>
-                      <div style={{ fontWeight: 600 }}>No hay más tipsters por descubrir</div>
-                      <div style={{ fontSize: '13px', marginTop: '6px' }}>¡Ya sigues a todos los tipsters activos!</div>
-                    </div>
-                  )}
+                    )
+                    if (hasCommon && hasDiscover) {
+                      return (
+                        <div className="tipsters-pair-grid">
+                          <div>{sectionHead('👥 En común')}<TipsterGrid tipsters={contactTipsters} {...cardCallbacks} /></div>
+                          <div>{sectionHead('🔥 Descubre')}<TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} /></div>
+                        </div>
+                      )
+                    }
+                    if (hasCommon || hasDiscover) {
+                      // Una sola secció → ample complet
+                      return (
+                        <div>
+                          {sectionHead(hasCommon ? '👥 En común' : '🔥 Descubre')}
+                          <TipsterGrid tipsters={hasCommon ? contactTipsters : forYouTipsters} {...cardCallbacks} />
+                        </div>
+                      )
+                    }
+                    if (contactTipsters !== null && forYouTipsters !== null) {
+                      return (
+                        <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
+                          <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎯</div>
+                          <div style={{ fontWeight: 600 }}>No hay más tipsters por descubrir</div>
+                          <div style={{ fontSize: '13px', marginTop: '6px' }}>¡Ya sigues a todos los tipsters activos!</div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
                 </>
               )}
             </>

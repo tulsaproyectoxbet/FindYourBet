@@ -11,7 +11,7 @@ import { supabase } from '../../../../lib/supabase'
 export const GENERAL_FOLDER = { id: 'general', name: 'General' }
 export const MAX_SECONDARY_FOLDERS = 5
 const MUTATION_COOLDOWN = 2500 // ms entre crear/esborrar carpetes
-const MAX_NAME_LEN = 20
+const MAX_NAME_LEN = 15
 
 export function useDMFolders(userId) {
   const [secondary, setSecondary] = useState([]) // [{id,name}]

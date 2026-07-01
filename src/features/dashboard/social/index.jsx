@@ -54,7 +54,6 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null) // { id, name }
   const [deleteFolderInput, setDeleteFolderInput] = useState('')
   const [miniMoveId, setMiniMoveId] = useState(null) // conv amb submenú "Mover a carpeta" obert
-  const [folderActionsId, setFolderActionsId] = useState(null) // carpeta amb accions (silenciar/eliminar) obertes
   const FOLDER_MUTE_MS = 100 * 365 * 24 * 3600 * 1000 // silenci "permanent" per carpeta
 
   // Assigna una conversa a una carpeta; si la carpeta està silenciada, silencia la conversa.
@@ -405,7 +404,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
 
         {/* Capçalera minimalista: NOM_CARPETA ▾ ........ +  (substitueix "Mensajes") */}
         <div className="canales-mini-section" style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
-          <button onClick={() => { setShowFolderMenu(v => !v); setFolderActionsId(null) }}
+          <button onClick={() => setShowFolderMenu(v => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit', maxWidth: '80%' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeFolderObj?.name}</span>
             {dmFolders.isFolderMuted(dmFolders.activeFolder) && <span style={{ fontSize: '10px' }}>🔕</span>}
@@ -422,40 +421,30 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
               <>
                 <div onClick={() => setShowFolderMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
                 <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                  style={{ position: 'absolute', top: '100%', left: '8px', right: '8px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 20, overflow: 'hidden' }}>
+                  style={{ position: 'absolute', top: '100%', left: '8px', right: 'auto', width: '210px', maxWidth: 'calc(100% - 16px)', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 20, overflow: 'hidden' }}>
                   {dmFolders.folders.map(f => {
                     const isActiveF = f.id === dmFolders.activeFolder
                     const fMuted = dmFolders.isFolderMuted(f.id)
-                    const actionsOpen = folderActionsId === f.id
                     const count = conversations.filter(c => hasMsgs(c) && (c.isAccepted || c.user1_id === user.id) && dmFolders.folderOf(c.id) === f.id).length
                     return (
-                      <div key={f.id} style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', background: isActiveF ? 'var(--color-primary-light)' : 'transparent' }}>
-                          <button onClick={() => { dmFolders.setActiveFolder(f.id); setShowFolderMenu(false) }}
-                            style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', textAlign: 'left', color: isActiveF ? 'var(--color-primary)' : 'var(--color-text)' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                            {fMuted && <span style={{ fontSize: '10px' }}>🔕</span>}
-                            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>({count})</span>
+                      <div key={f.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid var(--color-border)', background: isActiveF ? 'var(--color-primary-light)' : 'transparent' }}>
+                        <button onClick={() => { dmFolders.setActiveFolder(f.id); setShowFolderMenu(false) }}
+                          style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', textAlign: 'left', color: isActiveF ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', flexShrink: 0 }}>({count})</span>
+                        </button>
+                        {/* Campaneta: silencia/activa segons estat */}
+                        <button onClick={() => toggleFolderMute(f.id)} title={fMuted ? 'Activar notificaciones' : 'Silenciar carpeta'}
+                          style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '8px 6px', lineHeight: 1 }}>
+                          {fMuted ? '🔕' : '🔔'}
+                        </button>
+                        {/* Paperera: eliminar (només carpetes secundàries) */}
+                        {f.id !== 'general' && (
+                          <button onClick={() => { setShowFolderMenu(false); setDeleteFolderTarget({ id: f.id, name: f.name }); setDeleteFolderInput('') }}
+                            title="Eliminar carpeta"
+                            style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '8px 10px 8px 4px', lineHeight: 1 }}>
+                            🗑️
                           </button>
-                          <button onClick={() => setFolderActionsId(actionsOpen ? null : f.id)} title="Opciones"
-                            style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', padding: '8px 10px', color: 'var(--color-text-muted)', fontWeight: 700, lineHeight: 1 }}>
-                            ⋮
-                          </button>
-                        </div>
-                        {/* Accions de la carpeta (silenciar / eliminar) */}
-                        {actionsOpen && (
-                          <div style={{ background: 'var(--color-bg-soft)', borderTop: '0.5px solid var(--color-border)' }}>
-                            <button onClick={() => { toggleFolderMute(f.id); setFolderActionsId(null) }}
-                              style={{ ...miniMenuBtnStyle, padding: '10px 14px', borderBottom: f.id !== 'general' ? '0.5px solid var(--color-border)' : 'none' }}>
-                              {fMuted ? 'Activar' : 'Silenciar'}
-                            </button>
-                            {f.id !== 'general' && (
-                              <button onClick={() => { setShowFolderMenu(false); setFolderActionsId(null); setDeleteFolderTarget({ id: f.id, name: f.name }); setDeleteFolderInput('') }}
-                                style={{ ...miniMenuBtnStyle, padding: '10px 14px', color: 'var(--color-error)' }}>
-                                🗑️ Eliminar carpeta
-                              </button>
-                            )}
-                          </div>
                         )}
                       </div>
                     )
@@ -521,7 +510,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
             style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '380px', width: '100%' }}>
             <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '4px' }}>📁 Nueva carpeta</div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '14px' }}>Organiza tus chats. Máximo {MAX_SECONDARY_FOLDERS} carpetas.</div>
-            <input autoFocus value={newFolderName} maxLength={20}
+            <input autoFocus value={newFolderName} maxLength={15}
               onChange={e => { setNewFolderName(e.target.value); setFolderError('') }}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder() }}
               placeholder="Nombre de la carpeta"
