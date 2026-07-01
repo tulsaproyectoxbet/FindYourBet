@@ -67,7 +67,7 @@ const SIDEBAR = [
   {
     label: 'Social',
     items: [
-      { id: 'social', label: 'Mensajes directos', icon: '💬' },
+      { id: 'social', label: 'Mensajes', icon: '💬' },
       { id: 'canales', label: 'Canales', icon: '📡' },
       { id: 'feed', label: 'Feed', icon: '🔥' },
       { id: 'tipsters', label: 'Tipsters', icon: '🎯' },

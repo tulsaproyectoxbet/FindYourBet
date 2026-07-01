@@ -514,10 +514,10 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
     { icon: '🚩', label: 'Reportar', action: () => { onReport?.(); closeMenu() } },
   ]
 
+  // isPending: sóc jo qui ha escrit primer i encara no m'han acceptat (envio lliurement).
+  // needsAccept: algú m'ha escrit i encara no l'he acceptat -> mostro barra Aceptar/Bloquear.
   const isPending = !conversation.otherAccepted && conversation.user1_id === currentUser.id
-  const ownSentCount = messages.filter(m => m.sender_id === currentUser.id).length
   const otherSentCount = messages.filter(m => m.sender_id !== currentUser.id).length
-  const pendingLocked = isPending && ownSentCount >= 2
   const needsAccept = !conversation.isAccepted && conversation.user1_id !== currentUser.id && otherSentCount > 0
 
   return (
@@ -721,29 +721,25 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
         <div ref={bottomRef} />
       </div>
 
-      {/* BANNER PENDENT */}
-      {pendingLocked && (
-        <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-muted)', padding: '12px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }}>
+      {/* Nota subtil per a l'emissor mentre espera acceptació (input lliure, sense límit) */}
+      {isPending && (
+        <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>
           ⏳ Esperando que {conversation.otherUsername} acepte la conversación
         </div>
       )}
 
-      {/* BANNER ACCEPTAR */}
+      {/* BARRA SOLICITUD — el xat es veu normal; just a sota, Aceptar i Bloquear */}
       {needsAccept && (
-        <div style={{ marginTop: '12px', padding: '16px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', textAlign: 'center' }}>
-          <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-            {conversation.otherUsername} quiere enviarte un mensaje
-          </div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button onClick={() => onDeleteConv?.()}
-              style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-              Rechazar
-            </button>
-            <button onClick={() => onAccept?.(conversation.id)}
-              style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-              Aceptar
-            </button>
-          </div>
+        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }}>
+          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginRight: 'auto' }}>Solicitud de mensaje</span>
+          <button onClick={() => onBlock?.()}
+            style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
+            🚫 Bloquear
+          </button>
+          <button onClick={() => onAccept?.(conversation.id)}
+            style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
+            ✓ Aceptar
+          </button>
         </div>
       )}
 
@@ -831,15 +827,9 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
         )}
       </AnimatePresence>
 
-      {/* INPUT */}
-      {!needsAccept && !pendingLocked && !blockedStatus && (
+      {/* INPUT — sempre disponible (missatgeria lliure); només s'amaga si has bloquejat */}
+      {!blockedStatus && (
         <div style={{ marginTop: '12px' }}>
-          {isPending && (
-            <div style={{ marginBottom: '8px', padding: '8px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⚠️</span>
-              <span>Puedes enviar {2 - ownSentCount} mensaje{2 - ownSentCount !== 1 ? 's' : ''} más antes de que {conversation.otherUsername} acepte la conversación.</span>
-            </div>
-          )}
           {uploadError && (
             <div style={{ marginBottom: '8px', padding: '8px 12px', background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-error)' }}>
               {uploadError}
