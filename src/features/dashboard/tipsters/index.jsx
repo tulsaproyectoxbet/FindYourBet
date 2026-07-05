@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 import { useFollow } from '../social/hooks/useFollow'
 import ProfileView from '../social/ProfileView'
 import Username from '../../../components/ui/Username'
@@ -24,16 +25,55 @@ function Avatar({ url, name, size = 56, fontSize = 22 }) {
 }
 
 
-// Card horitzontal del propi perfil — ample complet
+const CHAN_TYPE = {
+  public:       { label: 'Público',     color: 'var(--color-primary)',    bg: 'var(--color-primary-light)' },
+  free_private: { label: 'Privado',     color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)' },
+  vip_weekly:   { label: 'VIP semanal', color: '#92400e',                  bg: '#fef3c7' },
+  vip_monthly:  { label: 'VIP mensual', color: '#92400e',                  bg: '#fef3c7' },
+  stakazo:      { label: 'Stakazo',     color: '#6d28d9',                  bg: '#ede9fe' },
+}
+
+// Card del propi perfil — esquerra: card format + bio inline; dreta: canals propis
 function MyProfileCard({ profile, onEdit, onSaveBio }) {
   const [editingBio, setEditingBio] = useState(false)
   const [bioValue, setBioValue]     = useState('')
   const [savingBio, setSavingBio]   = useState(false)
+  const [myChannels, setMyChannels] = useState([])
+  const [chansLoaded, setChansLoaded] = useState(false)
 
-  const stats = profile?._stats || {}
+  const stats    = profile?._stats || {}
   const hasStats = (stats.total || 0) >= 3
   const yieldVal = stats.yieldVal || 0
   const winRate  = stats.winRate  || 0
+
+  const themeStyle = (profile?.card_theme && THEME_STYLES[profile.card_theme]) || null
+  const statBg     = themeStyle ? 'rgba(255,255,255,0.06)' : 'var(--color-bg-soft)'
+
+  useEffect(() => {
+    if (!profile?.id) return
+    const safetyTimer = setTimeout(() => setChansLoaded(true), 10000)
+    const load = async () => {
+      try {
+        const { data: chans } = await supabase
+          .from('channels').select('id, name, channel_type')
+          .eq('owner_id', profile.id).is('deleted_at', null)
+          .order('created_at', { ascending: false })
+        if (!chans?.length) { setMyChannels([]); return }
+        const { data: mems } = await supabase
+          .from('channel_members').select('channel_id')
+          .in('channel_id', chans.map(c => c.id))
+        const countMap = {}
+        mems?.forEach(m => { countMap[m.channel_id] = (countMap[m.channel_id] || 0) + 1 })
+        setMyChannels(chans.map(c => ({ ...c, memberCount: countMap[c.id] || 0 })))
+      } catch {
+        setMyChannels([])
+      } finally {
+        clearTimeout(safetyTimer)
+        setChansLoaded(true)
+      }
+    }
+    load()
+  }, [profile?.id])
 
   const handleStartEditBio = () => { setBioValue(profile?.bio || ''); setEditingBio(true) }
   const handleCancelBio    = () => setEditingBio(false)
@@ -45,94 +85,145 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
   }
 
   return (
-    <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '24px 28px', marginBottom: '24px' }}>
+    <div style={{ marginBottom: '24px' }}>
       <div className="myprofile-grid">
 
-        {/* Esquerra: avatar + nom + stats */}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-            <div style={{ flexShrink: 0 }}>
-              <Avatar url={profile?.avatar_url} name={profile?.username} size={64} fontSize={26} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                <Username username={profile?.username || '—'} isVerified={profile?.is_verified} size="lg" />
-                <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>Tú</span>
+        {/* Esquerra: card format TipsterCard amb bio integrada */}
+        <div style={{ ...(themeStyle || { background: 'var(--color-bg)' }), border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+          <div style={{ padding: '20px 20px 16px', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Avatar + username + badge Tú + botó Editar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+              <div style={{ flexShrink: 0 }}>
+                <Avatar url={profile?.avatar_url} name={profile?.username} size={64} fontSize={26} />
               </div>
-              {profile?.created_at && (
-                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  {formatMemberSince(profile.created_at)}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                  <Username username={profile?.username || '—'} isVerified={profile?.is_verified} size="lg" />
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>Tú</span>
+                </div>
+                {profile?.created_at && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                    {formatMemberSince(profile.created_at)}
+                  </div>
+                )}
+              </div>
+              <button onClick={onEdit}
+                style={{ flexShrink: 0, padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <AppIcon name="edit" size={13} /> Editar
+              </button>
+            </div>
+
+            {/* Stats en blocs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              <div style={{ flex: 1, padding: '12px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: hasStats ? (yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)') : 'var(--color-text-muted)', lineHeight: 1 }}>
+                  {hasStats ? `${yieldVal >= 0 ? '+' : ''}${yieldVal.toFixed(1)}%` : '—'}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>yield</div>
+              </div>
+              <div style={{ flex: 1, padding: '12px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1 }}>
+                  {hasStats ? stats.total : '—'}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>picks</div>
+              </div>
+              <div style={{ flex: 1, padding: '12px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1 }}>
+                  {hasStats ? `${Math.round(winRate)}%` : '—'}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>aciertos</div>
+              </div>
+            </div>
+
+            {/* Bio — editable inline */}
+            <div style={{ marginBottom: '14px' }}>
+              {editingBio ? (
+                <>
+                  <textarea
+                    value={bioValue}
+                    onChange={e => setBioValue(clampBio(e.target.value))}
+                    maxLength={MAX_BIO_LEN}
+                    rows={3}
+                    style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-primary)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5 }}
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>{bioValue.length}/{MAX_BIO_LEN}</div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button onClick={handleCancelBio}
+                      style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
+                      Cancelar
+                    </button>
+                    <button onClick={handleSaveBio} disabled={savingBio}
+                      style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: 'none', background: savingBio ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: savingBio ? 'var(--color-text-muted)' : '#010906', cursor: savingBio ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
+                      {savingBio ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5, fontStyle: profile?.bio ? 'normal' : 'italic', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                    {profile?.bio || 'Sin bio'}
+                  </div>
+                  <button onClick={handleStartEditBio}
+                    style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <AppIcon name="edit" size={11} /> Editar bio
+                  </button>
                 </div>
               )}
             </div>
-            <button onClick={onEdit}
-              style={{ flexShrink: 0, padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
-              ✏️ Editar / Ver
-            </button>
-          </div>
 
-          {/* Stats en fila amb separadors */}
-          <div style={{ display: 'flex', borderTop: '0.5px solid var(--color-border)', paddingTop: '16px' }}>
-            {[
-              { label: 'YIELD',      value: hasStats ? `${yieldVal >= 0 ? '+' : ''}${yieldVal.toFixed(1)}%` : '—', color: hasStats ? (yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)') : 'var(--color-text-muted)' },
-              { label: 'ACIERTOS',   value: hasStats ? `${Math.round(winRate)}%` : '—', color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)' },
-              { label: 'PICKS',      value: hasStats ? stats.total : '—', color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)' },
-              { label: 'SEGUIDORES', value: (profile?._followerCount ?? 0).toLocaleString('es-ES'), color: 'var(--color-text)' },
-            ].map((s, i) => (
-              <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '0 8px', borderRight: i < 3 ? '0.5px solid var(--color-border)' : 'none' }}>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '6px', letterSpacing: '0.8px' }}>{s.label}</div>
+            {/* Footer: seguidors + badge verificat */}
+            <div style={{ paddingTop: '12px', borderTop: '0.5px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                {(profile?._followerCount ?? 0).toLocaleString('es-ES')} seguidores
               </div>
-            ))}
+              {profile?.is_verified && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', padding: '3px 10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', fontWeight: 600 }}>
+                  <AppIcon name="check" size={11} /> Verificado
+                </span>
+              )}
+            </div>
+
           </div>
         </div>
 
         {/* Separador vertical */}
         <div className="myprofile-sep" style={{ background: 'var(--color-border)', alignSelf: 'stretch' }} />
 
-        {/* Dreta: Sobre mí + bio editable + tags */}
+        {/* Dreta: Mis canales */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Mi Biografía</div>
-            {!editingBio && (
-              <button onClick={handleStartEditBio}
-                style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-                ✏️ Editar
-              </button>
-            )}
-          </div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Mis canales</div>
 
-          {editingBio ? (
-            <>
-              <textarea
-                value={bioValue}
-                onChange={e => setBioValue(clampBio(e.target.value))}
-                maxLength={MAX_BIO_LEN}
-                rows={4}
-                style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-primary)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5 }}
-              />
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>{bioValue.length}/{MAX_BIO_LEN}</div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                <button onClick={handleCancelBio}
-                  style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
-                </button>
-                <button onClick={handleSaveBio} disabled={savingBio}
-                  style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', background: savingBio ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: savingBio ? 'var(--color-text-muted)' : '#010906', cursor: savingBio ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                  {savingBio ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: '13px', color: profile?.bio ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.55, marginBottom: '14px', fontStyle: profile?.bio ? 'normal' : 'italic', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' }}>
-              {profile?.bio || 'Sin bio'}
+          {!chansLoaded ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
+              <AppIcon name="loading" size={14} /> Cargando...
             </div>
-          )}
-
-          {profile?.is_verified && !editingBio && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', padding: '5px 12px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', fontWeight: 600 }}>
-              ✓ Verificado
-            </span>
+          ) : myChannels.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+              Aún no tienes canales. Créalos desde la pestaña Canales.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {myChannels.map(chan => {
+                const t = CHAN_TYPE[chan.channel_type] || CHAN_TYPE.public
+                return (
+                  <div key={chan.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <AppIcon name="megaphone" size={14} color="var(--color-primary)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chan.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>
+                        {chan.memberCount} {chan.memberCount === 1 ? 'miembro' : 'miembros'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', background: t.bg, color: t.color, borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', flexShrink: 0, border: `0.5px solid ${t.color}22` }}>
+                      {t.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
 
@@ -180,7 +271,7 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
             <button
               onClick={e => { e.stopPropagation(); isFollowing ? onUnfollow() : onFollow() }}
               style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 'var(--radius-md)', border: isFollowing ? '0.5px solid var(--color-border)' : 'none', background: isFollowing ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: isFollowing ? 'var(--color-text-muted)' : '#010906', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-              {isMutual ? '👥 Amigos' : isFollowing ? '✓ Siguiendo' : '+ Seguir'}
+              {isMutual ? <><AppIcon name="users" size={12} /> Amigos</> : isFollowing ? <><AppIcon name="check" size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Siguiendo</> : '+ Seguir'}
             </button>
           )}
         </div>
@@ -195,15 +286,15 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
           </div>
           <div style={{ flex: 1, padding: '8px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
             <div style={{ fontSize: '16px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
-              {hasStats ? `${Math.round(stats.winRate)}%` : '—'}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>aciertos</div>
-          </div>
-          <div style={{ flex: 1, padding: '8px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
               {hasStats ? stats.total : '—'}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>picks</div>
+          </div>
+          <div style={{ flex: 1, padding: '8px 10px', background: statBg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+              {hasStats ? `${Math.round(stats.winRate)}%` : '—'}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>aciertos</div>
           </div>
         </div>
 
@@ -418,7 +509,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
         { data: myFollowers },
         { data: channelOwners },
       ] = await Promise.all([
-        supabase.from('profiles').select('id, username, avatar_url, bio, is_verified, card_theme').neq('id', uid).limit(200),
+        supabase.from('profiles').select('id, username, avatar_url, bio, is_verified, card_theme').neq('id', uid).limit(30),
         supabase.from('bets').select('user_id, stake, status, odds').in('status', ['won', 'lost']).limit(500),
         supabase.from('follows').select('following_id').eq('follower_id', uid),
         supabase.from('follows').select('follower_id').eq('following_id', uid),
@@ -537,7 +628,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       followRows.forEach(f => { followDateMap[f.following_id] = f.created_at })
 
       const [{ data: profiles }, { data: bets }, { data: channelOwners }, { data: followerRows }] = await Promise.all([
-        supabase.from('profiles').select('id, username, avatar_url, bio, is_verified, card_theme').in('id', ids),
+        supabase.from('profiles').select('id, username, avatar_url, bio, is_verified, card_theme').in('id', ids).limit(50),
         supabase.from('bets').select('user_id, stake, status, odds').in('user_id', ids).in('status', ['won', 'lost']).limit(500),
         supabase.from('channels').select('owner_id').in('owner_id', ids).is('deleted_at', null),
         supabase.from('follows').select('following_id').in('following_id', ids),
@@ -653,8 +744,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px' }}>
           {[
-            { id: 'sugeridos', label: '✨ Sugeridos' },
-            { id: 'siguiendo', label: '👤 Siguiendo' },
+            { id: 'sugeridos', label: 'Sugeridos' },
+            { id: 'siguiendo', label: 'Siguiendo' },
           ].map(t => (
             <button key={t.id} onClick={() => handleTabChange(t.id)}
               style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: activeTab === t.id ? 'var(--color-primary)' : 'transparent', color: activeTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
@@ -682,7 +773,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       <button key={opt.id} onClick={() => { setFollowingSort(opt.id); setSortOpen(false) }}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: followingSort === opt.id ? 'var(--color-primary-light)' : 'none', border: 'none', borderBottom: i < SORT_OPTIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', fontWeight: followingSort === opt.id ? 700 : 500, color: followingSort === opt.id ? 'var(--color-primary)' : 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
                         {opt.label}
-                        {followingSort === opt.id && <span>✓</span>}
+                        {followingSort === opt.id && <AppIcon name="check" size={12} />}
                       </button>
                     ))}
                   </motion.div>
@@ -705,7 +796,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
           onFocus={e => e.target.style.borderColor = 'var(--color-primary)'}
           onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
         />
-        <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', pointerEvents: 'none', opacity: 0.4 }}>🔍</span>
+        <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4, display: 'flex' }}><AppIcon name="search" size={16} /></span>
       </div>
 
       {/* Tu perfil — ample complet */}
@@ -723,7 +814,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
           {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '20px' }}>Buscando tipsters...</div>}
           {!searching && searchResults.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 20px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔎</div>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}><AppIcon name="search" size={32} /></div>
               No se encontraron tipsters con ese nombre
             </div>
           )}
@@ -741,7 +832,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
             <>
               {sugeridosLoading && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '60px 20px' }}>
-                  ⏳ Cargando tipsters...
+                  <AppIcon name="loading" size={16} /> Cargando tipsters...
                 </div>
               )}
               {!sugeridosLoading && (
@@ -753,11 +844,11 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', background: onlyVerified ? 'var(--color-primary-light)' : 'var(--color-bg)', border: `0.5px solid ${onlyVerified ? 'var(--color-primary-border)' : 'var(--color-border)'}`, color: onlyVerified ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '13px', fontWeight: 700, padding: '7px 14px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
                       {/* "Semàfor": punt verd quan està actiu */}
                       <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: onlyVerified ? 'var(--color-primary)' : 'var(--color-border)', boxShadow: onlyVerified ? '0 0 6px var(--color-primary)' : 'none', transition: 'all 0.15s' }} />
-                      ✓ Solo verificados
+                      <AppIcon name="check" size={12} /> Solo verificados
                     </button>
                     <button onClick={loadSugeridos}
                       style={{ background: 'none', border: '0.5px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '12px', fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                      🔄 Actualizar
+                      <AppIcon name="refresh" size={13} /> Actualizar
                     </button>
                   </div>
 
@@ -767,7 +858,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       <TipsterGrid tipsters={verifiedTipsters} {...cardCallbacks} />
                     ) : (
                       <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
-                        <div style={{ fontSize: '40px', marginBottom: '12px' }}>✓</div>
+                        <div style={{ marginBottom: '12px' }}><AppIcon name="check" size={40} color="var(--color-primary)" /></div>
                         <div style={{ fontWeight: 600 }}>No hay tipsters verificados por ahora</div>
                       </div>
                     )
@@ -784,8 +875,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                     if (hasCommon && hasDiscover) {
                       return (
                         <div className="tipsters-pair-grid">
-                          <div>{sectionHead('👥 En común')}<TipsterGrid tipsters={contactTipsters} {...cardCallbacks} /></div>
-                          <div>{sectionHead('🔥 Descubre')}<TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} /></div>
+                          <div>{sectionHead('En común')}<TipsterGrid tipsters={contactTipsters} {...cardCallbacks} /></div>
+                          <div>{sectionHead('Descubre')}<TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} /></div>
                         </div>
                       )
                     }
@@ -793,7 +884,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       // Una sola secció → ample complet
                       return (
                         <div>
-                          {sectionHead(hasCommon ? '👥 En común' : '🔥 Descubre')}
+                          {sectionHead(hasCommon ? 'En común' : 'Descubre')}
                           <TipsterGrid tipsters={hasCommon ? contactTipsters : forYouTipsters} {...cardCallbacks} />
                         </div>
                       )
@@ -801,7 +892,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                     if (contactTipsters !== null && forYouTipsters !== null) {
                       return (
                         <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
-                          <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎯</div>
+                          <div style={{ marginBottom: '12px' }}><AppIcon name="tipsters" size={40} /></div>
                           <div style={{ fontWeight: 600 }}>No hay más tipsters por descubrir</div>
                           <div style={{ fontSize: '13px', marginTop: '6px' }}>¡Ya sigues a todos los tipsters activos!</div>
                         </div>
@@ -817,11 +908,11 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
           {/* ── SIGUIENDO ── */}
           {activeTab === 'siguiendo' && (
             <>
-              {followingLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px' }}>⏳ Cargando...</div>}
+              {followingLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><AppIcon name="loading" size={16} /> Cargando...</div>}
 
               {!followingLoading && following === null && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
-                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+                  <div style={{ marginBottom: '12px' }}><AppIcon name="warning" size={32} /></div>
                   <div style={{ fontWeight: 600, marginBottom: '12px' }}>No se han podido cargar los tipsters</div>
                   <button onClick={loadSiguiendo}
                     style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '10px 22px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
@@ -832,7 +923,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
 
               {!followingLoading && following !== null && following.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>👤</div>
+                  <div style={{ marginBottom: '12px' }}><AppIcon name="user" size={40} /></div>
                   <div style={{ fontWeight: 600 }}>Aún no sigues a nadie</div>
                   <div style={{ fontSize: '13px', marginTop: '6px' }}>Descubre tipsters en la pestaña Sugeridos</div>
                   <button onClick={() => handleTabChange('sugeridos')}
@@ -894,7 +985,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       <div key={i} onClick={() => setEditTheme(i)} style={{ cursor: 'pointer' }}>
                         <div style={{ position: 'relative', height: '40px', borderRadius: 'var(--radius-md)', border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, overflow: 'hidden', ...(thStyle || { background: 'var(--color-bg-soft)' }), transition: 'border-color 0.15s', marginBottom: '6px' }}>
                           {isSelected && (
-                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', fontSize: '13px', color: 'var(--color-primary)', fontWeight: 900 }}>✓</div>
+                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'var(--color-primary)' }}><AppIcon name="check" size={13} /></div>
                           )}
                         </div>
                         <div style={{ fontSize: '10px', color: isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)', textAlign: 'center', fontWeight: isSelected ? 700 : 400 }}>

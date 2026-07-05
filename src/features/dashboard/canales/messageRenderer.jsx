@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import { VoicePlayer } from '../VoiceMessage'
 import MentionText from '../../../components/ui/MentionText'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export function ImageMessage({ url, isGif }) {
   const [open, setOpen] = useState(false)
@@ -49,10 +50,10 @@ export function BetCard({ bet, timeStr }) {
     : liveStatus === 'void' ? 'var(--color-info)'
     : 'var(--color-text-muted)'
   const statusLabel =
-    liveStatus === 'won'  ? '✓ Ganada'
-    : liveStatus === 'lost' ? '✗ Perdida'
+    liveStatus === 'won'  ? <><AppIcon name="check" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Ganada</>
+    : liveStatus === 'lost' ? <><AppIcon name="close" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Perdida</>
     : liveStatus === 'void' ? '● Nula'
-    : '⏳ Pendiente'
+    : <><AppIcon name="loading" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Pendiente</>
   const statusBg =
     liveStatus === 'won'  ? 'var(--color-primary-light)'
     : liveStatus === 'lost' ? 'var(--color-error-light)'
@@ -76,7 +77,7 @@ export function BetCard({ bet, timeStr }) {
       )}
       <div style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>📊 Pick</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="stats" size={11} /> Pick</span>
           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 'var(--radius-full)', background: statusBg, color: statusColor, fontWeight: 700, border: `0.5px solid ${statusColor}` }}>
             {statusLabel}
           </span>
@@ -123,8 +124,8 @@ export function ChannelCard({ inviteCode, channelName, onOpenCanal, timeStr, vie
   return (
     <div style={{ background: isOwn ? 'rgba(255,255,255,0.08)' : 'var(--color-bg)', border: `0.5px solid ${isOwn ? 'rgba(255,255,255,0.15)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', padding: '12px 14px', minWidth: '220px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: hasMeta ? '8px' : '0' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(var(--color-primary-rgb, 15 110 86) / 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 }}>
-          📢
+        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(var(--color-primary-rgb, 15 110 86) / 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <AppIcon name="megaphone" size={16} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: isOwn ? '#fff' : 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{channelName}</div>
@@ -137,7 +138,7 @@ export function ChannelCard({ inviteCode, channelName, onOpenCanal, timeStr, vie
       </div>
       {hasMeta && (
         <div style={{ textAlign: 'right', fontSize: '10px', color: isOwn ? 'rgba(255,255,255,0.5)' : 'var(--color-text-muted)', opacity: 0.7 }}>
-          {viewCount > 0 ? `👁 ${viewCount} · ` : ''}{timeStr}
+          {viewCount > 0 ? <><AppIcon name="eye" size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />{viewCount} · </> : ''}{timeStr}
         </div>
       )}
     </div>
@@ -163,7 +164,7 @@ export function ProfileCard({ profileId, profileUsername, onViewProfile, timeStr
       </div>
       {hasMeta && (
         <div style={{ textAlign: 'right', fontSize: '10px', color: 'var(--color-text-muted)', opacity: 0.7 }}>
-          {viewCount > 0 ? `👁 ${viewCount} · ` : ''}{timeStr}
+          {viewCount > 0 ? <><AppIcon name="eye" size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />{viewCount} · </> : ''}{timeStr}
         </div>
       )}
     </div>
@@ -218,7 +219,7 @@ export function renderMessage(content, onInternalLink, isOwnerMsg = false, onVie
     const match = content.match(/\[FILE:(.*?)\]:(.*)/)
     if (match) return (
       <a href={match[2]} target="_blank" rel="noreferrer" style={{ color: linkColor, display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-        <span>📎</span><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
+        <AppIcon name="paperclip" size={14} /><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
       </a>
     )
   }
@@ -235,7 +236,7 @@ export function renderMessage(content, onInternalLink, isOwnerMsg = false, onVie
             return (
               <span key={i} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInternalLink?.(code) }}
                 style={{ color: linkColor, textDecoration: 'underline', cursor: 'pointer', wordBreak: 'break-all', userSelect: 'none' }}>
-                📡 {part}
+                <AppIcon name="antenna" size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />{part}
               </span>
             )
           }

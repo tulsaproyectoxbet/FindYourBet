@@ -21,6 +21,7 @@ export function useSignUp({ onLogin }) {
   const [showPassConfirm, setShowPassConfirm] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   const update = (field, val) => setForm(prev => ({ ...prev, [field]: val }))
 
@@ -70,11 +71,15 @@ export function useSignUp({ onLogin }) {
         return
       }
 
+      // Supabase envia l'email de confirmació de forma nativa — il·limitat i sense dependències
       const { data, error: authError } = await withTimeout(
         supabase.auth.signUp({
-          email,
+          email: email.trim().toLowerCase(),
           password: pass,
-          options: { data: { name: name.trim(), surname, birthdate, nationality } }
+          options: {
+            data: { name: name.trim(), surname, birthdate, nationality },
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+          },
         }),
         10000, 'signUp'
       )
@@ -90,36 +95,34 @@ export function useSignUp({ onLogin }) {
         return
       }
 
-      if (!data.session) {
-        setError('Cuenta creada. Revisa tu email para confirmar tu cuenta antes de iniciar sesión.')
+      // Si Supabase retorna sessió directament (confirmació desactivada al dashboard)
+      // creem el perfil i fem login automàtic
+      if (data.session) {
+        await withTimeout(
+          supabase.from('profiles').upsert({
+            id: data.user.id,
+            username: desiredUsername,
+            name: name.trim(),
+            username_changed_at: new Date().toISOString(),
+          }),
+          8000, 'profile-upsert'
+        )
         setLoading(false)
+        onLogin({ id: data.user.id, name: name.trim(), username: desiredUsername, email: email.trim().toLowerCase(), avatar_url: null, needsOnboarding: false })
         return
       }
 
-      const { error: profileErr } = await withTimeout(
-        supabase.from('profiles').upsert({
-          id: data.user.id,
-          username: desiredUsername,
-          name: name.trim(),
-          username_changed_at: new Date().toISOString(),
-        }),
-        8000, 'profile-upsert'
-      )
-      if (profileErr) {
-        setError('Error al guardar el perfil: ' + profileErr.message)
-        setLoading(false)
-        return
-      }
+      // Si cal confirmar l'email: creem el perfil igualment i mostrem la pantalla de confirmació
+      // (Supabase ja ha enviat el mail de confirmació — il·limitat)
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        username: desiredUsername,
+        name: name.trim(),
+        username_changed_at: new Date().toISOString(),
+      }).catch(() => {})
 
       setLoading(false)
-      onLogin({
-        id: data.user.id,
-        name: name.trim(),
-        username: desiredUsername,
-        email,
-        avatar_url: null,
-        needsOnboarding: false,
-      })
+      setRegistered(true)
     } catch (e) {
       console.error('[Register] Error:', e)
       setError('Error inesperado: ' + (e?.message || 'desconocido'))
@@ -130,6 +133,6 @@ export function useSignUp({ onLogin }) {
   return {
     form, update, terms, setTerms, age, setAge,
     showPass, setShowPass, showPassConfirm, setShowPassConfirm,
-    error, loading, handleRegister, skipDev
+    error, loading, registered, handleRegister, skipDev
   }
 }

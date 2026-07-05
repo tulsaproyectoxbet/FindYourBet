@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import AppIcon from '../../../components/ui/AppIcon'
 
 // Modal de bloqueig en dos passos:
 //  1) Confirmació de l'operació (botó típic de confirmar).
@@ -34,7 +35,7 @@ export default function BlockUserModal({ username, onConfirm, onReport, onClose 
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '28px', maxWidth: '420px', width: '100%', pointerEvents: 'auto', textAlign: 'center' }}>
           {!blocked ? (
             <>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>🚫</div>
+              <div style={{ marginBottom: '12px' }}><AppIcon name="ban" size={40} /></div>
               <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>
                 ¿Bloquear a {username}?
               </div>
@@ -54,7 +55,7 @@ export default function BlockUserModal({ username, onConfirm, onReport, onClose 
             </>
           ) : (
             <>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+              <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
               <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>
                 Has bloqueado a {username}
               </div>
@@ -68,7 +69,7 @@ export default function BlockUserModal({ username, onConfirm, onReport, onClose 
                 </button>
                 <button onClick={() => { onClose(); onReport?.() }}
                   style={{ padding: '10px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-warning, #f59e0b)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                  🚩 Sí, reportar
+                  <><AppIcon name="flag" size={13} style={{ marginRight: 5 }} /> Sí, reportar</>
                 </button>
               </div>
             </>

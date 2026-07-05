@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fadeUp, stagger } from '../../lib/animations'
+import AppIcon from '../../components/ui/AppIcon'
 
 const PERIODS = [
   { id: 'setmanal', label: 'Semanal' },
@@ -99,7 +100,7 @@ function BankLineChart({ points }) {
 
   if (points.length < 2) return (
     <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
-      <div style={{ fontSize: '28px', marginBottom: '8px' }}>📈</div>
+      <div style={{ marginBottom: '8px' }}><AppIcon name="trendingUp" size={28} /></div>
       <div>Sin picks resueltos en este período</div>
     </div>
   )
@@ -222,7 +223,7 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
           {period === 'trimestral' && (
             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
               style={{ marginTop: '10px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', fontSize: '13px', color: 'var(--color-text-muted)', maxWidth: '420px' }}>
-              💡 El modo <strong style={{ color: 'var(--color-text)' }}>Ranking</strong> refleja tu rendimiento de los últimos 3 meses.
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="sugerencias" size={13} /> El modo <strong style={{ color: 'var(--color-text)' }}>Ranking</strong> refleja tu rendimiento de los últimos 3 meses.</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -248,7 +249,7 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
         </div>
 
         {loadingBets ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
         ) : (
           <BankLineChart points={bankPoints} />
         )}

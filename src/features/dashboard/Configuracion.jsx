@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import AppIcon from '../../components/ui/AppIcon'
 
 function SectionTitle({ children }) {
   return (
@@ -38,7 +39,7 @@ function Feedback({ msg }) {
   return (
     <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
       style={{ marginTop: '10px', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: 500, background: isOk ? 'var(--color-primary-light)' : 'var(--color-error-light)', color: isOk ? 'var(--color-primary)' : 'var(--color-error)', border: `0.5px solid ${isOk ? 'var(--color-primary-border)' : 'var(--color-error-border)'}` }}>
-      {isOk ? '✓ ' : '✗ '}{msg.text}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><AppIcon name={isOk ? 'check' : 'close'} size={13} />{msg.text}</span>
     </motion.div>
   )
 }
@@ -220,7 +221,7 @@ export default function Configuracion({ user, logout }) {
               initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 16 }}
               style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 51, background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-lg)', padding: '28px', width: '420px', maxWidth: '90vw' }}>
 
-              <div style={{ fontSize: '20px', marginBottom: '8px' }}>⚠️</div>
+              <div style={{ marginBottom: '8px' }}><AppIcon name="warning" size={20} color="var(--color-error)" /></div>
               <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '8px' }}>¿Eliminar tu cuenta?</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', lineHeight: 1.5 }}>
                 Esta acción no se puede deshacer. Se eliminarán permanentemente tus apuestas, picks, canales y todos tus datos.

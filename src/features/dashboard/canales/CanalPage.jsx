@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function CanalPage() {
   const { code } = useParams()
@@ -52,7 +53,7 @@ export default function CanalPage() {
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+        <div style={{ marginBottom: '12px' }}><AppIcon name="loading" size={32} /></div>
         <div>Cargando canal...</div>
       </div>
     </div>
@@ -61,7 +62,7 @@ export default function CanalPage() {
   if (notFound) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+        <div style={{ marginBottom: '16px' }}><AppIcon name="lock" size={48} /></div>
         <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Canal no encontrado</div>
         <div style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>El enlace de invitación no es válido.</div>
         <button onClick={() => navigate('/')}
@@ -75,10 +76,10 @@ export default function CanalPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
       <div style={{ textAlign: 'center', maxWidth: '400px', padding: '24px' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📡</div>
+        <div style={{ marginBottom: '16px' }}><AppIcon name="canales" size={48} /></div>
         <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>#{channel.name}</div>
         {channel.description && <div style={{ color: 'var(--color-text-muted)', marginBottom: '8px' }}>{channel.description}</div>}
-        {channel.is_private && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>🔒 Canal privado</div>}
+        {channel.is_private && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AppIcon name="lock" size={12} /> Canal privado</div>}
         <div style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
           Inicia sesión para unirte a este canal
         </div>

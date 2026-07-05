@@ -6,6 +6,7 @@ import ForwardModal from '../social/ForwardModal'
 import { useProfileNav } from '../../../contexts/ProfileNavContext'
 import Username from '../../../components/ui/Username'
 import { useAdminMode } from '../../../contexts/AdminModeContext'
+import AppIcon from '../../../components/ui/AppIcon'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -58,7 +59,7 @@ function CommentItem({ comment, likeInfo, onLike, onReply, isReply, reported, on
           </span>
           {creatorLiked && !isReply && (
             <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px', lineHeight: 1.4 }}>
-              ❤️ Creador
+              <AppIcon name="heart" size={10} color="var(--color-primary)" /> Creador
             </span>
           )}
         </div>
@@ -66,30 +67,30 @@ function CommentItem({ comment, likeInfo, onLike, onReply, isReply, reported, on
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
           <motion.button whileTap={{ scale: 0.85 }} onClick={onLike}
             style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: hasLiked ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontWeight: hasLiked ? 700 : 400, borderRadius: 'var(--radius-sm)' }}>
-            <span>{hasLiked ? '❤️' : '🤍'}</span>
+            <AppIcon name="heart" size={13} color={hasLiked ? 'var(--color-primary)' : undefined} />
             {likeCount > 0 && <span style={{ marginLeft: '2px' }}>{likeCount}</span>}
           </motion.button>
           {!isReply && onReply && (
             <button onClick={onReply}
-              style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)' }}>
-              ↩ Responder
+              style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <AppIcon name="arrowOut" size={11} /> Responder
             </button>
           )}
           {canPin && onPin && (
             <button onClick={onPin}
-              style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: isPinned ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)' }}>
-              {isPinned ? '📌 Desfij.' : '📌'}
+              style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: isPinned ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <AppIcon name="pin" size={11} />{isPinned ? 'Desfij.' : ''}
             </button>
           )}
           {canDelete && onDelete && (
             <button onClick={onDelete}
               style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-error)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)', opacity: 0.65 }}>
-              🗑
+              <AppIcon name="delete" size={11} />
             </button>
           )}
           <button onClick={onReport}
-            style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '10px', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)', color: reported ? 'var(--color-primary)' : 'var(--color-text-muted)', opacity: reported ? 1 : 0.45, transition: 'all 0.15s' }}>
-            {reported ? '✓ Rep.' : '🚩'}
+            style={{ padding: '2px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '10px', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-sm)', color: reported ? 'var(--color-primary)' : 'var(--color-text-muted)', opacity: reported ? 1 : 0.45, transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+            {reported ? <><AppIcon name="check" size={11} /> Rep.</> : <AppIcon name="flag" size={11} />}
           </button>
         </div>
       </div>
@@ -410,10 +411,10 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
           style={{ width: '100%', maxWidth: '460px', maxHeight: '90vh', background: 'var(--color-bg)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
 
           {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'var(--color-text-muted)', fontSize: '13px' }}>⏳ Cargando...</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'var(--color-text-muted)', fontSize: '13px', gap: '6px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
           ) : !data ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 30px', color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', gap: '12px' }}>
-              <div style={{ fontSize: '36px' }}>📋</div>
+              <AppIcon name="historial" size={36} />
               <div>No se puede cargar este pick.</div>
               <button onClick={onClose} style={{ marginTop: '8px', padding: '8px 18px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>Cerrar</button>
             </div>
@@ -443,7 +444,7 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                     {data.wasPrivate && (
                       <>
                         <span>·</span>
-                        <span style={{ fontSize: '10px', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', padding: '1px 7px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', fontWeight: 600 }}>🔒 Privado</span>
+                        <span style={{ fontSize: '10px', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', padding: '1px 7px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> Privado</span>
                       </>
                     )}
                   </div>
@@ -459,17 +460,17 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                           style={{ position: 'absolute', top: '30px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '180px', overflow: 'hidden' }}>
                           <button onClick={() => { setReported(true); setShowMenu(false); setTimeout(() => setReported(false), 3000) }}
                             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: reported ? 'var(--color-text-muted)' : 'var(--color-error)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                            <span>{reported ? '✓' : '🚩'}</span><span>{reported ? 'Reportado' : 'Reportar'}</span>
+                            <AppIcon name={reported ? 'check' : 'flag'} size={13} /><span>{reported ? 'Reportado' : 'Reportar'}</span>
                           </button>
                           {adminMode && data?.bet && (
                             <>
                               <button onClick={() => { setEditStatus(data.bet.status || 'pending'); setShowEditResult(true); setShowMenu(false) }}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderTop: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-warning)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                                <span>✏️</span><span>Editar resultado (admin)</span>
+                                <AppIcon name="edit" size={13} /><span>Editar resultado (admin)</span>
                               </button>
                               <button onClick={() => { handleAdminDeleteBet(); setShowMenu(false) }}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderTop: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-error)', fontWeight: 700, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                                <span>🛡️</span><span>Eliminar pick (admin)</span>
+                                <AppIcon name="shield" size={13} /><span>Eliminar pick (admin)</span>
                               </button>
                             </>
                           )}
@@ -490,7 +491,7 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                     {data.restricted ? (
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                          <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.3, flex: 1, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>🔒 Pick privado</div>
+                          <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.3, flex: 1, color: 'var(--color-text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '5px' }}><AppIcon name="lock" size={14} /> Pick privado</div>
                           <span style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '11px', fontWeight: 700, background: cfg.bg, color: cfg.color, border: `0.5px solid ${cfg.border}` }}>{cfg.label}</span>
                         </div>
                         <div style={{ display: 'flex', gap: '24px' }}>
@@ -557,17 +558,17 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '4px 8px 12px', borderBottom: '0.5px solid var(--color-border)' }}>
                   <motion.button whileTap={{ scale: 0.85 }} onClick={handleLike}
                     style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: hasLiked ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontWeight: hasLiked ? 700 : 400, borderRadius: 'var(--radius-md)' }}>
-                    <span>{hasLiked ? '❤️' : '🤍'}</span>
+                    <AppIcon name="heart" size={15} color={hasLiked ? 'var(--color-primary)' : undefined} />
                     {likeCount > 0 && <span style={{ fontSize: '13px' }}>{likeCount}</span>}
                   </motion.button>
                   <motion.button whileTap={{ scale: 0.88 }}
                     style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-                    <span>💬</span>
+                    <AppIcon name="social" size={15} />
                     {comments.length > 0 && <span style={{ fontSize: '13px' }}>{comments.length}</span>}
                   </motion.button>
                   <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowForward(true)}
                     style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-                    <span style={{ fontSize: '15px' }}>↗️</span>
+                    <AppIcon name="arrowOut" size={15} />
                     <span>Reenviar</span>
                   </motion.button>
                 </div>
@@ -584,7 +585,7 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
                       {pinnedComment && (
                         <div style={{ background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
                           <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            📌 Comentario fijado
+                            <AppIcon name="pin" size={10} /> Comentario fijado
                           </div>
                           <CommentItem
                             comment={pinnedComment}
@@ -717,16 +718,16 @@ export default function PostModal({ messageId: initialMessageId, betId, currentU
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-warning)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '400px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-warning)' }}>✏️ Editar resultado (admin)</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="edit" size={17} /> Editar resultado (admin)</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 Las estadísticas del usuario y canal se recalcularán automáticamente.
               </div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Estado</label>
               <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
                 style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer', marginBottom: '16px' }}>
-                <option value="pending">⏳ Pendiente</option>
-                <option value="won">✓ Ganada</option>
-                <option value="lost">✗ Perdida</option>
+                <option value="pending">Pendiente</option>
+                <option value="won">Ganada</option>
+                <option value="lost">Perdida</option>
                 <option value="void">● Nula (devuelta)</option>
               </select>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

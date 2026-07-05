@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, LINE_LIMIT } from '../../../lib/textLimits'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function PollCreatorModal({ channelId, userId, onClose, onSent }) {
   const [question, setQuestion] = useState('')
@@ -56,8 +57,8 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <div style={{ fontWeight: 700, fontSize: '16px' }}>📊 Crea una encuesta</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', padding: '4px', lineHeight: 1 }}>✕</button>
+          <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="vote" size={16} /> Crea una encuesta</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '4px', lineHeight: 1 }}><AppIcon name="close" size={18} /></button>
         </div>
 
         {error && (
@@ -129,7 +130,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         <button onClick={handleSend} disabled={sending || !canSend}
           style={{ width: '100%', padding: '13px', background: canSend ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: canSend ? '#010906' : 'var(--color-text-muted)', border: 'none', borderRadius: 'var(--radius-md)', cursor: canSend ? 'pointer' : 'default', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-          {sending ? 'Publicando...' : '📤 Publicar encuesta'}
+          {sending ? 'Publicando...' : <><AppIcon name="send" size={14} style={{ marginRight: 6 }} /> Publicar encuesta</>}
         </button>
       </motion.div>
     </motion.div>

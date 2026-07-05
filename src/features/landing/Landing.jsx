@@ -1,234 +1,30 @@
-import { useEffect, useId, useRef } from 'react'
-import { motion, useInView, animate } from 'framer-motion'
+import { useRef } from 'react'
+import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { fadeUp, stagger } from '../../lib/animations'
 import { Button } from '../../components/ui/Button'
+import AppIcon from '../../components/ui/AppIcon'
 import './landing.css'
 
-const NAV_LINKS = ['Tipsters', 'Ranking', 'Cómo funciona', 'Precios']
-
-const NAV_SCROLL = {
-  'Tipsters':      'section-ranking',
-  'Ranking':       'section-ranking',
-  'Cómo funciona': 'section-features',
-  'Precios':       'section-cta',
-}
-
-const STATS = [
-  { num: '1.240',  label: 'Tipsters activos' },
-  { num: '98.400', label: 'Picks auditados' },
-  { num: '+34%',   label: 'ROI medio top 10' },
-  { num: '12',     label: 'Deportes disponibles' },
-]
-
-const FEATURES = [
-  { title: 'Track record auditado',  desc: 'Cada pick se registra antes del partido. Sin ediciones, sin trampa. El historial habla por sí solo.' },
-  { title: 'Ranking transparente',   desc: 'Ordenado por ROI real, racha y volumen. Los mejores arriba, siempre.' },
-  { title: 'Canales VIP',            desc: 'Suscríbete a los canales privados de los tipsters que más te interesan y recibe sus picks antes que nadie.' },
-  { title: 'Canales en directo',     desc: 'Cada tipster tiene su canal. Picks, análisis y debate en tiempo real con toda la comunidad.' },
-  { title: 'Tus estadísticas',       desc: 'Lleva el control de tus picks, ROI y evolución. Compara tu rendimiento con el ranking.' },
-  { title: '12 deportes',            desc: 'Fútbol, baloncesto, tenis, eSports y más. Encuentra al tipster experto en tu deporte.' },
-]
-
-const TIPSTERS = [
-  { rank: '#1', initials: 'MG', name: 'MarcGol',   sport: 'Fútbol · La Liga',    roi: '+41%', acierto: '87%', picks: '312', spark: [10,12,9,14,18,16,22,24,27,31,35,41] },
-  { rank: '#2', initials: 'SR', name: 'SportRoi',  sport: 'Baloncesto · NBA',    roi: '+38%', acierto: '81%', picks: '198', spark: [5,8,11,9,15,20,18,25,22,30,34,38] },
-  { rank: '#3', initials: 'BK', name: 'BetKing',   sport: 'Tenis · ATP',         roi: '+29%', acierto: '76%', picks: '445', spark: [2,5,4,8,12,10,15,18,20,23,26,29] },
+const HERO_PILLARS = [
+  { icon: 'lock',       text: 'Registrado antes del partido' },
+  { icon: 'ban',        text: 'Sin ediciones retroactivas' },
+  { icon: 'globe',      text: 'Historial 100% público' },
+  { icon: 'trendingUp', text: 'Estadísticas automáticas' },
 ]
 
 const RAIN_ITEMS = (() => {
-  const list = [
-    { name: 'MarcGol',     val: '+41%' },
-    { name: 'SportRoi',    val: '+38%' },
-    { name: 'BetKing',     val: '+29%' },
-    { name: 'TenisPro',    val: '+52%' },
-    { name: 'NBALord',     val: '+33%' },
-    { name: 'GolFever',    val: '+27%' },
-    { name: 'F1Master',    val: '+45%' },
-    { name: 'EsportsKing', val: '+36%' },
-    { name: 'BoxStats',    val: '+22%' },
-    { name: 'UFCKing',     val: '+39%' },
-    { name: 'HockeyPro',   val: '+31%' },
-    { name: 'NFLBoss',     val: '+34%' },
-    { name: 'BeisbolPro',  val: '+28%' },
-    { name: 'GolPicks',    val: '+44%' },
-    { name: 'TennisAce',   val: '+30%' },
-    { name: 'BasketGod',   val: '+37%' },
-    { name: 'SoccerKing',  val: '+42%' },
-    { name: 'F1Wizard',    val: '+25%' },
-    { name: 'CSKing',      val: '+48%' },
-    { name: 'PadelPro',    val: '+32%' },
-    { name: 'RugbyMan',    val: '+26%' },
-    { name: 'NHLPro',      val: '+35%' },
-    { name: 'MMABet',      val: '+40%' },
-    { name: 'WinnerEU',    val: '+47%' },
+  const names = [
+    'MarcGol', 'SportRoi', 'BetKing', 'TenisPro', 'NBALord', 'GolFever',
+    'F1Master', 'EsportsKing', 'BoxStats', 'UFCKing', 'HockeyPro', 'NFLBoss',
+    'BeisbolPro', 'GolPicks', 'TennisAce', 'BasketGod', 'SoccerKing', 'F1Wizard',
+    'CSKing', 'PadelPro', 'RugbyMan', 'NHLPro', 'MMABet', 'WinnerEU',
   ]
-  return list.map(it => {
+  return names.map(name => {
     const depth = Math.random()
-    return {
-      ...it,
-      left:     Math.random() * 94 + 1,
-      duration: 12 + Math.random() * 10,
-      delay:    -Math.random() * 22,
-      depth,
-    }
+    return { name, left: Math.random() * 94 + 1, duration: 12 + Math.random() * 10, delay: -Math.random() * 22, depth }
   })
 })()
-
-const SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'eSports', 'Béisbol', 'Hockey', 'F1', 'UFC', 'Golf', 'Boxeo', 'Rugby', 'NFL']
-
-function AnimatedNum({ value }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-40px' })
-  const sign = value.startsWith('+') ? '+' : ''
-  const isPct = value.endsWith('%')
-  const target = parseInt(value.replace(/[+%]/g, '').replace(/\./g, ''), 10)
-
-  useEffect(() => {
-    if (!inView || !ref.current) return
-    const node = ref.current
-    const controls = animate(0, target, {
-      duration: 1.8,
-      ease: [0.22, 1, 0.36, 1],
-      onUpdate(v) {
-        const n = Math.round(v).toLocaleString('es-ES')
-        node.textContent = `${sign}${n}${isPct ? '%' : ''}`
-      },
-    })
-    return () => controls.stop()
-  }, [inView, target, sign, isPct])
-
-  return <span ref={ref}>{`${sign}0${isPct ? '%' : ''}`}</span>
-}
-
-function Sparkline({ data, w = 88, h = 30 }) {
-  const id = useId().replace(/:/g, '')
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
-  const pad = 3
-
-  const pts = data.map((d, i) => {
-    const x = pad + (i / (data.length - 1)) * (w - pad * 2)
-    const y = pad + (1 - (d - min) / range) * (h - pad * 2)
-    return [x, y]
-  })
-
-  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`).join(' ')
-  const fillPath = `${linePath} L ${pts[pts.length - 1][0]} ${h - pad} L ${pts[0][0]} ${h - pad} Z`
-  const last = pts[pts.length - 1]
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="sparkline">
-      <defs>
-        <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#00ff8a" stopOpacity="0.32" />
-          <stop offset="100%" stopColor="#00ff8a" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={fillPath} fill={`url(#grad-${id})`} />
-      <path d={linePath} fill="none" stroke="#00ff8a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last[0]} cy={last[1]} r="2.2" fill="#00ff8a" />
-      <circle cx={last[0]} cy={last[1]} r="5" fill="#00ff8a" opacity="0.18" />
-    </svg>
-  )
-}
-
-function MockProof() {
-  return (
-    <div className="mock mock--proof">
-      <div className="mock-proof-row">
-        <span className="mock-proof-k">EVENTO</span>
-        <span className="mock-proof-v">Real Madrid · Barcelona</span>
-      </div>
-      <div className="mock-proof-row">
-        <span className="mock-proof-k">PICK</span>
-        <span className="mock-proof-v"><b>Real Madrid -1.5</b> @ 2.10</span>
-      </div>
-      <div className="mock-proof-row">
-        <span className="mock-proof-k">STAKE</span>
-        <span className="mock-proof-v">50 €</span>
-      </div>
-      <div className="mock-proof-divider" />
-      <div className="mock-proof-hash">
-        <code>0xa9c3f2e8b1d4…</code>
-        <span className="mock-proof-badge">BLOQUEADA</span>
-      </div>
-    </div>
-  )
-}
-
-function MockRanking() {
-  const rows = [
-    { rank: 1, name: 'MarcGol', val: '+41%' },
-    { rank: 2, name: 'SportRoi', val: '+38%' },
-    { rank: 3, name: 'BetKing', val: '+29%' },
-  ]
-  return (
-    <div className="mock mock--ranking">
-      {rows.map(r => (
-        <div className="mock-rank-row" key={r.rank}>
-          <span className="mock-rank-num">#{r.rank}</span>
-          <span className="mock-rank-name">{r.name}</span>
-          <span className="mock-rank-val">{r.val}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MockVIP() {
-  return (
-    <div className="mock mock--vip">
-      <div className="mock-vip-tier">
-        <span className="mock-vip-tag">VIP</span>
-        <div className="mock-vip-price">€9<span>/mes</span></div>
-        <div className="mock-vip-line">Picks privados diarios</div>
-        <div className="mock-vip-line">Análisis previo a cuotas</div>
-      </div>
-    </div>
-  )
-}
-
-function MockChat() {
-  return (
-    <div className="mock mock--chat">
-      <div className="mock-chat-bubble in">
-        <b>MG</b> <span>Pick en 5 min, ojo a esta cuota</span>
-      </div>
-      <div className="mock-chat-bubble out">
-        <b>tu</b> <span>¿Stake máximo?</span>
-      </div>
-      <div className="mock-chat-typing">
-        <span/><span/><span/>
-      </div>
-    </div>
-  )
-}
-
-function MockStats() {
-  return (
-    <div className="mock mock--stats">
-      <div className="mock-stats-head">
-        <span>ROI · 30 días</span>
-        <span className="mock-stats-val">+24,3%</span>
-      </div>
-      <Sparkline data={[2,5,3,8,12,10,16,15,21,19,24,28]} w={210} h={56} />
-    </div>
-  )
-}
-
-function MockCategories() {
-  return (
-    <div className="mock mock--cats">
-      {SPORTS.map((s, i) => (
-        <span key={s} className={`cat-pill${i === 0 ? ' is-active' : ''}`}>{s}</span>
-      ))}
-    </div>
-  )
-}
-
-const MOCKS = [MockProof, MockRanking, MockVIP, MockChat, MockStats, MockCategories]
 
 function TipsterRain() {
   return (
@@ -238,130 +34,68 @@ function TipsterRain() {
           key={i}
           className="rain-drop"
           style={{
-            left: `${it.left}%`,
+            left:              `${it.left}%`,
             animationDuration: `${it.duration}s`,
-            animationDelay: `${it.delay}s`,
-            fontSize: `${11 + it.depth * 5}px`,
-            opacity: 0.1 + it.depth * 0.3,
+            animationDelay:    `${it.delay}s`,
+            fontSize:          `${11 + it.depth * 5}px`,
+            opacity:           0.07 + it.depth * 0.16,
           }}
         >
           <span className="rain-drop-name">{it.name}</span>
-          <span className="rain-drop-val">{it.val}</span>
         </span>
       ))}
     </div>
   )
 }
 
-function Hero({ user }) {
-  const ref = useRef(null)
+export default function Landing({ navigate, user }) {
+  const heroRef    = useRef(null)
   const rrNavigate = useNavigate()
+  const goLegal    = (slug) => rrNavigate(`/legal/${slug}`)
 
   const onMove = (e) => {
-    const el = ref.current
+    const el = heroRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
     el.style.setProperty('--mx', `${e.clientX - r.left}px`)
     el.style.setProperty('--my', `${e.clientY - r.top}px`)
   }
 
-  const handleUnirte = () => {
-    if (user) rrNavigate('/dashboard?action=buscar')
-    else rrNavigate('/register?redirect=' + encodeURIComponent('/dashboard?action=buscar'))
-  }
-
-  const handleCrear = () => {
-    if (user) rrNavigate('/dashboard?action=crear')
-    else rrNavigate('/register?redirect=' + encodeURIComponent('/dashboard?action=crear'))
-  }
-
-  return (
-    <section className="hero" ref={ref} onMouseMove={onMove}>
-      <TipsterRain />
-      <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={0}>
-        La red social<br />
-        <em>de los pronósticos deportivos</em>
-      </motion.h1>
-
-      <motion.p className="hero-sub" variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-        Sigue canales de tipsters con track record verificado, interactúa con la comunidad y toma decisiones con datos reales — no con fe.
-      </motion.p>
-
-      <motion.div className="hero-btns" variants={fadeUp} initial="hidden" animate="visible" custom={2}>
-        <Button onClick={handleUnirte}>Unirte gratis</Button>
-        <Button variant="ghost" onClick={handleCrear}>Crear mi canal</Button>
-      </motion.div>
-
-      <motion.div
-        className="hero-scroll"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.8 }}
-      >
-        <div className="hero-scroll-arrow" />
-      </motion.div>
-    </section>
-  )
-}
-
-function NavLinks() {
-  const handleClick = (e, link) => {
-    e.preventDefault()
-    const id = NAV_SCROLL[link]
-    if (id) {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-  return (
-    <nav className="nav-links">
-      {NAV_LINKS.map(l => (
-        <a key={l} href="#" className="nav-link" onClick={(e) => handleClick(e, l)}>{l}</a>
-      ))}
-    </nav>
-  )
-}
-
-export default function Landing({ navigate, user }) {
-  const rrNavigate = useNavigate()
-  const goLegal = (slug) => rrNavigate(`/legal/${slug}`)
   return (
     <div className="landing">
 
+      {/* NAV */}
       <motion.nav
         className="nav"
         style={{ x: '-50%' }}
         initial={{ opacity: 0, y: -120, scale: 0.92 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{
-          y: { type: 'spring', stiffness: 220, damping: 22, mass: 0.9, delay: 0.15 },
+          y:       { type: 'spring', stiffness: 220, damping: 22, mass: 0.9, delay: 0.15 },
           opacity: { duration: 0.4, delay: 0.15 },
-          scale: { type: 'spring', stiffness: 300, damping: 24, delay: 0.15 },
+          scale:   { type: 'spring', stiffness: 300, damping: 24, delay: 0.15 },
         }}
       >
-        {/* Logo — sempre navega a '/' independentment de si hi ha sessió o no */}
         <div
           className="nav-logo"
           onClick={() => navigate('landing')}
-          role="button"
-          tabIndex={0}
+          role="button" tabIndex={0}
           onKeyDown={(e) => e.key === 'Enter' && navigate('landing')}
         >
           FindYour<span>Bet</span>
         </div>
 
-        <NavLinks />
+        <nav className="nav-links">
+          <a className="nav-link" onClick={() => rrNavigate('/info/como-funciona')} style={{ cursor: 'pointer' }}>Cómo funciona</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/tipsters')}      style={{ cursor: 'pointer' }}>Tipsters</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/ranking')}       style={{ cursor: 'pointer' }}>Ranking</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/precios')}       style={{ cursor: 'pointer' }}>Precios</a>
+        </nav>
 
         <div className="nav-btns">
           {user ? (
             <>
-              {/* Sessió activa: botó al dashboard + chip d'identitat */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('dashboard')}
-              >
-                Ir al Dashboard
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate('dashboard')}>Ir al Dashboard</Button>
               <div className="nav-user-chip" style={{ cursor: 'pointer' }} onClick={() => navigate('dashboard')}>
                 <span className="nav-user-dot" />
                 <span className="nav-user-name">{user.username || user.email}</span>
@@ -376,153 +110,61 @@ export default function Landing({ navigate, user }) {
         </div>
       </motion.nav>
 
-      <Hero user={user} />
+      {/* HERO (100dvh) */}
+      <section className="hero-full" ref={heroRef} onMouseMove={onMove}>
+        <TipsterRain />
 
-      <motion.div className="stats-bar" initial="hidden" animate="visible" variants={stagger}>
-        {STATS.map((s, i) => (
-          <motion.div key={i} className="stat-item" variants={fadeUp}>
-            <div className="stat-num"><AnimatedNum value={s.num} /></div>
-            <div className="stat-label">{s.label}</div>
+        <motion.div className="hero-center" initial="hidden" animate="visible" variants={stagger}>
+          <motion.h1 className="hero-h1" variants={fadeUp} custom={0}>
+            La primera red social<br />
+            de pronósticos donde<br />
+            <em>los resultados no<br className="hero-br" />se pueden maquillar</em>
+          </motion.h1>
+
+          <motion.p className="hero-sub" variants={fadeUp} custom={1}>
+            Picks registrados antes del partido. Historial inmutable y público.
+            Estadísticas que no se inventan.
+          </motion.p>
+
+          <motion.div className="hero-btns" variants={fadeUp} custom={2}>
+            {user ? (
+              <Button onClick={() => navigate('dashboard')}>Ir al Dashboard</Button>
+            ) : (
+              <>
+                <Button onClick={() => navigate('register')}>Empezar gratis</Button>
+                <Button variant="ghost" onClick={() => navigate('login')}>Ya tengo cuenta</Button>
+              </>
+            )}
           </motion.div>
-        ))}
-      </motion.div>
 
-      <section className="features-section" id="section-features">
-        <div className="features-inner">
-          <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <div className="section-title">Todo en un solo sitio<br />para pronosticar con cabeza</div>
-          </motion.div>
-
-          <motion.div
-            className="features-bento"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-          >
-            {FEATURES.map((f, i) => {
-              const Mock = MOCKS[i]
-              return (
-                <motion.div key={i} className="feature-card" variants={fadeUp}>
-                  <div className="feature-card-content">
-                    <h3>{f.title}</h3>
-                    <p>{f.desc}</p>
-                  </div>
-                  <div className="feature-card-mock">
-                    <Mock />
-                  </div>
-                </motion.div>
-              )
-            })}
-          </motion.div>
-        </div>
-      </section>
-
-      <section className="ranking-section" id="section-ranking">
-        <div className="ranking-inner">
-
-          {!user && (
-            <motion.div
-              variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-              style={{
-                background: 'rgba(0,255,138,0.06)',
-                border: '0.5px solid rgba(0,255,138,0.2)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '16px 24px',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
-              <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
-                👁️ Estás viendo una <strong style={{ color: 'var(--color-text)' }}>preview</strong> — Regístrate gratis para ver el ranking completo
+          <motion.div className="hero-pillars" variants={fadeUp} custom={3}>
+            {HERO_PILLARS.map((p, i) => (
+              <div key={i} className="hero-pill">
+                <AppIcon name={p.icon} size={12} color="rgba(0,255,138,0.6)" />
+                <span>{p.text}</span>
               </div>
-              <button
-                onClick={() => navigate('register')}
-                style={{ background: 'var(--color-primary)', border: 'none', color: '#000', padding: '8px 18px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                Registrarse gratis →
-              </button>
-            </motion.div>
-          )}
-
-          <motion.div className="ranking-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <h2>Top tipsters esta semana</h2>
-            <a href="#">Ver ranking completo</a>
-          </motion.div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
-            {TIPSTERS.map((t, i) => (
-              <motion.div key={i} className="tipster-card" variants={fadeUp}>
-                <div className="tipster-rank">{t.rank}</div>
-                <div className="tipster-avatar">{t.initials}</div>
-                <div className="tipster-info">
-                  <div className="tipster-name">{t.name}</div>
-                  <div className="tipster-sport">{t.sport}</div>
-                </div>
-                <div className="tipster-spark">
-                  <Sparkline data={t.spark} />
-                </div>
-                <div className="tipster-stats">
-                  {[
-                    { val: t.roi,     label: 'ROI' },
-                    { val: t.acierto, label: 'Acierto' },
-                    { val: t.picks,   label: 'Picks' },
-                  ].map((s, j) => (
-                    <div key={j} className="tipster-stat">
-                      <div className="tipster-stat-val">{s.val}</div>
-                      <div className="tipster-stat-label">{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
             ))}
           </motion.div>
-        </div>
+
+        </motion.div>
       </section>
 
-      <section className="cta-section" id="section-cta">
-        <div className="cta-inner">
-          <motion.div className="cta-content" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <h2>Únete a la comunidad</h2>
-            <p>Gratis, sin tarjeta. Accede al ranking completo, sigue canales de tipsters verificados y empieza a pronosticar con datos reales.</p>
-            <div className="cta-btns">
-              <Button onClick={() => navigate('register')}>Crear cuenta gratis</Button>
-              <Button variant="ghost" onClick={() => navigate('login')}>Iniciar sesión</Button>
-            </div>
-          </motion.div>
+      {/* FOOTER COMPACTE */}
+      <footer className="footer-compact">
+        <div className="footer-legal-links">
+          <a onClick={() => goLegal('aviso-legal')}       style={{ cursor: 'pointer' }}>Aviso legal</a>
+          <span className="footer-dot" />
+          <a onClick={() => goLegal('terminos')}          style={{ cursor: 'pointer' }}>Términos</a>
+          <span className="footer-dot" />
+          <a onClick={() => goLegal('privacidad')}        style={{ cursor: 'pointer' }}>Privacidad</a>
+          <span className="footer-dot" />
+          <a onClick={() => goLegal('cookies')}           style={{ cursor: 'pointer' }}>Cookies</a>
+          <span className="footer-dot" />
+          <a onClick={() => goLegal('juego-responsable')} style={{ cursor: 'pointer' }}>Juego responsable</a>
+          <span className="footer-dot" />
+          <a onClick={() => rrNavigate('/contacto')}      style={{ cursor: 'pointer' }}>Contacto</a>
         </div>
-      </section>
-
-      <footer className="footer">
-        <div className="footer-cols">
-          <div className="footer-col">
-            <h4>Producto</h4>
-            <a href="#">Tipsters</a>
-            <a href="#">Ranking</a>
-            <a href="#">Precios</a>
-            <a href="#">Cómo funciona</a>
-          </div>
-          <div className="footer-col">
-            <h4>Empresa</h4>
-            <a href="#">Sobre nosotros</a>
-            <a href="#">Contacto</a>
-            <a href="#">Blog</a>
-          </div>
-          <div className="footer-col">
-            <h4>Legal</h4>
-            <a onClick={() => goLegal('aviso-legal')} style={{ cursor: 'pointer' }}>Aviso legal</a>
-            <a onClick={() => goLegal('terminos')} style={{ cursor: 'pointer' }}>Términos</a>
-            <a onClick={() => goLegal('privacidad')} style={{ cursor: 'pointer' }}>Privacidad</a>
-            <a onClick={() => goLegal('cookies')} style={{ cursor: 'pointer' }}>Cookies</a>
-            <a onClick={() => goLegal('juego-responsable')} style={{ cursor: 'pointer' }}>Juego responsable</a>
-          </div>
-        </div>
-
-        <div className="footer-wordmark">FindYour<em>Bet</em></div>
-
-        <div className="footer-bottom">
+        <div className="footer-compact-bottom">
           <span>© {new Date().getFullYear()} FindYourBet · Juega con responsabilidad</span>
           <span className="footer-bottom-tag">+18</span>
         </div>

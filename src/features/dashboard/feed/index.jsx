@@ -2,10 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFeed } from './hooks/useFeed'
 import FeedCard from './FeedCard'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const TABS = [
-  { id: 'siguiendo', label: '👥 Siguiendo' },
-  { id: 'descubre', label: '🔥 Para ti' },
+  { id: 'siguiendo', icon: 'users', label: 'Siguiendo' },
+  { id: 'descubre',  icon: 'flame', label: 'Para ti' },
 ]
 
 // Marks post as seen only after being visible for 800ms (like a view count)
@@ -71,16 +72,16 @@ export default function Feed({ user, onNavigateToChannel }) {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ padding: '8px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: activeTab === t.id ? 'var(--color-primary)' : 'transparent', color: activeTab === t.id ? '#010906' : 'var(--color-text-muted)' }}>
-            {t.label}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name={t.icon} size={13} />{t.label}</span>
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando feed...</div></div>
+        <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>Cargando feed...</div></div>
       ) : posts.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon" style={{ fontSize: '40px' }}>{activeTab === 'siguiendo' ? '👥' : '🔥'}</div>
+          <div className="empty-icon"><AppIcon name={activeTab === 'siguiendo' ? 'users' : 'flame'} size={48} /></div>
           <div className="empty-title">
             {activeTab === 'siguiendo' ? 'Sin picks pendientes de seguidos' : 'Sin picks para ti ahora'}
           </div>
@@ -95,7 +96,7 @@ export default function Feed({ user, onNavigateToChannel }) {
           {/* Banner: recycled posts */}
           {allSeen && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', marginBottom: '16px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
-              <span style={{ fontSize: '18px' }}>✅</span>
+              <AppIcon name="success" size={18} color="var(--color-primary)" />
               <span>Ya lo has visto todo — te mostramos picks anteriores.</span>
             </div>
           )}

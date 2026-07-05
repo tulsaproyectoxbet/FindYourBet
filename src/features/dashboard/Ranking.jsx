@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useProfileNav } from '../../contexts/ProfileNavContext'
 import Username from '../../components/ui/Username'
 import { isAdminUserId } from '../../lib/adminUsers'
+import AppIcon from '../../components/ui/AppIcon'
 import './dashboard.css'
 
 // ── Exports mantinguts per RankingAmigos i altres consumidors ──────────────
@@ -192,6 +193,7 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
         entries
           .filter(e => !hiddenSet.has(e.userId) && !isAdminUserId(e.userId))
           .map(e => ({ ...e, username: profileMap[e.userId] ?? e.userId.slice(0, 6), isVerified: verifiedSet.has(e.userId) }))
+          .slice(0, 50)
       )
     } catch (e) {
       // silent
@@ -227,7 +229,7 @@ export function PeriodDropdown({ period, setPeriod }) {
           display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px', justifyContent: 'space-between',
         }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isGlobal && <span style={{ fontSize: '12px' }}>🏆</span>}
+          {isGlobal && <AppIcon name="trophy" size={14} />}
           {selected?.label}
         </span>
         <span style={{ fontSize: '10px', opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
@@ -243,12 +245,12 @@ export function PeriodDropdown({ period, setPeriod }) {
               <div onClick={() => { setPeriod('trimestral'); setOpen(false) }}
                 style={{ padding: '12px 16px', cursor: 'pointer', background: period === 'trimestral' ? 'var(--color-primary-light)' : 'transparent', borderBottom: '0.5px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14px' }}>🏆</span>
+                  <AppIcon name="trophy" size={14} />
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>Global</div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>Últimos 3 meses · Principal</div>
                   </div>
-                  {period === 'trimestral' && <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--color-primary)' }}>✓</span>}
+                  {period === 'trimestral' && <span style={{ marginLeft: 'auto', display: 'flex' }}><AppIcon name="check" size={12} color="var(--color-primary)" /></span>}
                 </div>
               </div>
               <div style={{ padding: '6px 16px 2px', fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Por período</div>
@@ -256,7 +258,7 @@ export function PeriodDropdown({ period, setPeriod }) {
                 <div key={p.id} onClick={() => { setPeriod(p.id); setOpen(false) }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', cursor: 'pointer', background: period === p.id ? 'rgba(255,255,255,0.04)' : 'transparent' }}>
                   <span style={{ fontSize: '13px', color: period === p.id ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: period === p.id ? 600 : 400 }}>{p.label}</span>
-                  {period === p.id && <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>✓</span>}
+                  {period === p.id && <span style={{ display: 'flex' }}><AppIcon name="check" size={12} color="var(--color-text-muted)" /></span>}
                 </div>
               ))}
             </motion.div>
@@ -288,7 +290,7 @@ export function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodo
               <div onClick={onSelectAll}
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', cursor: 'pointer', borderBottom: '0.5px solid var(--color-border)', background: isTodos ? 'var(--color-primary-light)' : 'transparent' }}>
                 <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${isTodos ? 'var(--color-primary)' : 'var(--color-border)'}`, background: isTodos ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {isTodos && <span style={{ color: '#010906', fontSize: '10px', fontWeight: 700 }}>✓</span>}
+                  {isTodos && <AppIcon name="check" size={10} color="#010906" />}
                 </div>
                 <span style={{ fontSize: '14px', fontWeight: isTodos ? 700 : 400, color: isTodos ? 'var(--color-primary)' : 'var(--color-text)' }}>Todos</span>
               </div>
@@ -298,7 +300,7 @@ export function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodo
                   <div key={sport} onClick={() => toggleSport(sport)}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', cursor: 'pointer', background: active ? 'var(--color-primary-light)' : 'transparent' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`, background: active ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {active && <span style={{ color: '#010906', fontSize: '10px', fontWeight: 700 }}>✓</span>}
+                      {active && <AppIcon name="check" size={10} color="#010906" />}
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: active ? 700 : 400, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{sport}</span>
                   </div>
@@ -387,6 +389,9 @@ function useChannelRanking(channelType) {
           const mainSport = Object.entries(sportCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
 
           const profile = profileMap[c.owner_id]
+          // Score bayesià: penalitza mostres petites encertant moltes seguides
+          // K=25 → 4 picks@24% score 3.3% vs 40 picks@6% score 3.7% (mostra gran guanya)
+          const reliabilityScore = yieldVal * (bets.length / (bets.length + 25))
           return {
             channelId: c.id,
             channelName: c.name,
@@ -401,12 +406,13 @@ function useChannelRanking(channelType) {
             picks: bets.length,
             won, lost,
             yieldVal,
+            reliabilityScore,
             avgOdds: avgOdds.toFixed(2),
             winRate,
             memberCount: memberCounts[c.id] || 0,
             mainSport,
           }
-        }).filter(Boolean).sort((a, b) => b.yieldVal - a.yieldVal)
+        }).filter(Boolean).sort((a, b) => b.reliabilityScore - a.reliabilityScore)
 
         setEntries(result)
         setLastUpdated(new Date())
@@ -428,25 +434,6 @@ function useChannelRanking(channelType) {
 }
 
 // ── Helpers de presentació ─────────────────────────────────────────────────
-function getMedal(pos) {
-  if (pos === 0) return '🥇'
-  if (pos === 1) return '🥈'
-  if (pos === 2) return '🥉'
-  return null
-}
-
-const TYPE_LABELS = {
-  public: 'Público',
-  vip_monthly: 'VIP Mensual',
-  vip_weekly: 'VIP Semanal',
-  stakazo: 'Stakazo',
-}
-
-function getTopPct(pos, total) {
-  if (total === 0) return '—'
-  return `Top ${Math.max(1, Math.ceil((pos + 1) / total * 100))}%`
-}
-
 function formatCount(n) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'k'
   return String(n)
@@ -454,130 +441,126 @@ function formatCount(n) {
 
 function ChannelAvatar({ avatarUrl, name, size = 36 }) {
   const initials = name ? name.slice(0, 2).toUpperCase() : '?'
-  if (avatarUrl) {
-    return (
-      <img src={avatarUrl} alt={name}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }} />
-    )
-  }
+  if (avatarUrl) return <img src={avatarUrl} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }} />
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: Math.round(size * 0.33), fontWeight: 700,
-      color: 'var(--color-text-muted)', flexShrink: 0,
-    }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.33), fontWeight: 700, color: 'var(--color-text-muted)', flexShrink: 0 }}>
       {initials}
     </div>
   )
 }
 
-const TH = { fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '12px 10px 8px', whiteSpace: 'nowrap' }
-const TD = { padding: '10px 10px', verticalAlign: 'middle' }
+function WinBar({ rate, color }) {
+  return (
+    <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+      <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, rate))}%`, background: color, borderRadius: '2px' }} />
+    </div>
+  )
+}
 
+const RANK_STYLE = {
+  0: { border: 'rgba(251,191,36,0.5)',  bg: 'rgba(251,191,36,0.04)',  accent: '#fbbf24', medal: '🥇' },
+  1: { border: 'rgba(148,163,184,0.4)', bg: 'rgba(148,163,184,0.03)', accent: '#94a3b8', medal: '🥈' },
+  2: { border: 'rgba(180,107,74,0.4)',  bg: 'rgba(180,107,74,0.03)',  accent: '#b46b4a', medal: '🥉' },
+}
+
+const TH = { fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '12px 10px 10px', whiteSpace: 'nowrap' }
+const TD = { padding: '14px 10px', verticalAlign: 'middle' }
+
+// ── Taula unificada (totes les posicions) ─────────────────────────────────
 function RankingTable({ entries, user, onNavigateToChannel }) {
-  const openProfile = useProfileNav() // clic al propietari -> perfil emergent
+  const openProfile = useProfileNav()
+
   if (!entries.length) return (
     <div className="empty-state">
-      <div className="empty-icon">📊</div>
+      <div className="empty-icon"><AppIcon name="barChart" size={48} /></div>
       <div className="empty-title">Sin canales aún</div>
       <div className="empty-sub">No hay canales con suficientes picks resueltos para mostrar.</div>
     </div>
   )
 
-  const total = entries.length
+  const MEDALS = ['🥇', '🥈', '🥉']
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      {/* <table> garanteix alineació perfecta entre capçalera i files.
-         minWidth: en finestres estretes el contenidor fa scroll horitzontal en comptes
-         de comprimir la columna CANAL i que el seu contingut es solapi amb YIELD. */}
-      <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '52px' }} />
           <col />
           <col style={{ width: '90px' }} />
+          <col style={{ width: '80px' }} />
           <col style={{ width: '72px' }} />
-          <col style={{ width: '86px' }} />
-          <col style={{ width: '104px' }} />
+          <col style={{ width: '90px' }} />
           <col style={{ width: '62px' }} />
+          <col style={{ width: '72px' }} />
         </colgroup>
         <thead>
           <tr>
             <th style={{ ...TH, textAlign: 'center' }}>POS</th>
             <th style={{ ...TH, textAlign: 'left' }}>CANAL</th>
             <th style={{ ...TH, textAlign: 'center' }}>YIELD</th>
+            <th style={{ ...TH, textAlign: 'center' }}>% ACIERTO</th>
             <th style={{ ...TH, textAlign: 'center' }}>W/L</th>
-            <th style={{ ...TH, textAlign: 'center' }}>ACIERTOS</th>
             <th style={{ ...TH, textAlign: 'center' }}>CUOTA MEDIA</th>
             <th style={{ ...TH, textAlign: 'center' }}>PICKS</th>
+            <th style={{ ...TH, textAlign: 'center' }}>MIEMBROS</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((e, i) => {
-            const medal = getMedal(i)
-            const wl = e.lost > 0
-              ? `${e.won}/${e.lost}`
-              : e.won > 0 ? `${e.won}/0` : '—'
-
+            const yieldColor = e.yieldVal >= 5 ? 'var(--color-primary)' : e.yieldVal >= 0 ? 'var(--color-text)' : 'var(--color-error)'
             return (
               <tr key={e.channelId}
                 style={{ borderTop: '0.5px solid var(--color-border)', transition: 'background 0.1s' }}
-                onMouseEnter={e2 => e2.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
-                onMouseLeave={e2 => e2.currentTarget.style.background = 'transparent'}>
+                onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
 
-                {/* POS */}
                 <td style={{ ...TD, textAlign: 'center' }}>
-                  {medal
-                    ? <span style={{ fontSize: '18px', lineHeight: 1 }}>{medal}</span>
+                  {i < 3
+                    ? <span style={{ fontSize: '18px', lineHeight: 1 }}>{MEDALS[i]}</span>
                     : <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-muted)' }}>#{i + 1}</span>
                   }
                 </td>
 
-                {/* CANAL — clicar l'avatar o el nom porta al preview del canal */}
                 <td style={{ ...TD }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                     <div onClick={() => e.inviteCode && onNavigateToChannel?.({ invite_code: e.inviteCode })}
                       style={{ flexShrink: 0, cursor: e.inviteCode ? 'pointer' : 'default' }}>
-                      <ChannelAvatar avatarUrl={e.channelAvatarUrl} name={e.channelName} />
+                      <ChannelAvatar avatarUrl={e.channelAvatarUrl} name={e.channelName} size={32} />
                     </div>
-                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexWrap: 'wrap' }}>
                       <span onClick={() => e.inviteCode && onNavigateToChannel?.({ invite_code: e.inviteCode })}
-                        title="Ver canal"
-                        style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: e.inviteCode ? 'pointer' : 'default' }}>
+                        style={{ fontSize: '14px', fontWeight: 700, cursor: e.inviteCode ? 'pointer' : 'default', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {e.channelName}
                       </span>
-                      <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 400, flexShrink: 0 }}>—</span>
-                      <span onClick={() => e.ownerId && openProfile?.(e.ownerId)}
-                        title="Ver perfil"
-                        style={{ flexShrink: 0, cursor: e.ownerId ? 'pointer' : 'default' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '13px', flexShrink: 0 }}>·</span>
+                      <div onClick={() => e.ownerId && openProfile?.(e.ownerId)} style={{ cursor: 'pointer', flexShrink: 0 }}>
                         <Username username={e.ownerUsername} isVerified={e.isVerified} size="xs" />
-                      </span>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', flexShrink: 0 }}>· {formatCount(e.memberCount)} seguidores</span>
+                      </div>
                       {user?.id === e.ownerId && (
-                        <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600, flexShrink: 0 }}>Tú</span>
+                        <span style={{ fontSize: '9px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 5px', borderRadius: 'var(--radius-full)', fontWeight: 700, flexShrink: 0, border: '0.5px solid var(--color-primary-border)' }}>Tú</span>
                       )}
                     </div>
                   </div>
                 </td>
 
-                {/* YIELD */}
-                <td style={{ ...TD, textAlign: 'center', fontSize: '14px', fontWeight: 700, color: e.yieldVal >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                <td style={{ ...TD, textAlign: 'center', fontSize: '15px', fontWeight: 800, color: yieldColor, letterSpacing: '-0.5px' }}>
                   {e.yieldVal >= 0 ? '+' : ''}{e.yieldVal.toFixed(1)}%
                 </td>
 
-                {/* W/L */}
-                <td style={{ ...TD, textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{wl}</td>
+                <td style={{ ...TD, textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>{e.winRate.toFixed(0)}%</span>
+                    <div style={{ width: '44px' }}><WinBar rate={e.winRate} color={yieldColor} /></div>
+                  </div>
+                </td>
 
-                {/* ACIERTOS */}
-                <td style={{ ...TD, textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>{e.winRate.toFixed(0)}%</td>
+                <td style={{ ...TD, textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                  {e.won}/{e.lost}
+                </td>
 
-                {/* CUOTA MEDIA */}
                 <td style={{ ...TD, textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>{e.avgOdds}</td>
-
-                {/* PICKS */}
                 <td style={{ ...TD, textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>{e.picks}</td>
+                <td style={{ ...TD, textAlign: 'center', fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>{formatCount(e.memberCount)}</td>
               </tr>
             )
           })}
@@ -587,236 +570,198 @@ function RankingTable({ entries, user, onNavigateToChannel }) {
   )
 }
 
-function FiltersSidebar({ search, setSearch, sport, setSport, minYield, setMinYield, onlyVerified, setOnlyVerified, lastUpdated, onClearFilters }) {
-  const SPORT_OPTS = [{ value: 'all', label: 'Todos' }, ...SPORTS_LIST.map(s => ({ value: s, label: s }))]
-  const YIELD_OPTS = [
-    { value: '0',  label: 'Todos' },
-    { value: '1',  label: '> 0%' },
-    { value: '5',  label: '> 5%' },
-    { value: '10', label: '> 10%' },
-    { value: '20', label: '> 20%' },
-  ]
-  const hasFilters = search || sport !== 'all' || minYield !== '0' || !onlyVerified
+// ── PillSelect: dropdown estilitzat com a pastanya ─────────────────────────
+function PillSelect({ value, onChange, options }) {
+  const isDefault = value === options[0].value
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      style={{
+        background: isDefault ? 'var(--color-bg)' : 'var(--color-primary-light)',
+        border: `0.5px solid ${isDefault ? 'var(--color-border)' : 'var(--color-primary)'}`,
+        color: isDefault ? 'var(--color-text-muted)' : 'var(--color-primary)',
+        fontFamily: 'var(--font-sans)', fontSize: '12px', fontWeight: isDefault ? 400 : 700,
+        padding: '5px 24px 5px 10px', borderRadius: 'var(--radius-full)',
+        cursor: 'pointer', outline: 'none', WebkitAppearance: 'none', appearance: 'none',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%23888' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+        backgroundSize: '8px',
+      }}>
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  )
+}
 
-  const selectStyle = {
-    width: '100%', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)',
-    color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px',
-    padding: '8px 10px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-    outline: 'none', boxSizing: 'border-box',
-  }
-  const labelStyle = {
-    fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)',
-    marginBottom: '6px', letterSpacing: '0.06em', textTransform: 'uppercase',
-  }
+// ── Sidebar filtres ────────────────────────────────────────────────────────
+function FiltersSidebar({ search, setSearch, sport, setSport, minYield, setMinYield, minPicks, setMinPicks, onlyVerified, setOnlyVerified, sortBy, setSortBy, lastUpdated, onClearFilters }) {
+  const SPORT_OPTS = [
+    { value: 'all', label: 'Todos los deportes' },
+    ...SPORTS_LIST.map(s => ({ value: s, label: `${SPORT_ICONS[s]} ${s}` })),
+  ]
+  const YIELD_OPTS = [
+    { value: '0',  label: 'Cualquier yield' },
+    { value: '1',  label: 'Yield > 0%' },
+    { value: '5',  label: 'Yield > 5%' },
+    { value: '10', label: 'Yield > 10%' },
+    { value: '20', label: 'Yield > 20%' },
+  ]
+  const PICKS_OPTS = [
+    { value: '0',  label: 'Mín. apuestas' },
+    { value: '5',  label: '≥ 5 apuestas' },
+    { value: '10', label: '≥ 10 apuestas' },
+    { value: '20', label: '≥ 20 apuestas' },
+    { value: '50', label: '≥ 50 apuestas' },
+  ]
+  const SORT_OPTS = [
+    { value: 'reliability', label: 'Fiabilidad' },
+    { value: 'yield',       label: 'Yield' },
+    { value: 'picks',       label: 'Picks' },
+    { value: 'members',     label: 'Miembros' },
+  ]
+  const hasFilters = !!(search || sport !== 'all' || minYield !== '0' || minPicks !== '0' || onlyVerified || sortBy !== 'reliability')
+  const lbl = { fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }
 
   return (
-    <div style={{
-      background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)',
-      borderRadius: 'var(--radius-lg)', padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '14px', position: 'sticky', top: '16px',
-    }}>
-      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text)' }}>Filtros</div>
+    <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', position: 'sticky', top: '16px' }}>
 
-      {/* Buscar */}
-      <div>
-        <div style={labelStyle}>Buscar</div>
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar canal..."
-          style={{ ...selectStyle, padding: '8px 10px' }} />
-      </div>
-
-      {/* Deporte */}
-      <div>
-        <div style={labelStyle}>Deporte</div>
-        <select value={sport} onChange={e => setSport(e.target.value)} style={selectStyle}>
-          {SPORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-
-      {/* Min. Yield */}
-      <div>
-        <div style={labelStyle}>Min. Yield</div>
-        <select value={minYield} onChange={e => setMinYield(e.target.value)} style={selectStyle}>
-          {YIELD_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-
-      {/* Solo verificados */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Solo verificados</span>
-        <button onClick={() => setOnlyVerified(v => !v)}
-          style={{
-            width: '40px', height: '22px', borderRadius: 'var(--radius-full)', flexShrink: 0,
-            background: onlyVerified ? 'var(--color-primary)' : 'var(--color-bg)',
-            border: onlyVerified ? 'none' : '0.5px solid var(--color-border)',
-            cursor: 'pointer', position: 'relative', transition: 'background 0.2s', padding: 0,
-          }}>
-          <div style={{
-            width: '16px', height: '16px', borderRadius: '50%', background: 'white',
-            position: 'absolute', top: '3px',
-            left: onlyVerified ? '21px' : '3px', transition: 'left 0.2s',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-          }} />
-        </button>
-      </div>
-
-      {hasFilters && (
-        <button onClick={onClearFilters}
-          style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontFamily: 'var(--font-sans)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left', textDecoration: 'underline' }}>
-          Limpiar filtros
-        </button>
-      )}
-
-      {/* Estat actualització */}
-      <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-          <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} />
-          Actualizado en tiempo real
-        </div>
-        {lastUpdated && (
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', paddingLeft: '13px' }}>
-            Última act.: {lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '13px', fontWeight: 700 }}>Filtros</span>
+        {hasFilters && (
+          <button onClick={onClearFilters} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+            Limpiar
+          </button>
         )}
       </div>
 
-      {/* Consell responsable */}
-      <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text)' }}>Consejo responsable</div>
-        <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.5, margin: 0 }}>
-          Las estadísticas son históricas y no garantizan resultados futuros. Apuesta con responsabilidad.
-        </p>
-        <button
-          onClick={() => {}}
-          style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-          Centro de ayuda →
+      <div>
+        <div style={lbl}>Buscar</div>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Canal o tipster..."
+          style={{ width: '100%', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', padding: '7px 10px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }} />
+      </div>
+
+      <div>
+        <div style={lbl}>Deporte</div>
+        <PillSelect value={sport} onChange={setSport} options={SPORT_OPTS} />
+      </div>
+
+      <div>
+        <div style={lbl}>Yield mínimo</div>
+        <PillSelect value={minYield} onChange={setMinYield} options={YIELD_OPTS} />
+      </div>
+
+      <div>
+        <div style={lbl}>Apuestas mínimas</div>
+        <PillSelect value={minPicks} onChange={setMinPicks} options={PICKS_OPTS} />
+      </div>
+
+      <div>
+        <div style={lbl}>Ordenar por</div>
+        <PillSelect value={sortBy} onChange={setSortBy} options={SORT_OPTS} />
+        {sortBy === 'yield' && (
+          <p style={{ margin: '6px 0 0', fontSize: '10px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+            Combina con «Apuestas mínimas» para filtrar muestras pequeñas.
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600 }}>Solo verificados</span>
+        <button onClick={() => setOnlyVerified(v => !v)}
+          style={{ width: '36px', height: '20px', borderRadius: 'var(--radius-full)', flexShrink: 0, background: onlyVerified ? 'var(--color-primary)' : 'var(--color-border)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', padding: 0 }}>
+          <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: 'white', position: 'absolute', top: '3px', left: onlyVerified ? '19px' : '3px', transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }} />
         </button>
+      </div>
+
+      <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: lastUpdated ? 'var(--color-success)' : 'var(--color-border)', flexShrink: 0 }} />
+          {lastUpdated ? `Act. ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : 'Actualizando...'}
+        </div>
       </div>
     </div>
   )
 }
 
-const CHANNEL_TABS = [
-  { id: 'public',      label: 'Públicos' },
-  { id: 'vip_monthly', label: 'VIP Mensual' },
-  { id: 'vip_weekly',  label: 'VIP Semanal' },
-  { id: 'stakazo',     label: '⚡ Stakazos' },
-]
-
-const TRUST_ITEMS = [
-  { icon: '✓', text: '100% Verificado', green: true },
-  { icon: '📊', text: 'Estadísticas reales', green: false },
-  { icon: '✓', text: 'Sin manipulaciones', green: true },
-  { icon: '🎯', text: 'Juega con responsabilidad', green: false },
-]
+// ── Component principal ────────────────────────────────────────────────────
+const SORT_LABELS = {
+  reliability: 'Ordenado por fiabilidad (yield + muestra)',
+  yield:       'Ordenado por yield',
+  picks:       'Ordenado por picks resueltos',
+  members:     'Ordenado por miembros',
+}
 
 export default function Ranking({ user, onNavigateToChannel }) {
-  const [activeTab, setActiveTab] = useState('public')
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('all')
   const [minYield, setMinYield] = useState('0')
+  const [minPicks, setMinPicks] = useState('0')
   const [onlyVerified, setOnlyVerified] = useState(false)
+  const [sortBy, setSortBy] = useState('reliability')
 
-  const { entries, loading, lastUpdated } = useChannelRanking(activeTab)
+  const { entries, loading, lastUpdated } = useChannelRanking('public')
 
   const filtered = (entries || []).filter(e => {
     if (search && !e.channelName.toLowerCase().includes(search.toLowerCase()) && !e.ownerUsername.toLowerCase().includes(search.toLowerCase())) return false
     if (sport !== 'all' && e.mainSport !== sport) return false
     if (minYield !== '0' && e.yieldVal < Number(minYield)) return false
+    if (minPicks !== '0' && e.picks < Number(minPicks)) return false
     if (onlyVerified && !e.isVerified) return false
     return true
+  }).sort((a, b) => {
+    if (sortBy === 'yield')   return b.yieldVal - a.yieldVal
+    if (sortBy === 'picks')   return b.picks - a.picks
+    if (sortBy === 'members') return b.memberCount - a.memberCount
+    return b.reliabilityScore - a.reliabilityScore
   })
 
-  const clearFilters = () => { setSearch(''); setSport('all'); setMinYield('0'); setOnlyVerified(false) }
+  const clearFilters = () => { setSearch(''); setSport('all'); setMinYield('0'); setMinPicks('0'); setOnlyVerified(false); setSortBy('reliability') }
 
   return (
     <motion.div key="ranking"
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>
+      exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
 
-      {/* ── Capçalera ── */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '220px' }}>
-          <h2 style={{ margin: '0 0 6px', fontSize: '22px', fontWeight: 800 }}>Ranking</h2>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-            Descubre los canales con mejor rendimiento verificado y transparente.
+      {/* Capçalera */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 800 }}>Ranking de canales</h2>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)' }}>
+            {SORT_LABELS[sortBy]} · Mín. {MIN_CH_BETS} picks resueltos
           </p>
         </div>
-        <div style={{
-          background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)', padding: '14px 18px',
-          display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0,
-        }}>
-          <span style={{ fontSize: '26px', lineHeight: 1 }}>🏆</span>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)' }}>Transparencia ante todo</div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>Stats reales · Sin manipulaciones</div>
+        {!loading && entries !== null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', flexShrink: 0 }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: lastUpdated ? 'var(--color-success)' : 'var(--color-border)' }} />
+            {filtered.length} canal{filtered.length !== 1 ? 'es' : ''} clasificado{filtered.length !== 1 ? 's' : ''}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ── Tabs ── */}
-      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border)', marginBottom: '16px' }}>
-        {CHANNEL_TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{
-              padding: '10px 18px', border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: '13px', fontWeight: activeTab === t.id ? 700 : 500, fontFamily: 'var(--font-sans)',
-              color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
-              borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`,
-              marginBottom: '-0.5px', transition: 'all 0.15s', whiteSpace: 'nowrap',
-            }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Trust banner ── */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {TRUST_ITEMS.map((item, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
-            background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)',
-            borderRadius: 'var(--radius-full)', padding: '5px 12px',
-            fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 500,
-          }}>
-            <span style={{ fontWeight: 700, color: item.green ? 'var(--color-success)' : 'inherit' }}>{item.icon}</span>
-            {item.text}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Layout: taula + sidebar ── */}
+      {/* Layout: contingut + sidebar */}
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
 
-        {/* Taula */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)',
-            borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-          }}>
+          <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
             {loading
-              ? <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando ranking...</div></div>
+              ? <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>Cargando ranking...</div></div>
               : <RankingTable entries={filtered} user={user} onNavigateToChannel={onNavigateToChannel} />
             }
           </div>
         </div>
 
-        {/* Sidebar de filtres */}
-        <div style={{ width: '220px', flexShrink: 0 }}>
+        <div style={{ width: '216px', flexShrink: 0 }}>
           <FiltersSidebar
             search={search} setSearch={setSearch}
             sport={sport} setSport={setSport}
             minYield={minYield} setMinYield={setMinYield}
+            minPicks={minPicks} setMinPicks={setMinPicks}
             onlyVerified={onlyVerified} setOnlyVerified={setOnlyVerified}
+            sortBy={sortBy} setSortBy={setSortBy}
             lastUpdated={lastUpdated}
             onClearFilters={clearFilters}
           />
         </div>
 
       </div>
-
     </motion.div>
   )
 }

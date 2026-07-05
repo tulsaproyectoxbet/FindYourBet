@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
+import AppIcon from '../../../components/ui/AppIcon'
 
 // Quants reports fan falta perquè un pick entri en revisió automàtica.
 // Canviar aquest valor quan es determini el número definitiu.
@@ -77,7 +78,7 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
 
           {done ? (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontSize: '36px', marginBottom: '12px' }}>✅</div>
+              <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={36} color="var(--color-primary)" /></div>
               <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>Reporte enviado</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: '20px' }}>
                 Lo revisaremos lo antes posible. Si el pick acumula suficientes reportes, quedará suspendido automáticamente hasta que lo verifiquemos.
@@ -90,8 +91,8 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <div style={{ fontWeight: 700, fontSize: '16px' }}>🚩 Reportar pick</div>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', padding: '0 4px' }}>✕</button>
+                <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={15} /> Reportar pick</div>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '0 4px', display: 'flex' }}><AppIcon name="close" size={18} /></button>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '18px' }}>
                 Pick: <strong>{bet.event || 'Pick de foto'}</strong>

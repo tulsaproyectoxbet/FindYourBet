@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import AppIcon from '../../components/ui/AppIcon'
 
 // ── Upload ──────────────────────────────────────────────────────────────────
 
@@ -276,7 +277,7 @@ export function VoiceRecordButton({ onSend, userId }) {
 
   if (state === 'uploading') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-      ⏳ Enviando...
+      <AppIcon name="loading" size={13} /> Enviando...
     </div>
   )
 
@@ -293,15 +294,15 @@ export function VoiceRecordButton({ onSend, userId }) {
       </button>
       <button onClick={sendRecording}
         style={{ background: 'var(--color-error)', border: 'none', borderRadius: 'var(--radius-md)', padding: '4px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-        ✓ Enviar
+        <AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Enviar
       </button>
     </div>
   )
 
   return (
     <button onClick={startRecording} title={error || 'Mensaje de voz'}
-      style={{ background: error ? 'var(--color-error-light)' : 'var(--color-bg)', border: `0.5px solid ${error ? 'var(--color-error-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', fontSize: '16px', color: error ? 'var(--color-error)' : 'var(--color-text-muted)', flexShrink: 0 }}>
-      🎤
+      style={{ background: error ? 'var(--color-error-light)' : 'var(--color-bg)', border: `0.5px solid ${error ? 'var(--color-error-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', color: error ? 'var(--color-error)' : 'var(--color-text-muted)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+      <AppIcon name="mic" size={16} />
     </button>
   )
 }

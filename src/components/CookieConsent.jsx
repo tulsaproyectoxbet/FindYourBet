@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import AppIcon from './ui/AppIcon'
 
 // Banner de consentiment de cookies (requisit ePrivacy / art. 22.2 LSSI).
 // FYB només usa cookies tècniques necessàries, així que no bloquegem res: informem i
@@ -40,7 +41,7 @@ export default function CookieConsent() {
             padding: '18px 20px', fontFamily: 'var(--font-sans)',
           }}>
           <div style={{ fontSize: '13.5px', lineHeight: 1.6, color: 'var(--color-text-soft)', marginBottom: '14px' }}>
-            🍪 Usamos <strong style={{ color: 'var(--color-text)' }}>cookies técnicas necesarias</strong> para
+            <AppIcon name="info" size={14} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Usamos <strong style={{ color: 'var(--color-text)' }}>cookies técnicas necesarias</strong> para
             iniciar tu sesión y recordar tus preferencias. No usamos cookies publicitarias.{' '}
             <span onClick={() => navigate('/legal/cookies')}
               style={{ color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 500 }}>

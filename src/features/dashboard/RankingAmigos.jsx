@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useRanking, MIN_BETS, SPORT_ICONS } from './Ranking'
 import { useProfileNav } from '../../contexts/ProfileNavContext'
 import Username from '../../components/ui/Username'
+import AppIcon from '../../components/ui/AppIcon'
 import './dashboard.css'
 
 const PERIODS = [
@@ -62,7 +63,7 @@ export default function RankingAmigos({ user }) {
       exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>
 
       <div className="page-header">
-        <h2>👥 Amigos</h2>
+        <h2><span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><AppIcon name="users" size={20} /> Amigos</span></h2>
         <p>Ranking de tus amigos mutuos. Mínimo {MIN_BETS} picks resueltos para aparecer.</p>
       </div>
 
@@ -93,18 +94,18 @@ export default function RankingAmigos({ user }) {
 
       {friendsLoading || loading ? (
         <div className="empty-state">
-          <div className="empty-icon">⏳</div>
+          <div className="empty-icon"><AppIcon name="loading" size={48} /></div>
           <div>{friendsLoading ? 'Cargando amigos...' : 'Cargando ranking...'}</div>
         </div>
       ) : friendIds !== null && friendIds.length <= 1 ? (
         <div className="empty-state">
-          <div className="empty-icon">👥</div>
+          <div className="empty-icon"><AppIcon name="users" size={48} /></div>
           <div className="empty-title">Aún no tienes amigos mutuos</div>
           <div className="empty-sub">Sigue a tipsters y espera a que te sigan de vuelta para ver su ranking aquí.</div>
         </div>
       ) : ranking.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">👥</div>
+          <div className="empty-icon"><AppIcon name="users" size={48} /></div>
           <div className="empty-title">Ningún amigo en el ranking</div>
           <div className="empty-sub">Tus amigos necesitan mínimo {MIN_BETS} picks resueltos para aparecer.</div>
         </div>

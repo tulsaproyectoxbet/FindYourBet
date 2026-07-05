@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import { insertNotification } from './useNotifications'
 import { useFollow } from '../social/hooks/useFollow'
 import Username from '../../../components/ui/Username'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const TABS = [
   { id: 'todos',        label: 'Todos' },
@@ -144,7 +145,7 @@ function NotifItem({ n, profile, onViewProfile, onViewPost, currentUser, followe
       {isFollow && (
         <button onClick={handleFollow} disabled={alreadyFollowed}
           style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-primary-border)', background: 'var(--color-primary-light)', color: 'var(--color-primary)', cursor: alreadyFollowed ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
-          {alreadyFollowed ? '👥 Amigos ✓' : 'Seguir también'}
+          {alreadyFollowed ? <><AppIcon name="users" size={12} /> Amigos</> : 'Seguir también'}
         </button>
       )}
     </div>
@@ -212,7 +213,7 @@ export default function NotificationsPanel({ notifications, onClose, onViewProfi
           {visible.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
               <div style={{ fontSize: '28px', marginBottom: '8px' }}>
-                {activeTab === 'seguidores' ? '👤' : activeTab === 'likes' ? '❤️' : activeTab === 'comentarios' ? '💬' : '🔔'}
+                <AppIcon name={activeTab === 'seguidores' ? 'user' : activeTab === 'likes' ? 'heart' : activeTab === 'comentarios' ? 'social' : 'bell'} size={28} />
               </div>
               <div style={{ fontSize: '13px' }}>Sin notificaciones aún</div>
             </div>

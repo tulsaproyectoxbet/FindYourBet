@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input'
 import { FormLabel } from '../../components/ui/FormLabel'
 import { supabase } from '../../lib/supabase'
 import { stripEmojis } from '../../lib/textLimits'
+import AppIcon from '../../components/ui/AppIcon'
 import './auth.css'
 
 const NATIONALITIES = ['España', 'México', 'Argentina', 'Colombia', 'Chile', 'Perú', 'Venezuela', 'Ecuador', 'Bolivia', 'Paraguay', 'Uruguay', 'Otra']
@@ -30,7 +31,7 @@ export default function Register({ navigate, login }) {
   const {
     form, update, terms, setTerms, age, setAge,
     showPass, setShowPass, showPassConfirm, setShowPassConfirm,
-    error, loading, handleRegister
+    error, loading, registered, handleRegister
   } = useSignUp({ onLogin: login })
 
   const maxBirthdate = new Date(new Date().setFullYear(new Date().getFullYear() - 18))
@@ -44,6 +45,27 @@ export default function Register({ navigate, login }) {
       </motion.nav>
 
       <div className="auth-wrapper">
+
+        {/* Pantalla d'èxit: email de confirmació enviat */}
+        {registered && (
+          <motion.div className="auth-card" variants={fadeUp} initial="hidden" animate="visible" style={{ textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-primary-light)', border: '1.5px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <AppIcon name="mail" size={28} color="var(--color-primary)" />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: '20px', marginBottom: 10 }}>¡Cuenta creada!</div>
+            <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
+              Hemos enviado un email de confirmación a<br />
+              <strong style={{ color: 'var(--color-text)' }}>{form.email}</strong>.<br />
+              Haz clic en el enlace para activar tu cuenta.
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 24 }}>
+              ¿No lo encuentras? Revisa la carpeta de spam o correo no deseado.
+            </div>
+            <button className="auth-link" onClick={() => navigate('login')}>← Ir al inicio de sesión</button>
+          </motion.div>
+        )}
+
+        {!registered && (
         <motion.div className="auth-card auth-card--wide" variants={fadeUp} initial="hidden" animate="visible">
           <motion.div variants={fadeUp} custom={1}>
             <div className="auth-card-logo">FindYour<span>Bet</span></div>
@@ -114,7 +136,7 @@ export default function Register({ navigate, login }) {
                 <Input type={showPass ? 'text' : 'password'} placeholder="Mínimo 8 caracteres"
                   value={form.pass} onChange={e => update('pass', e.target.value)} />
                 <button className="toggle-pass" onClick={() => setShowPass(v => !v)}>
-                  {showPass ? '🙈' : '👁️'}
+                  <AppIcon name={showPass ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </div>
             </div>
@@ -124,7 +146,7 @@ export default function Register({ navigate, login }) {
                 <Input type={showPassConfirm ? 'text' : 'password'} placeholder="Repite la contraseña"
                   value={form.passConfirm} onChange={e => update('passConfirm', e.target.value)} />
                 <button className="toggle-pass" onClick={() => setShowPassConfirm(v => !v)}>
-                  {showPassConfirm ? '🙈' : '👁️'}
+                  <AppIcon name={showPassConfirm ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </div>
             </div>
@@ -153,7 +175,7 @@ export default function Register({ navigate, login }) {
           </motion.div>
 
           <motion.div className="auth-privacy-note" variants={fadeUp} custom={10}>
-            🔒 Tus datos están protegidos y nunca serán compartidos con terceros.
+            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Tus datos están protegidos y nunca serán compartidos con terceros.
           </motion.div>
 
           <motion.div className="auth-switch" variants={fadeUp} custom={11}>
@@ -161,6 +183,8 @@ export default function Register({ navigate, login }) {
             <button className="auth-link" onClick={() => navigate('login')}>Inicia sesión</button>
           </motion.div>
         </motion.div>
+        )}
+
       </div>
     </div>
   )

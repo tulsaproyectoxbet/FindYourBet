@@ -9,6 +9,7 @@ import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
 import Username from '../../../components/ui/Username'
 import { useAdminMode } from '../../../contexts/AdminModeContext'
 import { generateUniqueUsername } from '../../../lib/randomUsername'
+import AppIcon from '../../../components/ui/AppIcon'
 
 function Avatar({ url, name, size = 80, fontSize = 32 }) {
   const [imgError, setImgError] = useState(false)
@@ -37,12 +38,15 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
   const [profile, setProfile] = useState(null)
   const [bets, setBets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—' })
+  const [stats, setStats] = useState({ total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—', profit: 0, avgStake: 0 })
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [activeTab, setActiveTab] = useState('stats')
   const [channels, setChannels] = useState([])
   const [loadingChannels, setLoadingChannels] = useState(false)
+  const [statsPeriod, setStatsPeriod] = useState('total')
+  const [statsMonthInput, setStatsMonthInput] = useState('')
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false)
 
   // Bloc
   const [isBlocked, setIsBlocked] = useState(false)
@@ -171,7 +175,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
     try {
       const [{ data: prof }, { data: resolvedBets }, { count: fersCount }, { count: fingCount }, { data: blockRow }, { data: activeOffers }, { data: blockByThemRow }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('bets').select('*, channel:channels(id, name, is_private, deleted_at)').eq('user_id', userId).neq('status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('bets').select('*, channel:channels(id, name, is_private, deleted_at)').eq('user_id', userId).neq('status', 'pending').order('created_at', { ascending: false }).limit(20),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
         currentUser?.id ? supabase.from('blocks').select('id').eq('blocker_id', currentUser.id).eq('blocked_id', userId).maybeSingle() : Promise.resolve({ data: null }),
@@ -185,6 +189,9 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       setFollowersCount(fersCount || 0)
       setFollowingCount(fingCount || 0)
 
+      // IMPORTANT: sempre reassignem stats i bets (encara que estiguin buits). Si no,
+      // en passar del perfil d'algú amb apostes al d'algú sense, es quedaven les stats
+      // de l'anterior (el component es reutilitza en canviar userId, no es desmunta).
       if (resolvedBets && resolvedBets.length > 0) {
         // Per stats: només won/lost. 'void' (nul, diners retornats) està exclòs.
         const countedBets = resolvedBets.filter(b => b.status === 'won' || b.status === 'lost')
@@ -201,10 +208,14 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
         const avgOdds = countedBets.length > 0
           ? (countedBets.reduce((s, b) => s + b.odds, 0) / countedBets.length).toFixed(2)
           : '—'
+        const avgStake = countedBets.length > 0 ? stakeSum / countedBets.length : 0
         // total mostra només els que han comptat, així no es contradiu amb won + lost
-        setStats({ total: countedBets.length, won, lost, yieldVal, avgOdds })
+        setStats({ total: countedBets.length, won, lost, yieldVal, avgOdds, profit, avgStake })
         // Pero el historial visible inclou tot (incloent els nuls en blau)
         setBets(resolvedBets)
+      } else {
+        setStats({ total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—', profit: 0, avgStake: 0 })
+        setBets([])
       }
     } catch (e) {
       // silent
@@ -223,12 +234,16 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       if (!adminMode) q = q.eq('is_private', false)
       const { data: chans } = await q
       if (!chans?.length) { setChannels([]); return }
-      const { data: mems } = await supabase
-        .from('channel_members').select('channel_id')
-        .in('channel_id', chans.map(c => c.id))
+      const chanIds = chans.map(c => c.id)
+      const [{ data: mems }, { data: picks }] = await Promise.all([
+        supabase.from('channel_members').select('channel_id').in('channel_id', chanIds),
+        supabase.from('channel_messages').select('channel_id').in('channel_id', chanIds).like('content', '[BET]:%'),
+      ])
       const countMap = {}
       for (const m of mems || []) countMap[m.channel_id] = (countMap[m.channel_id] || 0) + 1
-      setChannels(chans.map(c => ({ ...c, memberCount: (countMap[c.id] || 0) + 1 })))
+      const pickMap = {}
+      for (const p of picks || []) pickMap[p.channel_id] = (pickMap[p.channel_id] || 0) + 1
+      setChannels(chans.map(c => ({ ...c, memberCount: (countMap[c.id] || 0) + 1, pickCount: pickMap[c.id] || 0 })))
     } catch (e) {
       // silent
     } finally {
@@ -249,6 +264,11 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
 
   const handleBlock = async () => {
     await supabase.from('blocks').upsert({ blocker_id: currentUser.id, blocked_id: userId })
+    // Desfem el seguiment mutu: bloquejar = desconnexió total
+    await Promise.all([
+      supabase.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId),
+      supabase.from('follows').delete().eq('follower_id', userId).eq('following_id', currentUser.id),
+    ])
     const { data: myChannels } = await supabase.from('channels').select('id').eq('owner_id', currentUser.id)
     if (myChannels?.length) {
       await supabase.from('channel_members').delete()
@@ -275,7 +295,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           .select('id, user1_id, user2_id')
           .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
           .limit(40),
-        supabase.from('channels').select('id, name, avatar_url').eq('owner_id', currentUser.id).limit(20),
+        supabase.from('channels').select('id, name, avatar_url').eq('owner_id', currentUser.id).is('deleted_at', null).limit(20),
         supabase.from('channel_members').select('channel_id').eq('user_id', currentUser.id).eq('role', 'admin').limit(20),
       ])
 
@@ -323,50 +343,36 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
   }
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>⏳ Cargando perfil...</div>
+    <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={16} /> Cargando perfil...</div>
   )
-  if (!profile || isBlockedByThem) return (
+  if (!profile) return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
         <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
       </div>
       <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-        <div style={{ fontSize: '40px', marginBottom: '12px' }}>🚫</div>
+        <div style={{ marginBottom: '12px' }}><AppIcon name="ban" size={40} /></div>
         <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '6px' }}>Usuario no encontrado</div>
         <div style={{ fontSize: '13px' }}>Este usuario no está disponible.</div>
       </div>
     </motion.div>
   )
 
-  if (isBlocked) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
-          <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '60px 20px', textAlign: 'center' }}>
-          <Avatar url={profile.avatar_url || null} name={profile.username} size={72} fontSize={28} />
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '18px' }}>{profile.username}</div>
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 20px' }}>
-            🚫 Usuario bloqueado
-          </div>
-          <button onClick={handleUnblock}
-            style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
-            Desbloquear
-          </button>
-        </div>
-      </motion.div>
-    )
-  }
+  // Quan hi ha bloqueig (en qualsevol direcció) mostrem el perfil buit:
+  // avatar, nom i username visibles, però stats a 0, sense canals ni picks, i el botó
+  // de seguir desactivat. Per a isBlocked, s'afegeix el botó de desbloquejar.
+  const isAnyBlock = isBlocked || isBlockedByThem
 
   const isOwnProfile = userId === currentUser?.id
   const displayName = profile.username
   const username = profile.username
-  const avatarUrl = profile.avatar_url || null
+  // Quan hi ha bloqueig (en qualsevol direcció) s'oculta la foto i les dades
+  const avatarUrl = isAnyBlock ? null : (profile.avatar_url || null)
+  const displayFollowersCount = isAnyBlock ? 0 : followersCount
+  const displayFollowingCount = isAnyBlock ? 0 : followingCount
+  const displayStats = isAnyBlock ? { total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—', profit: 0, avgStake: 0 } : stats
+  const displayBets = isAnyBlock ? [] : bets
 
   const isMutual = isFollowing && isFollower
 
@@ -387,6 +393,24 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
         <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
       </div>
 
+      {/* BANNER DE BLOQUEIG (qualsevol direcció) */}
+      {isBlocked && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '16px' }}>
+          <AppIcon name="ban" size={18} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>Has bloqueado a este usuario.</div>
+          <button onClick={handleUnblock}
+            style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
+            Desbloquear
+          </button>
+        </div>
+      )}
+      {isBlockedByThem && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '16px' }}>
+          <AppIcon name="bellOff" size={18} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>Este usuario no está disponible.</div>
+        </div>
+      )}
+
       {/* HEADER CARD */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', marginBottom: '20px' }}>
 
@@ -406,17 +430,17 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       <motion.div initial={{ opacity: 0, y: -6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.95 }}
                         style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 20, minWidth: '170px', overflow: 'hidden' }}>
                         {[
-                          { icon: '📤', label: 'Compartir perfil', action: () => { openSendProfile(); setShowMenu(false) } },
-                          { icon: '🚩', label: 'Reportar', action: () => { setShowReportModal(true); setShowMenu(false) } },
-                          { icon: '🚫', label: 'Bloquear', action: handleBlock, danger: true },
+                          { icon: 'arrowOut', label: 'Compartir perfil', action: () => { openSendProfile(); setShowMenu(false) } },
+                          { icon: 'flag', label: 'Reportar', action: () => { setShowReportModal(true); setShowMenu(false) } },
+                          { icon: 'ban', label: 'Bloquear', action: handleBlock, danger: true },
                           // Opció exclusiva de l'admin: verificar / desverificar tipsters
                           ...(currentUser?.email === 'fyourbet@gmail.com' ? [
-                            { icon: profile.is_verified ? '✕' : '✓', label: profile.is_verified ? 'Desverificar' : 'Verificar', action: handleToggleVerify, admin: true },
+                            { icon: profile.is_verified ? 'close' : 'check', label: profile.is_verified ? 'Desverificar' : 'Verificar', action: handleToggleVerify, admin: true },
                           ] : []),
                         ].map((item, i, arr) => (
                           <button key={i} onClick={item.action}
                             style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', color: item.danger ? 'var(--color-error)' : item.admin ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: (item.danger || item.admin) ? 700 : 400, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                            <span>{item.icon}</span><span>{item.label}</span>
+                            <span style={{ width: '18px', display: 'flex', justifyContent: 'center' }}><AppIcon name={item.icon} size={15} /></span><span>{item.label}</span>
                           </button>
                         ))}
                       </motion.div>
@@ -451,13 +475,13 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           )}
 
           <div style={{ display: 'flex', gap: '0' }}>
-            <StatPill label="Seguidores" value={followersCount} onClick={() => setFollowListType('followers')} />
-            <StatPill label="Siguiendo" value={followingCount} onClick={() => setFollowListType('following')} />
-            <StatPill label="Picks" value={stats.total} />
-            {stats.total > 0 && (
+            <StatPill label="Seguidores" value={displayFollowersCount} onClick={isAnyBlock ? undefined : () => setFollowListType('followers')} />
+            <StatPill label="Siguiendo" value={displayFollowingCount} onClick={isAnyBlock ? undefined : () => setFollowListType('following')} />
+            <StatPill label="Picks" value={displayStats.total} />
+            {displayStats.total > 0 && (
               <div style={{ textAlign: 'center', padding: '0 20px' }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' }}>
-                  {stats.yieldVal >= 0 ? '+' : ''}{stats.yieldVal.toFixed(1)}%
+                <div style={{ fontSize: '20px', fontWeight: 700, color: displayStats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' }}>
+                  {displayStats.yieldVal >= 0 ? '+' : ''}{displayStats.yieldVal.toFixed(1)}%
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Yield</div>
               </div>
@@ -469,21 +493,21 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       {/* BOTONS D'ACCIÓ */}
       {!isOwnProfile && (
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center' }}>
-          <motion.button whileTap={{ scale: 0.97 }}
-            onClick={() => (isMutual || isFollowing) ? onUnfollow(userId) : onFollow(userId)}
-            style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--radius-lg)', border: (isMutual || isFollowing) ? '0.5px solid var(--color-border)' : 'none', background: isMutual ? 'var(--color-primary-light)' : isFollowing ? 'var(--color-bg)' : 'var(--color-primary)', color: isMutual ? 'var(--color-primary)' : isFollowing ? 'var(--color-text-muted)' : '#010906', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-            {isMutual ? '👥 Amigos' : isFollowing ? 'Siguiendo ✓' : isFollower ? 'Seguir también' : '+ Seguir'}
+          <motion.button whileTap={isAnyBlock ? undefined : { scale: 0.97 }}
+            onClick={isAnyBlock ? undefined : () => (isMutual || isFollowing) ? onUnfollow(userId) : onFollow(userId)}
+            style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: isAnyBlock ? 'var(--color-bg-soft)' : (isMutual ? 'var(--color-primary-light)' : isFollowing ? 'var(--color-bg)' : 'var(--color-primary)'), color: isAnyBlock ? 'var(--color-text-muted)' : (isMutual ? 'var(--color-primary)' : isFollowing ? 'var(--color-text-muted)' : '#010906'), cursor: isAnyBlock ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', opacity: isAnyBlock ? 0.5 : 1 }}>
+            {isMutual ? <><AppIcon name="users" size={14} style={{ marginRight: 5 }} />Amigos</> : isFollowing ? <><AppIcon name="check" size={14} style={{ marginRight: 5 }} />Siguiendo</> : isFollower ? 'Seguir también' : '+ Seguir'}
           </motion.button>
           <motion.button whileTap={{ scale: 0.97 }}
             onClick={() => onStartDM?.(userId)}
             style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-            💬 Mensaje
+            <AppIcon name="social" size={14} style={{ marginRight: 5, verticalAlign: 'middle' }} />Mensaje
           </motion.button>
           {/* Campaneta */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setShowMuteMenu(v => !v)}
               style={{ width: '46px', height: '46px', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {muted ? '🔕' : '🔔'}
+              {muted ? <AppIcon name="bellOff" size={18} /> : <AppIcon name="bell" size={18} />}
             </button>
             <AnimatePresence>
               {showMuteMenu && (
@@ -494,7 +518,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                     {muted && (
                       <button onClick={() => { unmute(muteKey); setShowMuteMenu(false) }}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '11px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-primary)', fontWeight: 700, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                        🔔 Activar notificaciones
+                        <AppIcon name="bell" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Activar notificaciones
                       </button>
                     )}
                     {MUTE_DURATIONS.map((d, i) => (
@@ -514,20 +538,20 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       {/* Accions admin (només visibles en mode admin i en perfils que no siguin el propi) */}
       {adminMode && !isOwnProfile && (
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-error)', alignSelf: 'center', marginRight: 'auto' }}>🛡️ MODO ADMIN</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-error)', alignSelf: 'center', marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="shieldCheck" size={13} /> MODO ADMIN</span>
           <button onClick={() => { setBanOldName(false); setShowResetUsername(true) }} disabled={adminBusy}
             title="Cambiar a nombre aleatorio"
             style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: adminBusy ? 0.5 : 1 }}>
-            🎲 Resetear nombre
+            <AppIcon name="shuffle" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Resetear nombre
           </button>
           <button onClick={() => setShowAdminWarning(true)}
             style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-warning)', background: 'transparent', color: 'var(--color-warning)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-            ⚠️ Enviar aviso
+            <AppIcon name="warning" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Enviar aviso
           </button>
           {!profile?.banned && (
             <button onClick={() => setShowAdminBan(true)}
               style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-              🚫 Banear usuario
+              <AppIcon name="ban" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Banear usuario
             </button>
           )}
           {profile?.banned && (
@@ -545,7 +569,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-warning)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-warning)' }}>⚠️ Enviar aviso a @{profile?.username}</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="warning" size={16} /> Enviar aviso a @{profile?.username}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 El usuario verá este aviso como modal la próxima vez que se conecte.
               </div>
@@ -576,7 +600,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)' }}>🚫 Banear a @{profile?.username}</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="ban" size={16} /> Banear a @{profile?.username}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 Bloqueja el seu compte i email. No podrà entrar ni re-registrar-se.
               </div>
@@ -607,7 +631,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px' }}>🎲 Resetear nombre de @{profile?.username}</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="shuffle" size={16} /> Resetear nombre de @{profile?.username}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
                 Se generará un nombre aleatorio. El usuario verá un aviso al conectarse y podrá elegir un nuevo nombre sin esperar 7 días.
               </div>
@@ -641,93 +665,96 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       {/* TABS */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '0.5px solid var(--color-border)' }}>
         {[
-          { id: 'stats', label: '📊 Rendimiento' },
-          { id: 'canales', label: '📡 Canales' },
-          { id: 'picks', label: '📋 Últimos picks' },
+          { id: 'stats', icon: 'stats', label: 'Rendimiento' },
+          { id: 'canales', icon: 'canales', label: 'Canales' },
+          { id: 'picks', icon: 'historial', label: 'Últimos picks' },
         ].map(t => (
           <button key={t.id} onClick={() => { setActiveTab(t.id); if (t.id === 'canales') fetchChannels() }}
-            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-            {t.label}
+            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <AppIcon name={t.icon} size={13} />{t.label}
           </button>
         ))}
       </div>
 
       <AnimatePresence mode="wait">
         {activeTab === 'picks' && (() => {
-          const publicBets = bets.filter(b => !b.was_private)
+          const publicBets = displayBets.filter(b => !b.was_private)
           // Premium = privat + canal amb offer activa. Invite-only no apareix al perfil.
-          const premiumBets = bets.filter(b => b.was_private && premiumChannelIds.has(b.channel_id))
+          const premiumBets = displayBets.filter(b => b.was_private && premiumChannelIds.has(b.channel_id))
           const shownBets = picksSubTab === 'public' ? publicBets : premiumBets
           const isOwnProfile = currentUser?.id === userId
           return (
           <motion.div key="picks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', width: 'fit-content' }}>
               {[
-                { id: 'public',  label: `🌐 Públicos (${publicBets.length})` },
-                { id: 'private', label: `💎 Premium (${premiumBets.length})` },
+                { id: 'public',  icon: 'globe',  label: `Públicos (${publicBets.length})` },
+                { id: 'private', icon: 'gem', label: `Premium (${premiumBets.length})` },
               ].map(t => (
                 <button key={t.id} onClick={() => setPicksSubTab(t.id)}
-                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === t.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-                  {t.label}
+                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === t.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AppIcon name={t.icon} size={12} />{t.label}
                 </button>
               ))}
             </div>
             {shownBets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📋</div>
+                <div style={{ marginBottom: '12px' }}><AppIcon name="historial" size={40} /></div>
                 <div style={{ fontWeight: 600 }}>
                   {picksSubTab === 'public' ? 'Sin picks públicos todavía' : 'Sin picks premium todavía'}
                 </div>
               </div>
             ) : (
-              <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                {shownBets.map((b, i) => {
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                {shownBets.map(b => {
                   const isPrivateForViewer = b.was_private && !isOwnProfile
+                  const isWon  = b.status === 'won'
+                  const isVoid = b.status === 'void'
+                  const statusColor  = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
+                  const statusBg     = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
+                  const statusBorder = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
+                  const label = isWon
+                    ? <><AppIcon name="check" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Win</>
+                    : isVoid ? '● Nula'
+                    : <><AppIcon name="close" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Loss</>
                   return (
-                  <div key={b.id} onClick={() => setPostModalBetId(b.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < shownBets.length - 1 ? '0.5px solid var(--color-border)' : 'none', transition: 'background 0.15s', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : b.status === 'void' ? 'var(--color-info)' : 'var(--color-error)', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: isPrivateForViewer ? 'italic' : 'normal', color: isPrivateForViewer ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
-                        {isPrivateForViewer ? '🔒 Pick privado' : b.event}
+                    <div key={b.id} onClick={() => setPostModalBetId(b.id)}
+                      style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderTop: `3px solid ${statusColor}`, borderRadius: 'var(--radius-lg)', padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '10px', transition: 'box-shadow 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}>
+
+                      {/* Sport + resultat */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>
+                          {isPrivateForViewer ? '—' : b.sport}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 9px', borderRadius: 'var(--radius-full)', background: statusBg, color: statusColor, border: `0.5px solid ${statusBorder}`, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                          {label}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {!isPrivateForViewer && <span>{b.sport} · <strong>{b.pick}</strong> ·</span>}
-                        <span>@{parseFloat(b.odds).toFixed(2)} · {b.stake}</span>
-                        {b.channel && (
-                          <>
-                            <span>·</span>
-                            {b.channel.deleted_at
-                              ? <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Canal eliminado</span>
-                              : <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{b.channel.name}</span>}
-                          </>
-                        )}
-                        <span style={{ padding: '1px 6px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', fontSize: '9px', fontWeight: 700 }}>
-                          {b.was_private ? '💎 Premium' : '🌐 Público'}
+
+                      {/* Event o pick privat */}
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: isPrivateForViewer ? 'var(--color-text-muted)' : 'var(--color-text)', lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontStyle: isPrivateForViewer ? 'italic' : 'normal' }}>
+                        {isPrivateForViewer
+                          ? <><AppIcon name="lock" size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />Pick privado</>
+                          : b.event}
+                      </div>
+
+                      {/* Pick · quota · stake */}
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                        {!isPrivateForViewer && <><span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{b.pick}</span>{' · '}</>}
+                        @{parseFloat(b.odds).toFixed(2)}{' · '}{b.stake}u
+                      </div>
+
+                      {/* Footer: canal + data */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '0.5px solid var(--color-border)', marginTop: 'auto', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: b.channel && !b.channel.deleted_at ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: b.channel && !b.channel.deleted_at ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontStyle: b.channel?.deleted_at ? 'italic' : 'normal' }}>
+                          {b.channel ? (b.channel.deleted_at ? 'Canal eliminado' : b.channel.name) : ''}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                          {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                         </span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      {(() => {
-                        const isWon = b.status === 'won'
-                        const isVoid = b.status === 'void'
-                        const bg = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
-                        const fg = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
-                        const bd = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
-                        const label = isWon ? '✓ Win' : isVoid ? '● Nula' : '✗ Loss'
-                        return (
-                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: bg, color: fg, border: `0.5px solid ${bd}` }}>
-                            {label}
-                          </span>
-                        )
-                      })()}
-                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                        {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
                   )
                 })}
               </div>
@@ -738,67 +765,193 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
 
         {activeTab === 'stats' && (
           <motion.div key="stats" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            {stats.total === 0 ? (
+            {displayStats.total === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
+                <div style={{ marginBottom: '8px' }}><AppIcon name="stats" size={32} /></div>
                 <div>Este tipster aún no tiene picks registrados.</div>
               </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-                {[
-                  { label: 'Yield total', value: `${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(2)}%`, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)', sub: 'Beneficio sobre el stake' },
-                  { label: 'W / L', value: `${stats.won} / ${stats.lost}`, color: 'var(--color-text)', sub: 'Ganadas / Perdidas' },
-                  { label: 'Total picks', value: stats.total, color: 'var(--color-text)', sub: 'Picks resueltos' },
-                  { label: 'Cuota media', value: stats.avgOdds, color: 'var(--color-warning)', sub: 'Promedio de cuotas' },
-                  { label: 'Win rate', value: stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '—', color: 'var(--color-text)', sub: 'Porcentaje de acierto' },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{s.label}</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>{s.sub}</div>
+            ) : (() => {
+              const now = new Date()
+              const cutoff = (() => {
+                if (statsPeriod === '1m') return new Date(now.getFullYear(), now.getMonth(), 1)
+                if (statsPeriod === '3m') return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+                if (statsPeriod === '6m') return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+                if (statsPeriod === '1y') return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+                if (statsPeriod.startsWith('month:')) {
+                  const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
+                  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 0, 23, 59, 59) }
+                }
+                return null
+              })()
+              const allResolved = displayBets.filter(b => b.status === 'won' || b.status === 'lost')
+              const filtered = cutoff === null ? allResolved
+                : cutoff.start ? allResolved.filter(b => { const d = new Date(b.date); return d >= cutoff.start && d <= cutoff.end })
+                : allResolved.filter(b => new Date(b.date) >= cutoff)
+
+              const pWon = filtered.filter(b => b.status === 'won').length
+              const pLost = filtered.filter(b => b.status === 'lost').length
+              const pTotal = filtered.length
+              const { profit: pProfit, stakeSum: pStakeSum } = filtered.reduce(
+                (acc, b) => ({ stakeSum: acc.stakeSum + b.stake, profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake) }),
+                { profit: 0, stakeSum: 0 }
+              )
+              const pYield = pStakeSum > 0 ? (pProfit / pStakeSum) * 100 : 0
+              const pAvgOdds = pTotal > 0 ? (filtered.reduce((s, b) => s + b.odds, 0) / pTotal).toFixed(2) : '—'
+              const pAvgStake = pTotal > 0 ? pStakeSum / pTotal : 0
+
+              const BANK = 1000
+              const UNIT = BANK / 100
+              const winRate = pTotal > 0 ? (pWon / pTotal) * 100 : 0
+              const winRateColor = pTotal === 0 ? 'var(--color-text-muted)' : winRate >= 55 ? 'var(--color-primary)' : winRate >= 45 ? 'var(--color-warning)' : 'var(--color-error)'
+              const benefitEur = pProfit * UNIT
+              const benefitColor = pTotal === 0 ? 'var(--color-text-muted)' : benefitEur >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+              const yieldColor = pTotal === 0 ? 'var(--color-text-muted)' : pYield >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+              const cardStyle = { background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '28px 16px', textAlign: 'center' }
+              const labelStyle = { fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }
+              const valStyle = (color) => ({ fontSize: '34px', fontWeight: 700, color, lineHeight: 1 })
+              const subStyle = { fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }
+
+              const monthLabel = statsPeriod.startsWith('month:') ? (() => {
+                const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
+                const name = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
+                return name.charAt(0).toUpperCase() + name.slice(1) + ' de ' + y
+              })() : null
+
+              const PERIOD_OPTS = [
+                { id: 'total', label: 'Total' },
+                { id: '1m',    label: 'Este mes' },
+                { id: '3m',    label: 'Últimos 3 meses' },
+                { id: '6m',    label: 'Últimos 6 meses' },
+                { id: '1y',    label: 'Último año' },
+              ]
+
+              return (
+                <>
+                  {/* Selector de període */}
+                  <div style={{ position: 'relative', display: 'inline-block', marginBottom: '14px' }}>
+                    {showPeriodDropdown && (
+                      <div onClick={() => setShowPeriodDropdown(false)}
+                        style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+                    )}
+                    <button onClick={() => setShowPeriodDropdown(v => !v)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '7px 12px', cursor: 'pointer', outline: 'none' }}>
+                      <span>{statsPeriod.startsWith('month:') ? monthLabel : PERIOD_OPTS.find(p => p.id === statsPeriod)?.label}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: '2px' }}>▾</span>
+                    </button>
+                    {showPeriodDropdown && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 11, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', minWidth: '180px', overflow: 'hidden' }}>
+                        {PERIOD_OPTS.map(p => (
+                          <button key={p.id} onClick={() => { setStatsPeriod(p.id); setStatsMonthInput(''); setShowPeriodDropdown(false) }}
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: statsPeriod === p.id ? 'var(--color-primary-light)' : 'transparent', color: statsPeriod === p.id ? 'var(--color-primary)' : 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: statsPeriod === p.id ? 600 : 400, border: 'none', cursor: 'pointer' }}>
+                            {p.label}
+                          </button>
+                        ))}
+                        <div style={{ borderTop: '0.5px solid var(--color-border)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Mes concreto</span>
+                          <input type="month" value={statsMonthInput}
+                            min="2026-01"
+                            max={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => { setStatsMonthInput(e.target.value); if (e.target.value) { setStatsPeriod(`month:${e.target.value}`); setShowPeriodDropdown(false) } }}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', cursor: 'pointer', minWidth: 0 }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+
+                    <div style={cardStyle}>
+                      <div style={labelStyle}>Win Rate</div>
+                      <div style={valStyle(winRateColor)}>{winRate.toFixed(0)}%</div>
+                      <div style={{ fontSize: '12px', marginTop: '8px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{pWon}W</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>·</span>
+                        <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>{pLost}L</span>
+                      </div>
+                    </div>
+
+                    <div style={cardStyle}>
+                      <div style={labelStyle}>Cuota media</div>
+                      <div style={valStyle('var(--color-warning)')}>{pAvgOdds}</div>
+                      <div style={subStyle}>Cuota promedio</div>
+                    </div>
+
+                    <div style={cardStyle}>
+                      <div style={labelStyle}>Yield</div>
+                      <div style={valStyle(yieldColor)}>{pYield >= 0 ? '+' : ''}{pYield.toFixed(2)}%</div>
+                      <div style={subStyle}>Beneficio sobre el stake</div>
+                    </div>
+
+                    <div style={cardStyle}>
+                      <div style={labelStyle}>Stake medio</div>
+                      <div style={valStyle('var(--color-text)')}>{pAvgStake.toFixed(1)}</div>
+                      <div style={subStyle}>Unidades por pick</div>
+                    </div>
+
+                    <div style={{ ...cardStyle, border: `0.5px solid ${benefitEur >= 0 ? 'var(--color-primary-border)' : 'var(--color-error-border)'}`, gridColumn: '1 / -1' }}>
+                      <div style={labelStyle}>Beneficio</div>
+                      <div style={valStyle(benefitColor)}>{benefitEur >= 0 ? '+' : ''}{benefitEur.toFixed(0)}€</div>
+                      <div style={subStyle}>Banco inicial 1.000 €</div>
+                    </div>
+
+                  </div>
+                </>
+              )
+            })()}
           </motion.div>
         )}
 
         {activeTab === 'canales' && (
           <motion.div key="canales" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            {loadingChannels ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando canales...</div>
-            ) : channels.length === 0 ? (
+            {loadingChannels && !isAnyBlock ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando canales...</div>
+            ) : (isAnyBlock ? [] : channels).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📡</div>
+                <div style={{ marginBottom: '12px' }}><AppIcon name="canales" size={40} /></div>
                 <div style={{ fontWeight: 600 }}>Sin canales públicos</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {channels.map(c => (
-                  <div key={c.id} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg-soft)' }}>
-                      {c.avatar_url ? <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name[0].toUpperCase()}
+                {(isAnyBlock ? [] : channels).map(c => {
+                  const yieldColor = displayStats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+                  const statCol = (value, label, color) => (
+                    <div style={{ textAlign: 'center', padding: '0 14px', borderLeft: '0.5px solid var(--color-border)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '15px', color: color || 'var(--color-text)', lineHeight: 1.2 }}>{value}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>#{c.name}</div>
-                      {c.description && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: '4px' }}>{c.description}</div>}
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>👥 {c.memberCount} miembros</span>
-                        {stats.total > 0 && <span style={{ fontSize: '11px', fontWeight: 700, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' }}>{stats.yieldVal >= 0 ? '+' : ''}{stats.yieldVal.toFixed(1)}% yield tipster</span>}
-                        {c.sport && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{c.sport}</span>}
-                        {c.language && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{c.language}</span>}
+                  )
+                  return (
+                    <div key={c.id} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      {/* Avatar */}
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg-soft)' }}>
+                        {c.avatar_url ? <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name[0].toUpperCase()}
                       </div>
+                      {/* Nom + stats en la mateixa fila + descripció */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: '15px' }}>{c.name}</span>
+                          {c.sport && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>{c.sport}</span>}
+                          {/* Stats inline al costat del nom */}
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            {statCol(c.memberCount, 'Miembros')}
+                            {statCol(c.pickCount, 'Picks')}
+                            {displayStats.total > 0 && statCol(`${displayStats.yieldVal >= 0 ? '+' : ''}${displayStats.yieldVal.toFixed(1)}%`, 'Yield', yieldColor)}
+                          </div>
+                        </div>
+                        {c.description && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.description}</div>}
+                      </div>
+                      {onNavigateToChannel ? (
+                        <button onClick={() => onNavigateToChannel(c)}
+                          style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, marginLeft: '8px' }}>
+                          Ver canal
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0, marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}><AppIcon name="globe" size={11} />Público</span>
+                      )}
                     </div>
-                    {onNavigateToChannel ? (
-                      <button onClick={() => onNavigateToChannel(c)}
-                        style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-                        Ver canal
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0 }}>🌐 Público</span>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </motion.div>
@@ -818,19 +971,19 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '15px' }}>📤 Enviar perfil</div>
+                  <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="arrowOut" size={15} />Enviar perfil</div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{profile.username}</div>
                 </div>
                 <button onClick={() => setShowSendProfile(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)' }}>✕</button>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}><AppIcon name="close" size={18} /></button>
               </div>
 
               {/* Tabs DM / Canals */}
               <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
-                {[['dm', '💬 Mensajes directos'], ['canal', '📡 Canales']].map(([id, label]) => (
+                {[['dm', 'social', 'Mensajes directos'], ['canal', 'canales', 'Canales']].map(([id, icon, label]) => (
                   <button key={id} onClick={() => setSendTab(id)}
-                    style={{ flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: sendTab === id ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: `2px solid ${sendTab === id ? 'var(--color-primary)' : 'transparent'}`, fontFamily: 'var(--font-sans)', transition: 'color 0.15s' }}>
-                    {label}
+                    style={{ flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: sendTab === id ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: `2px solid ${sendTab === id ? 'var(--color-primary)' : 'transparent'}`, fontFamily: 'var(--font-sans)', transition: 'color 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                    <AppIcon name={icon} size={13} />{label}
                   </button>
                 ))}
               </div>
@@ -854,7 +1007,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       </div>
                       <button onClick={() => handleSendProfileTo('dm', c.id, c.username)} disabled={sentSet.has(c.id)}
                         style={{ background: sentSet.has(c.id) ? 'var(--color-primary-light)' : 'var(--color-primary)', color: sentSet.has(c.id) ? 'var(--color-primary)' : '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: sentSet.has(c.id) ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.2s' }}>
-                        {sentSet.has(c.id) ? '✓ Enviado' : 'Enviar'}
+                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />Enviado</> : 'Enviar'}
                       </button>
                     </div>
                   ))
@@ -872,7 +1025,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       </div>
                       <button onClick={() => handleSendProfileTo('canal', c.id, c.name)} disabled={sentSet.has(c.id)}
                         style={{ background: sentSet.has(c.id) ? 'var(--color-primary-light)' : 'var(--color-primary)', color: sentSet.has(c.id) ? 'var(--color-primary)' : '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: sentSet.has(c.id) ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.2s' }}>
-                        {sentSet.has(c.id) ? '✓ Enviado' : 'Enviar'}
+                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />Enviado</> : 'Enviar'}
                       </button>
                     </div>
                   ))

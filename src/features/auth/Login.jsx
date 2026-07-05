@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { FormLabel } from '../../components/ui/FormLabel'
 import { supabase } from '../../lib/supabase'
+import AppIcon from '../../components/ui/AppIcon'
 import './auth.css'
 
 const GoogleIcon = () => (
@@ -37,7 +38,7 @@ export default function Login({ navigate, login }) {
       <motion.nav className="auth-nav"
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="auth-logo" onClick={() => navigate('landing')}>FindYour<span>Bet</span></div>
-        <Button variant="outline" size="sm" onClick={skipDev}>⚡ Saltar (dev)</Button>
+        <Button variant="outline" size="sm" onClick={skipDev}><AppIcon name="zap" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Saltar (dev)</Button>
       </motion.nav>
 
       <div className="auth-wrapper">
@@ -75,7 +76,7 @@ export default function Login({ navigate, login }) {
                   <Input type={showPass ? 'text' : 'password'} placeholder="••••••••"
                     value={pass} onChange={e => setPass(e.target.value)} />
                   <button className="toggle-pass" onClick={() => setShowPass(v => !v)}>
-                    {showPass ? '🙈' : '👁️'}
+                    <AppIcon name={showPass ? 'eyeOff' : 'eye'} size={16} />
                   </button>
                 </div>
               </motion.div>
@@ -123,7 +124,7 @@ export default function Login({ navigate, login }) {
 
           {resetSent && (
             <motion.div className="reset-success" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="reset-success-icon">📧</div>
+              <div className="reset-success-icon"><AppIcon name="mail" size={32} /></div>
               <div className="reset-success-title">Email enviado</div>
               <div className="reset-success-text">
                 Hemos enviado un enlace a <strong>{email}</strong> para restablecer tu contraseña.

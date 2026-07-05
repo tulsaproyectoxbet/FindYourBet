@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import AppIcon from './ui/AppIcon'
 
 export default class ErrorBoundary extends Component {
   state = { hasError: false, error: null }
@@ -28,7 +29,7 @@ export default class ErrorBoundary extends Component {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg, #0a0a0a)', padding: '20px' }}>
         <div style={{ maxWidth: '420px', width: '100%', textAlign: 'center', background: 'var(--color-bg-soft, #111)', border: '0.5px solid var(--color-border, #222)', borderRadius: '16px', padding: '32px 24px' }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>⚠️</div>
+          <div style={{ marginBottom: '16px' }}><AppIcon name="warning" size={40} color="var(--color-warning, #f59e0b)" /></div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-text, #fff)', marginBottom: '8px' }}>
             Algo ha ido mal
           </div>

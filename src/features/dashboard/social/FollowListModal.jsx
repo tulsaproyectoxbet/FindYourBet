@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import { insertNotification } from '../notifications/useNotifications'
 import Username from '../../../components/ui/Username'
 import { useProfileNav } from '../../../contexts/ProfileNavContext'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function FollowListModal({ type, profileUserId, currentUser, onClose, onViewProfile, onStartDM }) {
   // Obre el perfil emergent PER SOBRE de la llista (sense tancar-la), perquè en tornar
@@ -75,7 +76,7 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>⏳ Cargando...</div>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
           ) : users.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Sin {title.toLowerCase()} todavía</div>
           ) : users.map((u, i) => {
@@ -104,8 +105,8 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
                     </button>
                     {onStartDM && (
                       <button onClick={() => { onStartDM(u.id); onClose() }}
-                        style={{ padding: '5px 10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                        💬
+                        style={{ padding: '5px 10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center' }}>
+                        <AppIcon name="social" size={14} />
                       </button>
                     )}
                   </div>

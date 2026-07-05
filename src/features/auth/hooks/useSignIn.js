@@ -76,6 +76,13 @@ export function useSignIn({ onLogin }) {
     setLoading(false)
 
     if (authError) {
+      // Email no confirmat — missatge específic sense comptar com a intent fallit
+      if (authError.message?.toLowerCase().includes('email not confirmed') ||
+          authError.message?.toLowerCase().includes('not confirmed')) {
+        setError('Confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada.')
+        return
+      }
+
       const newAttempts = failedAttempts + 1
       setFailedAttempts(newAttempts)
       localStorage.setItem(STORAGE_KEY_ATTEMPTS, newAttempts)
@@ -117,8 +124,9 @@ export function useSignIn({ onLogin }) {
     if (!email) { setError('Introduce tu email primero'); return }
     setError('')
     setLoading(true)
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
+    // Supabase gestiona l'enviament natiu — il·limitat, sense dependències externes
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
     })
     setLoading(false)
     if (resetError) { setError(resetError.message); return }

@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '../../../components/ui/Button'
+import AppIcon from '../../../components/ui/AppIcon'
 import { useMessages } from './hooks/useMessages'
 import {
   renderMessage,
@@ -44,7 +45,7 @@ export default function PreviewView({ channel, user, onBack, onJoin, joining, me
           <div style={{ fontWeight: 700, fontSize: '18px' }}>{channel.name}</div>
           {channel.description && <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{channel.description}</div>}
         </div>
-        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>👥 {memberCount} participantes</span>
+        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="users" size={13} /> {memberCount} participantes</span>
         <span style={{ fontSize: '11px', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', fontWeight: 600 }}>
           Vista previa
         </span>
@@ -52,10 +53,10 @@ export default function PreviewView({ channel, user, onBack, onJoin, joining, me
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando mensajes...</div>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando mensajes...</div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+            <div style={{ marginBottom: '8px' }}><AppIcon name="message" size={32} /></div>
             <div>Sin mensajes todavía en este canal.</div>
           </div>
         ) : messages.map((m, i) => {
@@ -92,13 +93,13 @@ export default function PreviewView({ channel, user, onBack, onJoin, joining, me
                         color: 'var(--color-text-muted)',
                         whiteSpace: 'nowrap',
                       }}>
-                        {m.view_count > 0 ? `👁 ${m.view_count} · ` : ''}{timeStr}
+                        {m.view_count > 0 ? <><AppIcon name="eye" size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />{m.view_count} · </> : ''}{timeStr}
                       </span>
                     )}
                   </div>
                   {(isNobubble || isImage) && (
                     <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '3px', textAlign: 'left' }}>
-                      {m.view_count > 0 ? `👁 ${m.view_count} · ` : ''}{timeStr}
+                      {m.view_count > 0 ? <><AppIcon name="eye" size={10} style={{ verticalAlign:'middle', marginRight:2 }} />{m.view_count} · </> : ''}{timeStr}
                     </div>
                   )}
                 </div>

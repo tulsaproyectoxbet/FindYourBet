@@ -36,9 +36,10 @@ export default function LegalPage() {
           onKeyDown={e => e.key === 'Enter' && navigate('/')}>
           FindYour<span>Bet</span>
         </div>
-        <button className="legal-back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
-          ← Volver
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="legal-back" onClick={() => navigate(-1)}>← Atrás</button>
+          <button className="legal-back" onClick={() => navigate('/')}>Salir</button>
+        </div>
       </div>
 
       <div className="legal-shell">

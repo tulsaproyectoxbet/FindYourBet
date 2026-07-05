@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import AppIcon from '../../components/ui/AppIcon'
 
 const FAQS = [
   {
     category: 'Sobre FindYourBet',
-    icon: '🎯',
+    icon: 'tipsters',
     items: [
       {
         q: '¿Qué es FindYourBet?',
@@ -22,7 +23,7 @@ const FAQS = [
   },
   {
     category: 'Conceptos clave',
-    icon: '📚',
+    icon: 'bookOpen',
     items: [
       {
         q: '¿Qué es el Yield?',
@@ -44,7 +45,7 @@ const FAQS = [
   },
   {
     category: 'Seguridad y estafas',
-    icon: '🛡️',
+    icon: 'shield',
     items: [
       {
         q: '¿Cómo evitar ser estafado por un tipster?',
@@ -58,7 +59,7 @@ const FAQS = [
   },
   {
     category: 'Cómo elegir un tipster',
-    icon: '🏆',
+    icon: 'trophy',
     items: [
       {
         q: '¿Cómo encontrar al mejor tipster para mí?',
@@ -118,7 +119,7 @@ export default function Faqs() {
         {FAQS.map((section, si) => (
           <div key={si} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '18px' }}>{section.icon}</span>
+              <AppIcon name={section.icon} size={18} />
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 {section.category}
               </div>

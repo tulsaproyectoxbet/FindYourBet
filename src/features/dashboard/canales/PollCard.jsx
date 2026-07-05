@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function PollCard({ messageId, poll, currentUser, timeStr, viewCount = 0, isCreator, onFinalize }) {
   const [votes, setVotes] = useState([])
@@ -67,7 +68,7 @@ export default function PollCard({ messageId, poll, currentUser, timeStr, viewCo
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '10px', fontWeight: 700, color: isClosed ? 'var(--color-text-muted)' : 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            {isClosed ? '🔒 Encuesta cerrada' : '📊 Encuesta'}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name={isClosed ? 'lock' : 'vote'} size={10} />{isClosed ? 'Encuesta cerrada' : 'Encuesta'}</span>
           </span>
           {!isClosed && poll.allowMultiple && (
             <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '2px 8px' }}>
@@ -94,7 +95,7 @@ export default function PollCard({ messageId, poll, currentUser, timeStr, viewCo
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isMyVote ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', transition: 'width 0.45s ease', borderRadius: 'var(--radius-md)' }} />
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                    {isMyVote && <span style={{ fontSize: '11px', color: 'var(--color-primary)', flexShrink: 0 }}>✓</span>}
+                    {isMyVote && <AppIcon name="check" size={11} color="var(--color-primary)" />}
                     <span style={{ fontSize: '13px', fontWeight: isMyVote ? 700 : 400, color: isMyVote ? 'var(--color-primary)' : 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
@@ -115,13 +116,13 @@ export default function PollCard({ messageId, poll, currentUser, timeStr, viewCo
           {isCreator && !isClosed && (
             <button onClick={handleFinalize} disabled={finalizing}
               style={{ background: 'none', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '3px 9px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-              {finalizing ? '...' : '🔒 Finalizar'}
+              {finalizing ? '...' : <><AppIcon name="lock" size={11} /> Finalizar</>}
             </button>
           )}
           <span style={{ flex: 1 }} />
           {(timeStr || viewCount > 0) && (
             <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', opacity: 0.65, flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {viewCount > 0 ? `👁 ${viewCount} · ` : ''}{timeStr}
+              {viewCount > 0 && <><AppIcon name="eye" size={10} /> {viewCount} · </>}{timeStr}
             </span>
           )}
         </div>

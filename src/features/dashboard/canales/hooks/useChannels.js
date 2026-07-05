@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { isAdminUserId } from '../../../../lib/adminUsers'
-import { MIN_ACCESS_PRICE } from '../../../../lib/commission'
+import { usePolling } from '../../../../hooks/usePolling'
 
 const MAX_OWN_CHANNELS = 5
 const MAX_JOINED_CHANNELS = 30
@@ -11,21 +11,6 @@ function generateInviteCode() {
   return Math.random().toString(36).substring(2, 10).toLowerCase()
 }
 
-// Tipus VIP de pagament amb durada. 'vip_custom' usa dates triades pel tipster;
-// la resta calculen la data de fi a partir de la creació + el període.
-const VIP_PERIOD_TYPES = ['vip_weekly', 'vip_monthly', 'vip_quarterly', 'vip_yearly', 'vip_custom']
-const PAID_TYPES = [...VIP_PERIOD_TYPES, 'stakazo']
-
-// Afegeix el període corresponent a una data (per als VIP amb durada predefinida).
-function addVipPeriod(date, channelType) {
-  const d = new Date(date)
-  if (channelType === 'vip_weekly') d.setDate(d.getDate() + 7)
-  else if (channelType === 'vip_monthly') d.setMonth(d.getMonth() + 1)
-  else if (channelType === 'vip_quarterly') d.setMonth(d.getMonth() + 3)
-  else if (channelType === 'vip_yearly') d.setFullYear(d.getFullYear() + 1)
-  return d
-}
-
 export function useChannels(user) {
   const [myChannels, setMyChannels] = useState([])
   const [joinedChannels, setJoinedChannels] = useState([])
@@ -33,6 +18,52 @@ export function useChannels(user) {
   const [lastMessages, setLastMessages] = useState({})
   const [loading, setLoading] = useState(true)
   const hasLoadedRef = useRef(false)
+  // Ref per tenir sempre els IDs actuals sense crear dependències que relancessin efectes
+  const channelIdsRef = useRef([])
+
+  useEffect(() => {
+    channelIdsRef.current = [
+      ...myChannels.map(c => c.id),
+      ...joinedChannels.map(c => c.id),
+    ]
+  }, [myChannels, joinedChannels])
+
+  // Poll lleuger: actualitza preview i ordre de la llista cada 30s sense refetch complet.
+  // Equivalent al que fan els DMs amb fetchConversations.
+  const fetchLastMessages = useCallback(async () => {
+    const ids = channelIdsRef.current
+    if (!ids.length) return
+    try {
+      const results = await Promise.all(
+        ids.map(id =>
+          supabase.from('channel_messages')
+            .select('content, created_at')
+            .eq('channel_id', id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => ({ id, data }))
+        )
+      )
+      setLastMessages(Object.fromEntries(results.map(r => [r.id, r.data])))
+    } catch {
+      // Error de xarxa silenciós — el pròxim poll ho tornarà a intentar
+    }
+  }, [])
+
+  // Realtime: actualitza el preview immediatament quan arriba un missatge nou,
+  // igual que useDMs fa amb els DMs. El polling de 30s queda com a fallback.
+  useEffect(() => {
+    if (!user?.id) return
+    const sub = supabase.channel(`ch-preview-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'channel_messages',
+      }, () => fetchLastMessages())
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [user?.id, fetchLastMessages])
+
+  usePolling(fetchLastMessages, 30000, !!user?.id)
 
   // Depèn de user?.id (primitiu estable). Si depenia de `user` (objecte),
   // qualsevol esdeveniment d'auth re-disparava la query encara que la sessió
@@ -113,49 +144,16 @@ export function useChannels(user) {
     }
   }
 
-  // channel_type: 'public' | 'free_private' | 'vip_weekly' | 'vip_monthly'
-  //              | 'vip_quarterly' | 'vip_yearly' | 'vip_custom' | 'stakazo'
-  // Els VIP i stakazo sempre són privats (is_private = true).
-  // price/discountPrice en EUR. discountPrice genera un segon invite_code_discount
-  // que el tipster passa al chat quan vol donar accés rebaixat a final de període.
-  // customStart/customEnd (YYYY-MM-DD) només per 'vip_custom'; la resta de VIP calculen
-  // la durada a partir de la creació.
-  const createChannel = async (name, description, channelType = 'public', price = null, discountPrice = null, customStart = null, customEnd = null) => {
-    const trimmed = name.trim()
+  // channel_type: 'public' | 'free_private'
+  const createChannel = async (name, description, channelType = 'public') => {
+    const trimmed = name.trim().replace(/^#+/, '')
     if (!trimmed) return { error: 'El nombre es obligatorio' }
     if (trimmed.length > 30) return { error: 'El nombre del canal no puede superar los 30 caracteres' }
     if (myChannels.length >= MAX_OWN_CHANNELS) return { error: `Límite de ${MAX_OWN_CHANNELS} canales propios alcanzado` }
 
     const isPrivate = channelType !== 'public'
-    const isVip = PAID_TYPES.includes(channelType)
 
-    if (isVip && (!price || parseFloat(price) <= 0)) {
-      return { error: 'Los canales VIP y Stakazos requieren un precio de acceso' }
-    }
-    // Preu mínim d'accés: per sota d'1€ la comissió no compensa el cost de processament.
-    if (isVip && parseFloat(price) < MIN_ACCESS_PRICE) {
-      return { error: `El precio de acceso mínimo es ${MIN_ACCESS_PRICE}€` }
-    }
-
-    // Durada del canal (només VIP amb període). El canal NO s'esborra quan caduca:
-    // les dates queden desades per mostrar-se sempre a la info del canal.
-    let duration_start = null
-    let duration_end = null
-    if (channelType === 'vip_custom') {
-      if (!customStart || !customEnd) return { error: 'Indica las fechas de inicio y fin del canal personalizado' }
-      duration_start = new Date(customStart).toISOString()
-      duration_end = new Date(customEnd).toISOString()
-      if (new Date(duration_end) <= new Date(duration_start)) {
-        return { error: 'La fecha de fin debe ser posterior a la de inicio' }
-      }
-    } else if (VIP_PERIOD_TYPES.includes(channelType)) {
-      const start = new Date()
-      duration_start = start.toISOString()
-      duration_end = addVipPeriod(start, channelType).toISOString()
-    }
-
-    // Nom únic per canals públics (case-insensitive). Si està eliminat fa <7 dies
-    // i ets el propietari original, pots reutilitzar el nom. Si és un altre owner, bloquejat.
+    // Nom únic per canals públics (case-insensitive).
     if (!isPrivate) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
       const { data: conflicts } = await supabase
@@ -173,10 +171,6 @@ export function useChannels(user) {
     }
 
     const invite_code = generateInviteCode()
-    // Segon codi d'invitació per al preu rebaixat (opcional, només per canals VIP)
-    const invite_code_discount = (isVip && discountPrice && parseFloat(discountPrice) > 0)
-      ? generateInviteCode()
-      : null
 
     const { data, error } = await supabase
       .from('channels').insert({
@@ -186,12 +180,6 @@ export function useChannels(user) {
         is_private: isPrivate,
         invite_code,
         channel_type: channelType,
-        price: isVip ? parseFloat(price) : null,
-        discount_price: invite_code_discount ? parseFloat(discountPrice) : null,
-        invite_code_discount,
-        currency: 'EUR',
-        duration_start,
-        duration_end,
       })
       .select().single()
 

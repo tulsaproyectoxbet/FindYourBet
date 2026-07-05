@@ -34,8 +34,8 @@ export function useMessages(channelId, userId) {
       .from('channel_messages')
       .select('*')
       .eq('channel_id', channelId)
-      .order('created_at', { ascending: true })
-      .limit(100)
+      .order('created_at', { ascending: false })
+      .limit(50)
     // Supabase no llança en timeout/error de xarxa: retorna { data: null }. Tornem null
     // perquè fetchMessages ho tracti com a fallada (retry) en lloc de buidar el xat.
     if (error || !data) return null
@@ -52,7 +52,8 @@ export function useMessages(channelId, userId) {
     const countMap = {}
     ;(counts || []).forEach(r => { countMap[r.message_id] = Number(r.view_count) })
 
-    return data.map(m => ({ ...m, view_count: countMap[m.id] || 0 }))
+    // La query retorna newest-first; invertim perquè el xat mostri oldest-top newest-bottom
+    return data.reverse().map(m => ({ ...m, view_count: countMap[m.id] || 0 }))
   }, [channelId])
 
   // Carrega missatges amb la protecció obligatòria (regla 3 del CLAUDE.md):

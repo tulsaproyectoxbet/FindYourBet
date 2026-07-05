@@ -6,11 +6,8 @@ import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
 import { useAdminMode } from '../../../contexts/AdminModeContext'
 import { formatMsgPreview as formatLastMsg } from '../../../lib/formatMsgPreview'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
+import AppIcon from '../../../components/ui/AppIcon'
 
-const VIP_LABELS = {
-  vip_monthly: 'VIP Mensual', vip_weekly: 'VIP Semanal',
-  vip_quarterly: 'VIP Trimestral', vip_yearly: 'VIP Anual', vip_custom: 'VIP',
-}
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -34,15 +31,15 @@ function ActionMenu({ isPinned, muted, isOwner, onPin, onUnpin, onSilenciar, onA
         style={{ position: 'absolute', top: '32px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '190px', overflow: 'hidden' }}>
         <button onClick={isPinned ? onUnpin : onPin}
           style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)' }}>
-          {isPinned ? '📍 Desanclar' : '📌 Anclar'}
+          {isPinned ? <><AppIcon name="pin" size={14} /> Desanclar</> : <><AppIcon name="pin" size={14} /> Anclar</>}
         </button>
         <button onClick={muted ? onActivar : onSilenciar}
           style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)' }}>
-          {muted ? '🔔 Activar notificaciones' : '🔕 Silenciar'}
+          {muted ? <><AppIcon name="bell" size={14} /> Activar notificaciones</> : <><AppIcon name="bellOff" size={14} /> Silenciar</>}
         </button>
         <button onClick={isOwner ? onDelete : onLeave}
           style={{ ...menuBtn, color: 'var(--color-error)' }}>
-          {isOwner ? '🗑️ Eliminar canal' : '🚪 Salir del canal'}
+          {isOwner ? <><AppIcon name="delete" size={14} /> Eliminar canal</> : <><AppIcon name="leave" size={14} /> Salir del canal</>}
         </button>
       </motion.div>
     </>
@@ -58,7 +55,7 @@ function MuteMenu({ muteKey, isMuted, muteLabel, onMute, onUnmute, onClose }) {
         {isMuted && (
           <button onClick={() => { onUnmute(); onClose() }}
             style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-primary)', fontWeight: 700 }}>
-            🔔 Activar notificaciones
+            <AppIcon name="bell" size={14} /> Activar notificaciones
           </button>
         )}
         {MUTE_DURATIONS.map((d, i) => (
@@ -105,7 +102,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
     return (
       <motion.div layout variants={fadeUp}
         style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-error)' }}>⚠️ Esta acción es irreversible</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="warning" size={13} /> Esta acción es irreversible</div>
         <div style={{ fontSize: '12px', color: 'var(--color-error)', lineHeight: 1.5 }}>
           Se eliminarán permanentemente todos los mensajes, picks e historial del canal <strong>"{channel.name}"</strong>.
         </div>
@@ -153,23 +150,13 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', opacity: muted ? 0.6 : 1 }}>
-            {isPinned && <span style={{ fontSize: '12px' }}>📌</span>}
+            {isPinned && <span style={{ display: 'inline-flex', alignItems: 'center' }}><AppIcon name="pin" size={12} /></span>}
             {channel.name}
-            {VIP_LABELS[channel.channel_type] && (
-              <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', border: '0.5px solid rgba(245,158,11,0.35)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>
-                📅 {VIP_LABELS[channel.channel_type]}{channel.price ? ` · ${channel.price}€` : ''}
-              </span>
-            )}
-            {channel.channel_type === 'stakazo' && (
-              <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '0.5px solid rgba(99,102,241,0.35)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>
-                ⚡ Stakazo{channel.price ? ` · ${channel.price}€` : ''}
-              </span>
-            )}
             {channel.channel_type === 'free_private' && (
-              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', border: '0.5px solid var(--color-border)', padding: '1px 7px', borderRadius: 'var(--radius-full)' }}>🔒 Privado</span>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', border: '0.5px solid var(--color-border)', padding: '1px 7px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> Privado</span>
             )}
-            {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)' }}>⚠️ Eliminado</span>}
-            {muted && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400 }}>🔕 {muteLabel(muteKey)}</span>}
+            {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="warning" size={10} /> Eliminado</span>}
+            {muted && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="bellOff" size={10} /> {muteLabel(muteKey)}</span>}
             {lastMessage && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400 }}>{timeAgo(lastMessage.created_at)}</span>}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px', opacity: muted ? 0.6 : 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
@@ -224,7 +211,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
           <button onClick={e => { e.stopPropagation(); setShowAdminDelete(true); setAdminReason('') }}
             title="Eliminar como admin"
             style={{ fontSize: '14px', padding: '5px 10px', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer' }}>
-            🛡️
+            <AppIcon name="shield" size={14} />
           </button>
         )}
       </div>
@@ -238,7 +225,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)' }}>🛡️ Eliminar canal como admin</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="shield" size={16} /> Eliminar canal como admin</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 Canal: <strong style={{ color: 'var(--color-text)' }}>{channel.name}</strong>
               </div>

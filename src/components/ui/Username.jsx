@@ -1,5 +1,6 @@
-// Mostra un username acompanyat del badge de verificat (✓) si l'usuari està verificat.
+// Mostra un username acompanyat del badge de verificat si l'usuari està verificat.
 // Es fa servir a tot arreu on aparegui un username perquè el tick sigui un complement permanent.
+import AppIcon from './AppIcon'
 
 const SIZE_MAP = {
   xs: { badge: 11, font: 8, gap: 3 },
@@ -24,14 +25,12 @@ export function VerifiedBadge({ size = 'sm', style }) {
         borderRadius: '50%',
         background: 'var(--color-primary)',
         color: '#010906',
-        fontSize: cfg.font,
-        fontWeight: 900,
         flexShrink: 0,
         verticalAlign: 'middle',
         ...style,
       }}
     >
-      ✓
+      <AppIcon name="check" size={cfg.font} />
     </span>
   )
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import ForwardModal from '../social/ForwardModal'
 import ReportPickModal from './ReportPickModal'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const STATUS_CFG = {
   won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
@@ -26,7 +27,7 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewS
   const isInvalid = reviewStatus === 'invalid'
 
   const cfg = (isUnderReview || isInvalid)
-    ? { label: isUnderReview ? '⏸ En revisión' : '❌ Invalidado', color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)' }
+    ? { label: isUnderReview ? 'En revisión' : 'Invalidado', color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.35)' }
     : STATUS_CFG[status] ?? STATUS_CFG.pending
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewS
         {/* BET INFO */}
         <div style={{ padding: '12px 14px 10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>📊 Pick</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="stats" size={10} /> Pick</span>
             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 'var(--radius-full)', background: cfg.bg, color: cfg.color, fontWeight: 700, border: `0.5px solid ${cfg.border}` }}>
               {cfg.label}
             </span>
@@ -138,29 +139,29 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewS
         <div style={{ display: 'flex', alignItems: 'center', gap: '0px', padding: '4px 6px 6px', borderTop: '0.5px solid var(--color-border)' }}>
           <motion.button whileTap={{ scale: 0.85 }} onClick={handleLike}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: hasLiked ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontWeight: hasLiked ? 700 : 400, borderRadius: 'var(--radius-md)' }}>
-            <span>{hasLiked ? '❤️' : '🤍'}</span>
+            <AppIcon name="heart" size={15} color={hasLiked ? 'var(--color-primary)' : undefined} />
             {likeCount > 0 && <span style={{ fontSize: '11px' }}>{likeCount}</span>}
           </motion.button>
           <button onClick={(e) => { e.stopPropagation(); onOpenPost() }}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-            <span>💬</span>
+            <AppIcon name="social" size={15} />
             {commentCount > 0 && <span style={{ fontSize: '11px' }}>{commentCount}</span>}
           </button>
           <button onClick={(e) => { e.stopPropagation(); setShowForward(true) }}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-            <span>↗️</span>
+            <AppIcon name="arrowOut" size={13} />
             <span>Reenviar</span>
           </button>
           {/* Botó de reportar — visible per a no-propietaris. Ocult si el pick ja és invalid. */}
           {!isOwner && !isInvalid && (
             <button onClick={(e) => { e.stopPropagation(); setShowReport(true) }}
               style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: isUnderReview ? 'var(--color-warning)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-              <span>🚩</span>
+              <AppIcon name="flag" size={13} />
             </button>
           )}
           {timeStr && (
-            <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-muted)', opacity: 0.6, paddingRight: '4px' }}>
-              {viewCount > 0 ? `👁 ${viewCount} · ` : ''}{timeStr}
+            <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-muted)', opacity: 0.6, paddingRight: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              {viewCount > 0 && <><AppIcon name="eye" size={10} /> {viewCount} · </>}{timeStr}
             </span>
           )}
         </div>

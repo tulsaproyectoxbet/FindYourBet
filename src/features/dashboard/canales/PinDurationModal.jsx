@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const DURATIONS = [
   { label: 'Indefinido', ms: null },
@@ -20,8 +21,8 @@ export default function PinDurationModal({ onSelect, onClose }) {
         onClick={e => e.stopPropagation()}
         style={{ width: '100%', maxWidth: '480px', background: 'var(--color-bg)', borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontWeight: 700, fontSize: '15px' }}>📌 ¿Cuánto tiempo fijar?</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)', padding: '2px 6px' }}>✕</button>
+          <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="pin" size={14} /> ¿Cuánto tiempo fijar?</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '2px 6px', display: 'flex' }}><AppIcon name="close" size={18} /></button>
         </div>
         {DURATIONS.map((d, i) => (
           <button key={d.label} onClick={() => onSelect(d.ms)}

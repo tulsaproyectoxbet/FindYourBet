@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function AccesoPage({ user }) {
   const { token } = useParams()
@@ -35,13 +36,13 @@ export default function AccesoPage({ user }) {
 
   if (state === 'loading') return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', fontFamily: 'var(--font-sans)' }}>
-      <div style={{ fontSize: '32px' }}>⏳</div>
+      <AppIcon name="loading" size={32} />
     </div>
   )
 
   if (state === 'invalid') return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-bg)', fontFamily: 'var(--font-sans)', padding: '24px' }}>
-      <div style={{ fontSize: '48px' }}>🔒</div>
+      <AppIcon name="lock" size={48} />
       <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--color-text)', textAlign: 'center' }}>Enlace no válido</div>
       <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: '320px', lineHeight: 1.6 }}>
         Este enlace no es válido para tu cuenta{user?.email ? ` (${user.email})` : ''}. Si compraste con otro email, inicia sesión con ese email o contacta con <strong>fyourbet@gmail.com</strong>.
@@ -67,8 +68,8 @@ export default function AccesoPage({ user }) {
         <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '36px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', textAlign: 'center' }}>
 
           {/* Icona check */}
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: 'var(--color-primary)', fontWeight: 700 }}>
-            ✓
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+            <AppIcon name="check" size={28} />
           </div>
 
           <div>

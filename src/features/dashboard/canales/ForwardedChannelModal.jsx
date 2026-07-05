@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 
 // S'auto-navega si el canal és accessible. Només mostra UI per als casos d'error.
 export default function ForwardedChannelModal({ channelName, currentUser, onNavigateToChannel, onClose }) {
@@ -51,14 +52,14 @@ export default function ForwardedChannelModal({ channelName, currentUser, onNavi
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px 28px', maxWidth: '320px', width: '100%', pointerEvents: 'auto', textAlign: 'center' }}>
           {status === 'notfound' && (
             <>
-              <div style={{ fontSize: '30px', marginBottom: '10px' }}>📭</div>
+              <div style={{ marginBottom: '10px' }}><AppIcon name="mail" size={30} /></div>
               <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>Canal no disponible</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>Este canal ya no existe o fue eliminado.</div>
             </>
           )}
           {status === 'private' && (
             <>
-              <div style={{ fontSize: '30px', marginBottom: '10px' }}>🔒</div>
+              <div style={{ marginBottom: '10px' }}><AppIcon name="lock" size={30} /></div>
               <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>Canal privado</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>No puedes acceder. El canal es privado.</div>
             </>

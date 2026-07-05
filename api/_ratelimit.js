@@ -12,6 +12,8 @@ export const limiters = {
   connectStripe: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(3,  '1 m') }),
   validateAccess:new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m') }),
   checkStatus:   new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '1 m') }),
+  register:      new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5,  '10 m') }),
+  passwordReset: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(3,  '15 m') }),
 }
 
 // Retorna la IP real del request (Vercel posa x-forwarded-for)

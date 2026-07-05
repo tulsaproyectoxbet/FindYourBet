@@ -14,11 +14,12 @@ export function useNotifications(userId) {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(40)
+        .limit(30)
 
       if (data) {
         setNotifications(data)
-        setUnreadCount(data.filter(n => !n.read_at).length)
+        // channel_message i dm tenen els seus propis badges a la sidebar — no compten a la campana
+        setUnreadCount(data.filter(n => !n.read_at && n.type !== 'channel_message' && n.type !== 'dm').length)
       }
     } catch {
       // silent — no bloqueja la UI

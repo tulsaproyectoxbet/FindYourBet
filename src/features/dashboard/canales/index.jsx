@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { stagger } from '../../../lib/animations'
 import { supabase } from '../../../lib/supabase'
 import { Button } from '../../../components/ui/Button'
+import AppIcon from '../../../components/ui/AppIcon'
 import { useChannels } from './hooks/useChannels'
 import ChannelCard from './ChannelCard'
 import LeaveChannelModal from './LeaveChannelModal'
@@ -10,7 +11,6 @@ import ChatView from './ChatView'
 import PreviewView from './PreviewView'
 import { useAdminMode } from '../../../contexts/AdminModeContext'
 import { isAdminUserId } from '../../../lib/adminUsers'
-import { commissionRate, COMMISSION_BANDS, MIN_ACCESS_PRICE } from '../../../lib/commission'
 import { formatMsgPreview } from '../../../lib/formatMsgPreview'
 import { usePinnedChannels } from '../../../hooks/usePinnedChannels'
 import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
@@ -32,16 +32,6 @@ function miniTimeAgo(ts) {
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
 const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }
 
-// Períodes VIP disponibles. 'vip_custom' demana dates concretes al tipster.
-const VIP_PERIODS = [
-  { id: 'vip_monthly',   label: 'Mensual',       desc: 'Acceso de 1 mes' },
-  { id: 'vip_weekly',    label: 'Semanal',       desc: 'Acceso de 1 semana' },
-  { id: 'vip_quarterly', label: 'Trimestral',    desc: 'Acceso de 3 meses' },
-  { id: 'vip_yearly',    label: 'Anual',         desc: 'Acceso de 1 año' },
-  { id: 'vip_custom',    label: 'Personalizado', desc: 'Tú eliges las fechas' },
-]
-const PAID_CHANNEL_TYPES = ['vip_weekly', 'vip_monthly', 'vip_quarterly', 'vip_yearly', 'vip_custom', 'stakazo']
-
 // Estil compartit de fila/targeta seleccionable del flux de creació.
 const selectableRow = (active) => ({
   display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px',
@@ -54,18 +44,13 @@ const RadioDot = ({ active }) => (
   </div>
 )
 
-// Resol el channel_type final a partir de la selecció en cascada del formulari.
 function resolveChannelType(f) {
   if (f.privacy === 'public') return 'public'
-  if (f.privacy === 'private') {
-    if (f.privateKind === 'free_private') return 'free_private'
-    if (f.privateKind === 'stakazo') return 'stakazo'
-    if (f.privateKind === 'vip') return f.vipPeriod || null
-  }
+  if (f.privacy === 'private') return 'free_private'
   return null
 }
 
-export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initialAction, onActionUsed, onAddBet, unreadChannelCounts = new Map(), onActiveUnreadChange, onRefreshUnread }) {
+export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initialAction, onActionUsed, onAddBet, unreadChannelCounts = new Map(), onActiveUnreadChange, onActiveChannelChange, onRefreshUnread }) {
   const { adminMode } = useAdminMode()
   const { myChannels, joinedChannels, memberCounts, lastMessages, loading, createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const { pin, unpin, isPinned } = usePinnedChannels('fyb_pinned_channels')
@@ -79,18 +64,9 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
   const [showCreate, setShowCreate] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [suggestedChannels, setSuggestedChannels] = useState([])
-  // Selecció en cascada: privacy (public/private) → privateKind (free_private/vip/stakazo)
-  // → vipPeriod (vip_weekly/monthly/quarterly/yearly/custom). El channel_type final
-  // es resol a resolveChannelType(). customStart/customEnd només per a 'vip_custom'.
-  const [createForm, setCreateForm] = useState({
-    name: '', description: '', privacy: '', privateKind: '', vipPeriod: '',
-    customStart: '', customEnd: '', price: '', discountPrice: '',
-  })
+  const [createForm, setCreateForm] = useState({ name: '', description: '', privacy: '' })
   const [createError, setCreateError] = useState('')
-  const [showCommissionGuide, setShowCommissionGuide] = useState(false)
-  const [calcPrice, setCalcPrice] = useState('')
   const [confirmCreate, setConfirmCreate] = useState(false)
-  const isVerified = !!user?.is_verified
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
@@ -147,13 +123,15 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
   const handleOpenChannel = (channel) => {
     setActiveMemberCount(memberCounts[channel.id] || 1)
     setActiveChannel(channel)
-    // Ja NO marquem tot el canal com llegit en obrir. Els no llegits baixen a mesura
-    // que l'usuari veu els missatges (ChatView reporta via onActiveUnreadChange).
+    // Informa useUnreadChannelCount quin canal és actiu perquè fetchUnread no sobreescrigui
+    // el recompte live de ChatView amb dades de localStorage desfasades (evita flash de badge).
+    onActiveChannelChange?.(channel.id)
   }
 
   // En tancar un canal, reconcilia el recompte global de no llegits amb el servidor.
   const closeActiveChannel = () => {
     setActiveChannel(null)
+    onActiveChannelChange?.(null)
     onRefreshUnread?.()
   }
 
@@ -186,17 +164,9 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
     setCreateError('')
     const channelType = resolveChannelType(createForm)
     if (!channelType) { setCreateError('Selecciona el tipo de canal'); return }
-    const result = await createChannel(
-      createForm.name,
-      createForm.description,
-      channelType,
-      createForm.price || null,
-      createForm.discountPrice || null,
-      createForm.customStart || null,
-      createForm.customEnd || null,
-    )
+    const result = await createChannel(createForm.name, createForm.description, channelType)
     if (result?.error) { setCreateError(result.error); return }
-    setCreateForm({ name: '', description: '', privacy: '', privateKind: '', vipPeriod: '', customStart: '', customEnd: '', price: '', discountPrice: '' })
+    setCreateForm({ name: '', description: '', privacy: '' })
     setShowCreate(false)
   }
 
@@ -259,37 +229,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
     setInviteError('')
     setInviteLoading(true)
 
-    // Detecta si és un link personal (/acceso/UUID) o directament un UUID token
-    const accesoMatch = input.match(/\/acceso\/([a-f0-9-]{36})/i)
-    const uuidMatch = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(input)
-    const token = accesoMatch?.[1] || (uuidMatch ? input : null)
-
-    if (token) {
-      // Valida el token contra el compte de l'usuari actual
-      const { data: purchase } = await supabase
-        .from('purchases')
-        .select('channel_id, channels(id, name, invite_code, is_private, channel_type, owner_id, description, avatar_url, duration_start, duration_end)')
-        .eq('token', token)
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      setInviteLoading(false)
-      setInviteCode('')
-
-      if (!purchase?.channels) {
-        setInviteError(`Este enlace no es válido para tu cuenta (${user.email}). Si compraste con otro email, inicia sesión con ese email o contacta con fyourbet@gmail.com`)
-        return
-      }
-
-      const channel = purchase.channels
-      setShowSearch(false)
-      // L'usuari ja és membre (el webhook l'ha afegit); obre el canal directament
-      await refetch()
-      handleOpenChannel(channel)
-      return
-    }
-
-    // Flux normal: codi d'invitació de 8 caràcters
+    // Codi d'invitació de 8 caràcters
     const channel = await findChannelByCode(input)
     if (!channel) {
       setInviteError('Código de invitación no válido')
@@ -377,7 +317,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
           <div style={{ height: '100%', overflowY: 'auto', padding: '32px 36px', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Crear canal</h2>
-              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}>✕ Cerrar</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Cerrar</Button>
             </div>
             {createError && (
               <div style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', color: 'var(--color-error)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', marginBottom: '14px' }}>
@@ -401,144 +341,29 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               <label style={labelStyle}>Tipo de canal *</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
-                  { id: 'public',  icon: '🌐', label: 'Público',  desc: 'Visible en búsqueda y ranking' },
-                  { id: 'private', icon: '🔒', label: 'Privado', desc: 'Por enlace o de pago' },
+                  { id: 'public',  iconName: 'globe', label: 'Público',  desc: 'Visible en búsqueda y ranking' },
+                  { id: 'private', iconName: 'lock',  label: 'Privado', desc: 'Solo por enlace de invitación' },
                 ].map(o => {
                   const active = createForm.privacy === o.id
                   return (
-                    <div key={o.id} onClick={() => setCreateForm({ ...createForm, privacy: o.id, privateKind: '', vipPeriod: '', price: '', discountPrice: '', customStart: '', customEnd: '' })}
+                    <div key={o.id} onClick={() => setCreateForm({ ...createForm, privacy: o.id })}
                       style={{ ...selectableRow(active), flex: 1, flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
-                      <div style={{ fontSize: '20px' }}>{o.icon}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}><AppIcon name={o.iconName} size={22} /></div>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{o.label}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{o.desc}</div>
                     </div>
                   )
                 })}
               </div>
-              {createForm.privacy === 'private' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
-                  {[
-                    { id: 'free_private', icon: '🆓', label: 'Privado gratuito', desc: 'Acceso solo por enlace. No aparece en ningún ranking.' },
-                    { id: 'vip',          icon: '📅', label: 'VIP',              desc: 'Subscripción de pago con duración.' },
-                    { id: 'stakazo',      icon: '⚡', label: 'Stakazo',          desc: 'Pick puntual de pago. Aparece en el Top Stakazos.' },
-                  ].map(o => {
-                    const active = createForm.privateKind === o.id
-                    return (
-                      <div key={o.id} onClick={() => setCreateForm({ ...createForm, privateKind: o.id, vipPeriod: '', price: '', discountPrice: '', customStart: '', customEnd: '' })}
-                        style={selectableRow(active)}>
-                        <RadioDot active={active} />
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{o.icon} {o.label}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {createForm.privacy === 'private' && createForm.privateKind === 'vip' && (
-                <div style={{ marginTop: '12px', paddingLeft: '4px' }}>
-                  <label style={{ ...labelStyle, marginBottom: '6px' }}>Duración del VIP *</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {VIP_PERIODS.map(o => {
-                      const active = createForm.vipPeriod === o.id
-                      return (
-                        <div key={o.id} onClick={() => setCreateForm({ ...createForm, vipPeriod: o.id, customStart: '', customEnd: '' })}
-                          style={selectableRow(active)}>
-                          <RadioDot active={active} />
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{o.label}</div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {createForm.vipPeriod === 'vip_custom' && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>Inicio</label>
-                        <input type="date" value={createForm.customStart}
-                          onChange={e => setCreateForm({ ...createForm, customStart: e.target.value })}
-                          style={inputStyle} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={labelStyle}>Fin</label>
-                        <input type="date" value={createForm.customEnd} min={createForm.customStart || undefined}
-                          onChange={e => setCreateForm({ ...createForm, customEnd: e.target.value })}
-                          style={inputStyle} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-            {(createForm.privateKind === 'stakazo' || (createForm.privateKind === 'vip' && createForm.vipPeriod)) && (
-              <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <label style={{ ...labelStyle, marginBottom: 0 }}>Precio de acceso * (EUR)</label>
-                    <button type="button" onClick={() => setShowCommissionGuide(v => !v)} title="Cómo funciona la comisión"
-                      style={{ width: '18px', height: '18px', borderRadius: '50%', border: `0.5px solid ${showCommissionGuide ? 'var(--color-primary)' : 'var(--color-border)'}`, background: showCommissionGuide ? 'var(--color-primary-light)' : 'var(--color-bg)', color: showCommissionGuide ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, flexShrink: 0 }}>
-                      i
-                    </button>
-                  </div>
-                  <AnimatePresence>
-                    {showCommissionGuide && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden', marginBottom: '10px' }}>
-                        <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text)', marginBottom: '10px' }}>Tabla de comisiones</div>
-                          <div style={{ display: 'flex', fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', paddingBottom: '4px', borderBottom: '0.5px solid var(--color-border)' }}>
-                            <span style={{ flex: 1 }}>Precio</span>
-                            <span style={{ width: '72px', textAlign: 'right' }}>Comisión</span>
-                            <span style={{ width: '72px', textAlign: 'right' }}>Recibes</span>
-                          </div>
-                          {COMMISSION_BANDS.map(b => {
-                            const rate = isVerified ? b.rate - 0.05 : b.rate
-                            return (
-                              <div key={b.min} style={{ display: 'flex', fontSize: '11px', color: 'var(--color-text)', padding: '4px 0' }}>
-                                <span style={{ flex: 1 }}>{b.label}</span>
-                                <span style={{ width: '72px', textAlign: 'right', color: 'var(--color-warning)', fontWeight: 600 }}>{Math.round(rate * 100)}%</span>
-                                <span style={{ width: '72px', textAlign: 'right', color: 'var(--color-primary)', fontWeight: 600 }}>{Math.round((1 - rate) * 100)}%</span>
-                              </div>
-                            )
-                          })}
-                          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid var(--color-border)' }}>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Calculadora</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ position: 'relative', flex: 1 }}>
-                                <input type="number" min={MIN_ACCESS_PRICE} step="0.5" placeholder="Precio" value={calcPrice}
-                                  onChange={e => setCalcPrice(e.target.value)}
-                                  style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', padding: '6px 24px 6px 8px', borderRadius: 'var(--radius-sm)', outline: 'none', boxSizing: 'border-box' }} />
-                                <span style={{ position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--color-text-muted)' }}>€</span>
-                              </div>
-                              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', flexShrink: 0 }}>→</span>
-                              {(() => {
-                                const p = parseFloat(calcPrice)
-                                if (!p || p < MIN_ACCESS_PRICE) return <span style={{ flex: 1, fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>— €</span>
-                                const rate = commissionRate(p, isVerified)
-                                const net = (p * (1 - rate)).toFixed(2).replace('.', ',')
-                                return <span style={{ flex: 1, fontSize: '13px', fontWeight: 800, color: 'var(--color-primary)' }}>{net} €</span>
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <input type="number" min={MIN_ACCESS_PRICE} step="0.5" placeholder="ej. 9.99"
-                    value={createForm.price}
-                    onChange={e => setCreateForm({ ...createForm, price: e.target.value })}
-                    style={{ ...inputStyle }} />
-                </div>
-              </div>
-            )}
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '16px', fontSize: '12px', color: 'var(--color-warning)', fontWeight: 600 }}>
-              <span>⚠️</span>
+              <AppIcon name="warning" size={13} />
               <span>El tipo de canal no se puede cambiar una vez creado.</span>
             </div>
             <label onClick={() => setConfirmCreate(v => !v)}
               style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 14px', background: confirmCreate ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', border: `0.5px solid ${confirmCreate ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', marginBottom: '14px', cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none' }}>
               <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${confirmCreate ? 'var(--color-primary)' : 'var(--color-border)'}`, background: confirmCreate ? 'var(--color-primary)' : 'transparent', flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
-                {confirmCreate && <span style={{ color: '#010906', fontSize: '12px', fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                {confirmCreate && <AppIcon name="check" size={12} color="#010906" />}
               </div>
               <span style={{ fontSize: '12px', color: confirmCreate ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.6 }}>
                 He revisado los datos introducidos y son correctos. Entiendo que como tipster <strong>soy responsable del contenido que publique</strong> y del impacto que tiene en los miembros de mi canal.
@@ -546,13 +371,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button onClick={handleCreate}
-                disabled={
-                  !createForm.name.trim() ||
-                  !resolveChannelType(createForm) ||
-                  (PAID_CHANNEL_TYPES.includes(resolveChannelType(createForm)) && !createForm.price) ||
-                  (createForm.vipPeriod === 'vip_custom' && (!createForm.customStart || !createForm.customEnd)) ||
-                  !confirmCreate
-                }>
+                disabled={!createForm.name.trim() || !resolveChannelType(createForm) || !confirmCreate}>
                 Crear canal
               </Button>
               <Button variant="ghost" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}>Cancelar</Button>
@@ -563,7 +382,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
           <div style={{ height: '100%', overflowY: 'auto', padding: '32px 36px', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Buscar canales</h2>
-              <Button variant="ghost" size="sm" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}>✕ Cerrar</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Cerrar</Button>
             </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', position: 'relative' }}>
               <input type="text" placeholder="Busca por nombre del canal..."
@@ -572,7 +391,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <button onClick={() => setShowFilters(v => !v)}
                   style={{ height: '100%', padding: '0 14px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${(filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary)' : 'var(--color-border)'}`, background: (filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: (filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
-                  🎛 Filtros
+                  <AppIcon name="sliders" size={14} /> Filtros
                 </button>
                 <AnimatePresence>
                   {showFilters && (
@@ -620,9 +439,9 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               </div>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>🔒 Código de invitación (canal privado)</label>
+              <label style={labelStyle}>Código de invitación (canal privado)</label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" placeholder="Código o enlace de acceso personal" value={inviteCode}
+                <input type="text" placeholder="Código de 8 caracteres" value={inviteCode}
                   onChange={e => { setInviteCode(e.target.value); setInviteError('') }}
                   maxLength={200} style={{ ...inputStyle, width: 'auto', flex: 1 }} />
                 <Button size="sm" disabled={!inviteCode.trim() || inviteLoading} onClick={handleJoinByCode}>
@@ -647,7 +466,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               return (
                 <>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-                    {hasActiveFilter ? `${list.length} resultado${list.length !== 1 ? 's' : ''}` : '🔥 Canales sugeridos'}
+                    {hasActiveFilter ? `${list.length} resultado${list.length !== 1 ? 's' : ''}` : 'Canales sugeridos'}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {list.map((c, idx) => {
@@ -676,7 +495,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                              <span>👥</span><span>{c.memberCount}</span>
+                              <AppIcon name="users" size={12} /><span>{c.memberCount}</span>
                             </div>
                             {stats.total > 0 && (
                               <>
@@ -687,7 +506,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                               </>
                             )}
                             {alreadyJoined || isOwn
-                              ? <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600 }}>Unido ✓</span>
+                              ? <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>Unido <AppIcon name="check" size={11} /></span>
                               : <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>Ver →</span>}
                           </div>
                         </div>
@@ -702,7 +521,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
         ) : (
           // Placeholder quan no hi ha cap canal obert ni acció activa
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', gap: '12px', textAlign: 'center', padding: '40px' }}>
-            <div style={{ fontSize: '52px', opacity: 0.25 }}>📡</div>
+            <div style={{ opacity: 0.25 }}><AppIcon name="canales" size={52} /></div>
             <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', opacity: 0.7 }}>Selecciona un canal</div>
             <div style={{ fontSize: '13px', maxWidth: '240px' }}>
               {myChannels.length + joinedChannels.length > 0
@@ -710,7 +529,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                 : 'Crea tu primer canal o únete a uno existente.'}
             </div>
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <Button variant="ghost" size="sm" onClick={handleOpenSearch}>🔍 Buscar canal</Button>
+              <Button variant="ghost" size="sm" onClick={handleOpenSearch}><AppIcon name="search" size={14} /> Buscar canal</Button>
               {canCreateMore && <Button size="sm" onClick={() => { setShowCreate(true); setShowSearch(false) }}>+ Crear canal</Button>}
             </div>
           </div>
@@ -744,7 +563,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               const miniMenuBtnStyle = { display: 'flex', alignItems: 'center', width: '100%', padding: '9px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)', gap: '6px' }
               return (
                 <div key={ch.id} className={`canales-mini-item${isActive ? ' active' : ''}`}>
-                  <div onClick={() => handleOpenChannel(ch)} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                  <div onClick={() => handleOpenChannel(ch)} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: 0, cursor: 'pointer' }}>
                     <div className="canales-mini-avatar"
                       style={{ background: ch._isOwner ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: ch._isOwner ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
                       {ch.avatar_url
@@ -759,13 +578,13 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                     <div className="canales-mini-body">
                       <div className="canales-mini-row">
                         <span className="canales-mini-name">
-                          {chPinned && <span style={{ fontSize: '10px', marginRight: '3px' }}>📌</span>}
+                          {chPinned && <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '3px' }}><AppIcon name="pin" size={10} /></span>}
                           {ch.name}
                         </span>
                         <span className="canales-mini-time">{timeStr}</span>
                       </div>
                       <div className="canales-mini-preview">
-                        {chMuted && <span style={{ marginRight: '4px' }}>🔕</span>}
+                        {chMuted && <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '4px' }}><AppIcon name="bellOff" size={12} /></span>}
                         {preview || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sin mensajes</span>}
                       </div>
                     </div>
@@ -784,13 +603,13 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                             style={{ position: 'absolute', top: '26px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '175px', overflow: 'hidden' }}>
                             <button onClick={() => { chPinned ? unpin(ch.id) : pin(ch.id); setMiniMenuId(null) }}
                               style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                              {chPinned ? '📍 Desanclar' : '📌 Anclar'}
+                              {chPinned ? <><AppIcon name="pin" size={13} /> Desanclar</> : <><AppIcon name="pin" size={13} /> Anclar</>}
                             </button>
                             <button onClick={() => {
                               if (chMuted) { unmute(chMuteKey); setMiniMenuId(null) }
                               else { setMiniMuteId(ch.id); setMiniMenuId(null) }
                             }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                              {chMuted ? '🔔 Activar notificaciones' : '🔕 Silenciar'}
+                              {chMuted ? <><AppIcon name="bell" size={13} /> Activar notificaciones</> : <><AppIcon name="bellOff" size={13} /> Silenciar</>}
                             </button>
                             <button onClick={() => {
                               if (ch._isOwner) {
@@ -803,7 +622,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                               }
                               setMiniMenuId(null)
                             }} style={{ ...miniMenuBtnStyle, color: 'var(--color-error)' }}>
-                              {ch._isOwner ? '🗑️ Eliminar canal' : '🚪 Salir del canal'}
+                              {ch._isOwner ? <><AppIcon name="delete" size={13} /> Eliminar canal</> : <><AppIcon name="leave" size={13} /> Salir del canal</>}
                             </button>
                           </motion.div>
                         </>

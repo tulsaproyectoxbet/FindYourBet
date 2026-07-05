@@ -12,13 +12,34 @@ export function useDMs(currentUserId) {
     fetchConversations(false)
   }, [currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime: actualitza la llista quan arriba un DM nou a qualsevol conversa
+  // Realtime: actualitza la llista quan arriba un DM nou a qualsevol conversa.
+  // Si la conversa estava oculta (usuari l'havia esborrat) i l'altre torna a escriure,
+  // la torna a fer visible abans de fer el fetch — garanteix que el missatge aparegui.
   useEffect(() => {
     if (!currentUserId) return
     const channel = supabase.channel(`dm-list-${currentUserId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'direct_messages',
-      }, () => fetchConversations(false))
+      }, async (payload) => {
+        const convId = payload.new?.conversation_id
+        const senderId = payload.new?.sender_id
+        if (convId && senderId && senderId !== currentUserId) {
+          const { data: conv } = await supabase
+            .from('dm_conversations')
+            .select('id, user1_id, user1_hidden_at, user2_hidden_at')
+            .eq('id', convId)
+            .maybeSingle()
+          if (conv) {
+            const hiddenField = conv.user1_id === currentUserId ? 'user1_hidden_at' : 'user2_hidden_at'
+            if (conv[hiddenField]) {
+              await supabase.from('dm_conversations')
+                .update({ [hiddenField]: null })
+                .eq('id', convId)
+            }
+          }
+        }
+        fetchConversations(false)
+      })
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -33,14 +54,22 @@ export function useDMs(currentUserId) {
     // dels setLoading(false) inline deixava el spinner penjat per sempre.
     const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
-    const { data: convs } = await supabase
+    const { data: allConvs } = await supabase
       .from('dm_conversations')
       .select('*')
       .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
       .order('created_at', { ascending: false })
 
     if (cancelled) return
-    if (!convs?.length) {
+
+    // Filtra les converses que l'usuari ha eliminat (soft-delete per usuari).
+    // L'altra persona segueix veient-les amb tots els missatges intactes.
+    const convs = (allConvs || []).filter(c => {
+      const hiddenAt = c.user1_id === currentUserId ? c.user1_hidden_at : c.user2_hidden_at
+      return !hiddenAt
+    })
+
+    if (!convs.length) {
       setConversations([])
       setUnreadCount(0)
       return
@@ -87,6 +116,10 @@ export function useDMs(currentUserId) {
       const isAccepted = conv.user1_id === currentUserId ? conv.user1_accepted : conv.user2_accepted
       const otherAccepted = conv.user1_id === currentUserId ? conv.user2_accepted : conv.user1_accepted
 
+      // clearedAt: quan l'usuari va esborrar el xat. Els missatges anteriors es filtren
+      // a fetchMessages. Sobreviu al re-unhide perquè no es neteja mai.
+      const clearedAt = conv.user1_id === currentUserId ? conv.user1_cleared_at : conv.user2_cleared_at
+
       return {
         ...conv,
         otherId,
@@ -100,6 +133,7 @@ export function useDMs(currentUserId) {
         isAccepted,
         otherAccepted,
         isPending: !otherAccepted && conv.user1_id !== currentUserId,
+        clearedAt: clearedAt || null,
       }
     })
 
@@ -121,9 +155,26 @@ export function useDMs(currentUserId) {
       .or(
         `and(user1_id.eq.${currentUserId},user2_id.eq.${otherUserId}),and(user1_id.eq.${otherUserId},user2_id.eq.${currentUserId})`
       )
-      .single()
+      .maybeSingle()
 
-    if (existing) return existing
+    if (existing) {
+      const isUser1       = existing.user1_id === currentUserId
+      const hiddenField   = isUser1 ? 'user1_hidden_at' : 'user2_hidden_at'
+      const acceptedField = isUser1 ? 'user1_accepted'  : 'user2_accepted'
+      const myAccepted    = isUser1 ? existing.user1_accepted : existing.user2_accepted
+
+      // Si estava oculta O jo no havia acceptat: actualitza.
+      // Jo estic iniciant activament → la conversa va al meu General sense barra de solicitud,
+      // independentment de si segueixo o no l'altra persona.
+      if (existing[hiddenField] || !myAccepted) {
+        await supabase.from('dm_conversations').update({
+          [hiddenField]:   null,
+          [acceptedField]: true,
+        }).eq('id', existing.id)
+        await fetchConversations()
+      }
+      return existing
+    }
 
     const { data } = await supabase.from('dm_conversations').insert({
       user1_id: currentUserId,
@@ -149,6 +200,19 @@ export function useDMs(currentUserId) {
 
   const sendMessage = async (conversationId, content) => {
     if (!content.trim()) return
+
+    // Si la conversa no estava acceptada, auto-acceptar en enviar el primer missatge.
+    // Significa "he respost = accepto la relació". Queda fixat a General independentment
+    // de si en el futur deixem de seguir-nos — la conversa és "consolidada".
+    const conv = conversations.find(c => c.id === conversationId)
+    if (conv && !conv.isAccepted) {
+      const acceptedField = conv.user1_id === currentUserId ? 'user1_accepted' : 'user2_accepted'
+      await supabase.from('dm_conversations')
+        .update({ [acceptedField]: true })
+        .eq('id', conversationId)
+      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, isAccepted: true } : c))
+    }
+
     await supabase.from('direct_messages').insert({
       conversation_id: conversationId,
       sender_id: currentUserId,
@@ -164,14 +228,18 @@ export function useDMs(currentUserId) {
     )
   }
 
-  const fetchMessages = async (conversationId) => {
+  const fetchMessages = async (conversationId, clearedAt = null) => {
     // NOMÉS llegim. Ja NO marquem tot com llegit en obrir: els missatges es marquen
     // un per un quan l'usuari els veu (scroll), via markDmRead des de DMView.
-    const { data } = await supabase
+    // clearedAt: si l'usuari havia esborrat el xat, nomes retorna missatges posteriors
+    // a aquell timestamp (els anteriors queden al Supabase però son invisibles per a ell).
+    let query = supabase
       .from('direct_messages')
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
+    if (clearedAt) query = query.gt('created_at', clearedAt)
+    const { data } = await query
     return data || []
   }
 
@@ -192,7 +260,20 @@ export function useDMs(currentUserId) {
   }
 
   const blockUser = async (conversationId) => {
-    await supabase.from('dm_conversations').delete().eq('id', conversationId)
+    const conv = conversations.find(c => c.id === conversationId)
+    if (!conv) return
+    // Soft-delete per a l'usuari que elimina:
+    // - hidden_at: amaga la conversa de la barra (es pot netejar si reapareix)
+    // - cleared_at: cutoff permanent de missatges (mai es resetejarà)
+    // - accepted: es reseteja a false perquè, si la conversa reapareix, torni a
+    //   passar pel filtre de solicituds en comptes d'anar directament a General.
+    const now = new Date().toISOString()
+    const isUser1 = conv.user1_id === currentUserId
+    await supabase.from('dm_conversations').update({
+      [isUser1 ? 'user1_hidden_at'  : 'user2_hidden_at']:  now,
+      [isUser1 ? 'user1_cleared_at' : 'user2_cleared_at']: now,
+      [isUser1 ? 'user1_accepted'   : 'user2_accepted']:   false,
+    }).eq('id', conversationId)
     setConversations(prev => prev.filter(c => c.id !== conversationId))
   }
 

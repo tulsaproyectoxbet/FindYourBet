@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePolling } from './usePolling'
 
@@ -29,6 +29,14 @@ export function useUnreadChannelCount(userId) {
   // Map<channelId, unreadCount> — mateixa estructura que useDMs
   const [unreadCounts, setUnreadCounts] = useState(new Map())
 
+  // Ref al canal que l'usuari té obert en aquest moment. fetchUnread el respecta:
+  // no sobreescriu el valor live que ChatView ja ha reportat via setChannelCount,
+  // evitant el flash del badge quan arriba un missatge just en obrir un canal.
+  const activeChannelIdRef = useRef(null)
+  // Ref sincronitzat amb l'estat per poder-lo llegir dins de callbacks sense closures obsoletes.
+  const unreadCountsRef = useRef(new Map())
+  useEffect(() => { unreadCountsRef.current = unreadCounts }, [unreadCounts])
+
   // Marca un canal com llegit immediatament (localStorage + state) sense esperar el poll
   const markRead = useCallback((channelId) => {
     markChannelRead(userId, channelId)
@@ -54,9 +62,17 @@ export function useUnreadChannelCount(userId) {
 
     if (!allIds.length) { setUnreadCounts(new Map()); return }
 
-    // Per cada canal: compte missatges d'altri posteriors a l'últim read
+    // Per cada canal: compte missatges d'altri posteriors a l'últim read.
+    // El canal actiu (obert a ChatView) s'omet de la query: el seu recompte live
+    // el governa setChannelCount (ChatView via IntersectionObserver), no localStorage.
+    // Sense aquest skip, fetchUnread podia sobreescriure'l amb dades de localStorage
+    // desfasades i causar un flash de badge en obrir el canal.
+    const activeId = activeChannelIdRef.current
     const results = await Promise.all(
       allIds.map(id => {
+        if (id === activeId) {
+          return Promise.resolve({ id, count: unreadCountsRef.current.get(id) || 0 })
+        }
         const lastRead = localStorage.getItem(`fyb_ch_read_${userId}_${id}`)
         let query = supabase.from('channel_messages')
           .select('id', { count: 'exact', head: true })
@@ -75,6 +91,20 @@ export function useUnreadChannelCount(userId) {
   }, [userId])
 
   useEffect(() => { if (userId) fetchUnread() }, [userId, fetchUnread])
+
+  // Realtime: actualitza els no llegits immediatament quan arriba un missatge nou
+  // a qualsevol canal (RLS filtra automàticament els canals als quals l'usuari té accés).
+  // Mateix patró que useDMs per als DMs.
+  useEffect(() => {
+    if (!userId) return
+    const sub = supabase.channel(`ch-unread-${userId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'channel_messages',
+      }, () => fetchUnread())
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [userId, fetchUnread])
+
   usePolling(fetchUnread, 30000, !!userId)
 
   // Sobreescriu el comptador d'un canal concret amb un valor calculat localment
@@ -90,12 +120,18 @@ export function useUnreadChannelCount(userId) {
     })
   }, [])
 
+  // Informa quin canal és obert ara. Cridar amb null en tancar.
+  const setActiveChannel = useCallback((channelId) => {
+    activeChannelIdRef.current = channelId || null
+  }, [])
+
   return {
     count: unreadCounts.size,
     unreadIds: new Set(unreadCounts.keys()),  // backward compat
     unreadCounts,
     markRead,
     setChannelCount,
+    setActiveChannel,
     refetch: fetchUnread,
   }
 }

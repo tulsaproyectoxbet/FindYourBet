@@ -11,11 +11,13 @@ import { useAdminMode } from '../../../contexts/AdminModeContext'
 import { clampBio, MAX_BIO_LEN } from '../../../lib/bio'
 import { formatMemberSince } from '../../../lib/dates'
 import { stripEmojis } from '../../../lib/textLimits'
+import ComingSoon from '../../../components/ui/ComingSoon'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const DM_OPTIONS = [
-  { id: 'followers', icon: '🔒', label: 'Solo seguidores mutuos', desc: 'Solo quien te siga y tú le sigas puede escribirte' },
-  { id: 'request', icon: '📨', label: 'Un mensaje', desc: 'Cualquiera puede enviarte 1 mensaje. Tú decides si aceptas' },
-  { id: 'everyone', icon: '🌐', label: 'Todos', desc: 'Cualquiera puede escribirte sin restricción' },
+  { id: 'followers', iconName: 'lock',  label: 'Solo seguidores mutuos', desc: 'Solo quien te siga y tú le sigas puede escribirte' },
+  { id: 'request',   iconName: 'mail',  label: 'Un mensaje', desc: 'Cualquiera puede enviarte 1 mensaje. Tú decides si aceptas' },
+  { id: 'everyone',  iconName: 'globe', label: 'Todos', desc: 'Cualquiera puede escribirte sin restricción' },
 ]
 
 const inputStyle = {
@@ -45,7 +47,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
   const openProfile = useProfileNav()
   const { isAdmin, adminMode, toggleAdminMode } = useAdminMode()
   const [profile, setProfile] = useState(null)
-  const [stats, setStats] = useState({ total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—' })
+  const [stats, setStats] = useState({ total: 0, won: 0, lost: 0, yieldVal: 0, avgOdds: '—', profit: 0, avgStake: 0 })
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [recentBets, setRecentBets] = useState([])
@@ -60,12 +62,11 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
   const [loadingChannels, setLoadingChannels] = useState(false)
   const [postModalBetId, setPostModalBetId] = useState(null)
   const [picksSubTab, setPicksSubTab] = useState('public')
+  const [statsPeriod, setStatsPeriod] = useState('total') // 'total' | '1m' | '3m' | '6m' | '1y' | 'month:YYYY-MM'
+  const [statsMonthInput, setStatsMonthInput] = useState('')
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false)
   const [followListType, setFollowListType] = useState(null) // 'followers' | 'following' | null
   const [premiumChannelIds, setPremiumChannelIds] = useState(new Set())
-  const [purchases, setPurchases] = useState([])
-  const [loadingPurchases, setLoadingPurchases] = useState(false)
-  const [copiedPurchaseId, setCopiedPurchaseId] = useState(null)
-
   // Edit form
   const [editForm, setEditForm] = useState({ name: '', username: '', bio: '', card_theme: 0 })
   const [avatarFile, setAvatarFile] = useState(null)
@@ -87,44 +88,21 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
     try {
       const { data: chans } = await supabase.from('channels').select('*').eq('owner_id', user.id).is('deleted_at', null)
       if (!chans?.length) { setChannels([]); return }
-      const { data: mems } = await supabase
-        .from('channel_members').select('channel_id')
-        .in('channel_id', chans.map(c => c.id))
+      const chanIds = chans.map(c => c.id)
+      const [{ data: mems }, { data: picks }] = await Promise.all([
+        supabase.from('channel_members').select('channel_id').in('channel_id', chanIds),
+        supabase.from('channel_messages').select('channel_id').in('channel_id', chanIds).like('content', '[BET]:%'),
+      ])
       const countMap = {}
       for (const m of mems || []) countMap[m.channel_id] = (countMap[m.channel_id] || 0) + 1
-      setChannels(chans.map(c => ({ ...c, memberCount: (countMap[c.id] || 0) + 1 })))
+      const pickMap = {}
+      for (const p of picks || []) pickMap[p.channel_id] = (pickMap[p.channel_id] || 0) + 1
+      setChannels(chans.map(c => ({ ...c, memberCount: (countMap[c.id] || 0) + 1, pickCount: pickMap[c.id] || 0 })))
     } catch (e) {
       // silent
     } finally {
       setLoadingChannels(false)
     }
-  }
-
-  // Historial de compres de l'usuari (accessos VIP/stakazo). El `token` genera l'enllaç personal
-  // que sempre pot recuperar des d'aquí — no depèn de l'email ni del moment de la compra.
-  const fetchPurchases = async () => {
-    if (loadingPurchases) return
-    setLoadingPurchases(true)
-    const safetyTimer = setTimeout(() => setLoadingPurchases(false), 10000)
-    try {
-      const { data } = await supabase
-        .from('purchases')
-        .select('id, token, amount, created_at, offers(name), channels(name, invite_code, avatar_url, deleted_at)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      setPurchases(data || [])
-    } catch (e) {
-      setPurchases([])
-    } finally {
-      clearTimeout(safetyTimer)
-      setLoadingPurchases(false)
-    }
-  }
-
-  const handleCopyAccessLink = (purchase) => {
-    navigator.clipboard.writeText(`${window.location.origin}/acceso/${purchase.token}`)
-    setCopiedPurchaseId(purchase.id)
-    setTimeout(() => setCopiedPurchaseId(null), 2000)
   }
 
   // `silent=true` evita mostrar "Cargando perfil..." en refrescos posteriors (després de guardar)
@@ -136,7 +114,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
       // (abans: Promise.all → si UNA fallava, tot el perfil quedava buit)
       const [profRes, betsRes, fersRes, fingRes, dmRes, offersRes] = await Promise.allSettled([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('bets').select('*, channel:channels(id, name, is_private, deleted_at)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('bets').select('*, channel:channels(id, name, is_private, deleted_at)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
         supabase.from('dm_settings').select('allow_dms').eq('user_id', user.id).maybeSingle(),
@@ -174,7 +152,8 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         const avgOdds = counted.length > 0
           ? (counted.reduce((s, b) => s + b.odds, 0) / counted.length).toFixed(2)
           : '—'
-        setStats({ total: counted.length, won, lost, yieldVal, avgOdds })
+        const avgStake = counted.length > 0 ? stakeSum / counted.length : 0
+        setStats({ total: counted.length, won, lost, yieldVal, avgOdds, profit, avgStake })
         // Per l'historial visible: won/lost/void (els nuls han d'aparèixer en blau)
         const displayable = bets.filter(b => b.status === 'won' || b.status === 'lost' || b.status === 'void')
         setRecentBets(displayable)
@@ -391,7 +370,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
   }
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)' }}>⏳ Cargando perfil...</div>
+    <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando perfil...</div>
   )
 
   const username = profile?.username || 'Usuario'
@@ -410,13 +389,13 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         <div style={{ height: '100px', background: 'linear-gradient(135deg, var(--color-primary-light) 0%, rgba(0,200,100,0.08) 100%)', borderBottom: '0.5px solid var(--color-border)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
             <button onClick={() => { setShowEditModal(true); setShowConfig(false) }}
-              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
-              ✏️ Editar perfil
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <AppIcon name="edit" size={13} /> Editar perfil
             </button>
             <button onClick={() => { setShowDmConfig(true); setShowConfig(false) }}
               title="Privacidad de notificaciones"
-              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', fontSize: '15px', color: 'var(--color-text-muted)' }}>
-              🔔
+              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-muted)' }}>
+              <AppIcon name="bell" size={15} />
             </button>
             <button onClick={() => setShowConfig(!showConfig)}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)' }}>
@@ -431,14 +410,14 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }}
                   style={{ position: 'absolute', top: '44px', right: '12px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '200px', overflow: 'hidden' }}>
                   {[
-                    { icon: '🔐', label: 'Privacidad de mensajes', action: () => { setShowDmConfig(true); setShowConfig(false) } },
-                    { icon: '📊', label: 'Mis estadísticas', action: () => { onNavigate('estadisticas'); setShowConfig(false) } },
-                    { icon: '📋', label: 'Mi historial', action: () => { onNavigate('historial'); setShowConfig(false) } },
-                    { icon: '⚙️', label: 'Configuración', action: () => { onNavigate('configuracion'); setShowConfig(false) } },
+                    { iconName: 'lock',        label: 'Privacidad de mensajes', action: () => { setShowDmConfig(true); setShowConfig(false) } },
+                    { iconName: 'stats',       label: 'Mis estadísticas',       action: () => { onNavigate('estadisticas'); setShowConfig(false) } },
+                    { iconName: 'historial',   label: 'Mi historial',           action: () => { onNavigate('historial'); setShowConfig(false) } },
+                    { iconName: 'settings',    label: 'Configuración',          action: () => { onNavigate('configuracion'); setShowConfig(false) } },
                   ].map((item, i, arr) => (
                     <button key={i} onClick={item.action}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text)', textAlign: 'left', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
-                      <span>{item.icon}</span><span>{item.label}</span>
+                      <AppIcon name={item.iconName} size={14} /><span>{item.label}</span>
                     </button>
                   ))}
                 </motion.div>
@@ -480,7 +459,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: '8px', transition: 'all 0.2s',
               }}>
-              🛡️ {adminMode ? 'MODO ADMIN ACTIVO — Click para salir' : 'Activar modo admin'}
+              <AppIcon name="shield" size={14} /> {adminMode ? 'MODO ADMIN ACTIVO — Click para salir' : 'Activar modo admin'}
             </button>
           )}
 
@@ -500,9 +479,9 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           {/* DM SETTING BADGE */}
           <div onClick={() => setShowDmConfig(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-            <span>{currentDmOption?.icon}</span>
+            {currentDmOption?.iconName && <AppIcon name={currentDmOption.iconName} size={12} />}
             <span>Mensajes: <strong style={{ color: 'var(--color-text)' }}>{currentDmOption?.label}</strong></span>
-            <span style={{ fontSize: '10px' }}>✏️</span>
+            <AppIcon name="edit" size={10} />
           </div>
         </div>
       </div>
@@ -510,12 +489,11 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
       {/* TABS */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '0.5px solid var(--color-border)' }}>
         {[
-          { id: 'stats', label: '📊 Rendimiento' },
-          { id: 'canales', label: '📡 Canales' },
-          { id: 'picks', label: '📋 Últimos picks' },
-          { id: 'compras', label: '🛒 Mis compras' },
+          { id: 'stats', label: 'Rendimiento' },
+          { id: 'picks', label: 'Últimos picks' },
+          { id: 'canales', label: 'Canales' },
         ].map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); if (t.id === 'canales') fetchChannels(); if (t.id === 'compras') fetchPurchases() }}
+          <button key={t.id} onClick={() => { setActiveTab(t.id); if (t.id === 'canales') fetchChannels() }}
             style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
             {t.label}
           </button>
@@ -532,8 +510,8 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           <motion.div key="picks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', width: 'fit-content' }}>
               {[
-                { id: 'public',  label: `🌐 Públicos (${publicBets.length})` },
-                { id: 'private', label: `💎 Premium (${premiumBets.length})` },
+                { id: 'public',  label: `Públicos (${publicBets.length})` },
+                { id: 'private', label: `Premium (${premiumBets.length})` },
               ].map(t => (
                 <button key={t.id} onClick={() => setPicksSubTab(t.id)}
                   style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === t.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
@@ -543,7 +521,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
             </div>
             {recentBets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📋</div>
+                <div style={{ marginBottom: '12px' }}><AppIcon name="document" size={40} /></div>
                 <div style={{ fontWeight: 600, marginBottom: '6px' }}>Sin picks todavía</div>
                 <div style={{ fontSize: '13px' }}>Tus picks resueltos aparecerán aquí.</div>
                 <button onClick={() => onNavigate('historial')}
@@ -553,54 +531,61 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               </div>
             ) : shownBets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📋</div>
+                <div style={{ marginBottom: '8px' }}><AppIcon name="document" size={32} /></div>
                 <div>{picksSubTab === 'public' ? 'Sin picks públicos' : 'Sin picks premium'}</div>
               </div>
             ) : (
-              <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                {shownBets.map((b, i) => (
-                  <div key={b.id} onClick={() => setPostModalBetId(b.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < shownBets.length - 1 ? '0.5px solid var(--color-border)' : 'none', transition: 'background 0.15s', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.status === 'won' ? 'var(--color-primary)' : b.status === 'void' ? 'var(--color-info)' : 'var(--color-error)', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.event}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span>{b.sport} · <strong>{b.pick}</strong> · @{parseFloat(b.odds).toFixed(2)} · {b.stake}</span>
-                        {b.channel && (
-                          <>
-                            <span>·</span>
-                            {b.channel.deleted_at
-                              ? <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Canal eliminado</span>
-                              : <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{b.channel.name}</span>}
-                          </>
-                        )}
-                        <span style={{ padding: '1px 6px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', fontSize: '9px', fontWeight: 700 }}>
-                          {b.was_private ? '💎 Premium' : '🌐 Público'}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                {shownBets.map(b => {
+                  const isWon  = b.status === 'won'
+                  const isVoid = b.status === 'void'
+                  const statusColor  = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
+                  const statusBg     = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
+                  const statusBorder = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
+                  const label = isWon
+                    ? <><AppIcon name="check" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Win</>
+                    : isVoid ? '● Nula'
+                    : <><AppIcon name="close" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Loss</>
+                  return (
+                    <div key={b.id} onClick={() => setPostModalBetId(b.id)}
+                      style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderTop: `3px solid ${statusColor}`, borderRadius: 'var(--radius-lg)', padding: '14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '10px', transition: 'box-shadow 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}>
+
+                      {/* Sport + resultat */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>
+                          {b.sport}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 9px', borderRadius: 'var(--radius-full)', background: statusBg, color: statusColor, border: `0.5px solid ${statusBorder}`, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                          {label}
+                        </span>
+                      </div>
+
+                      {/* Event */}
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {b.event}
+                      </div>
+
+                      {/* Pick · quota · stake */}
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                        <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{b.pick}</span>
+                        {' · '}@{parseFloat(b.odds).toFixed(2)}
+                        {' · '}{b.stake}u
+                      </div>
+
+                      {/* Footer: canal + data */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '0.5px solid var(--color-border)', marginTop: 'auto', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: b.channel && !b.channel.deleted_at ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: b.channel && !b.channel.deleted_at ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontStyle: b.channel?.deleted_at ? 'italic' : 'normal' }}>
+                          {b.channel ? (b.channel.deleted_at ? 'Canal eliminado' : b.channel.name) : ''}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                          {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                         </span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      {(() => {
-                        const isWon = b.status === 'won'
-                        const isVoid = b.status === 'void'
-                        const bg = isWon ? 'var(--color-primary-light)' : isVoid ? 'var(--color-info-light)' : 'var(--color-error-light)'
-                        const fg = isWon ? 'var(--color-primary)' : isVoid ? 'var(--color-info)' : 'var(--color-error)'
-                        const bd = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
-                        const label = isWon ? '✓ Win' : isVoid ? '● Nula' : '✗ Loss'
-                        return (
-                          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', fontWeight: 600, background: bg, color: fg, border: `0.5px solid ${bd}` }}>
-                            {label}
-                          </span>
-                        )
-                      })()}
-                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                        {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </motion.div>
@@ -611,36 +596,160 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           <motion.div key="stats" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             {stats.total === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
+                <div style={{ marginBottom: '8px' }}><AppIcon name="barChart" size={32} /></div>
                 <div>Aún no tienes picks registrados.</div>
               </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-                {[
-                  { label: 'Yield total', value: `${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(2)}%`, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)', sub: 'Beneficio sobre el stake' },
-                  { label: 'W / L', value: `${stats.won} / ${stats.lost}`, color: 'var(--color-text)', sub: 'Ganadas / Perdidas' },
-                  { label: 'Total picks', value: stats.total, color: 'var(--color-text)', sub: 'Picks resueltos' },
-                  { label: 'Cuota media', value: stats.avgOdds, color: 'var(--color-warning)', sub: 'Promedio de cuotas' },
-                  { label: 'Win rate', value: stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '—', color: 'var(--color-text)', sub: 'Porcentaje de acierto' },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{s.label}</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>{s.sub}</div>
+            ) : (() => {
+              // Filtratge de període sobre totes les apostes carregades
+              const now = new Date()
+              const cutoff = (() => {
+                if (statsPeriod === '1m') return new Date(now.getFullYear(), now.getMonth(), 1)
+                if (statsPeriod === '3m') return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+                if (statsPeriod === '6m') return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+                if (statsPeriod === '1y') return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+                if (statsPeriod.startsWith('month:')) {
+                  const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
+                  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 0, 23, 59, 59) }
+                }
+                return null
+              })()
+              const allResolved = recentBets.filter(b => b.status === 'won' || b.status === 'lost')
+              const filtered = cutoff === null ? allResolved
+                : cutoff.start ? allResolved.filter(b => { const d = new Date(b.date); return d >= cutoff.start && d <= cutoff.end })
+                : allResolved.filter(b => new Date(b.date) >= cutoff)
+
+              // Calcula stats del període filtrat
+              const pWon = filtered.filter(b => b.status === 'won').length
+              const pLost = filtered.filter(b => b.status === 'lost').length
+              const pTotal = filtered.length
+              const { profit: pProfit, stakeSum: pStakeSum } = filtered.reduce(
+                (acc, b) => ({ stakeSum: acc.stakeSum + b.stake, profit: acc.profit + (b.status === 'won' ? b.stake * (b.odds - 1) : -b.stake) }),
+                { profit: 0, stakeSum: 0 }
+              )
+              const pYield = pStakeSum > 0 ? (pProfit / pStakeSum) * 100 : 0
+              const pAvgOdds = pTotal > 0 ? (filtered.reduce((s, b) => s + b.odds, 0) / pTotal).toFixed(2) : '—'
+              const pAvgStake = pTotal > 0 ? pStakeSum / pTotal : 0
+
+              const BANK = 1000
+              const UNIT = BANK / 100
+              const winRate = pTotal > 0 ? (pWon / pTotal) * 100 : 0
+              // sense dades al període → colors neutres per evitar fals vermell
+              const winRateColor = pTotal === 0 ? 'var(--color-text-muted)' : winRate >= 55 ? 'var(--color-primary)' : winRate >= 45 ? 'var(--color-warning)' : 'var(--color-error)'
+              const benefitEur = pProfit * UNIT
+              const benefitColor = pTotal === 0 ? 'var(--color-text-muted)' : benefitEur >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+              const yieldColor = pTotal === 0 ? 'var(--color-text-muted)' : pYield >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+              const cardStyle = { background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '28px 16px', textAlign: 'center' }
+              const labelStyle = { fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }
+              const valStyle = (color) => ({ fontSize: '34px', fontWeight: 700, color, lineHeight: 1 })
+              const subStyle = { fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }
+
+              // Etiqueta del mes — construïda manualment per garantir "Agosto de 2026"
+              const monthLabel = statsPeriod.startsWith('month:') ? (() => {
+                const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
+                const name = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
+                return name.charAt(0).toUpperCase() + name.slice(1) + ' de ' + y
+              })() : null
+
+              const PERIOD_OPTS = [
+                { id: 'total', label: 'Total' },
+                { id: '1m',    label: 'Este mes' },
+                { id: '3m',    label: 'Últimos 3 meses' },
+                { id: '6m',    label: 'Últimos 6 meses' },
+                { id: '1y',    label: 'Último año' },
+              ]
+
+              return (
+                <>
+                  {/* Selector de període — dropdown custom amb picker integrat */}
+                  <div style={{ position: 'relative', display: 'inline-block', marginBottom: '14px' }}>
+                    {showPeriodDropdown && (
+                      <div onClick={() => setShowPeriodDropdown(false)}
+                        style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+                    )}
+                    <button onClick={() => setShowPeriodDropdown(v => !v)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '7px 12px', cursor: 'pointer', outline: 'none' }}>
+                      <span>{statsPeriod.startsWith('month:') ? monthLabel : PERIOD_OPTS.find(p => p.id === statsPeriod)?.label}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginLeft: '2px' }}>▾</span>
+                    </button>
+                    {showPeriodDropdown && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 11, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', minWidth: '180px', overflow: 'hidden' }}>
+                        {PERIOD_OPTS.map(p => (
+                          <button key={p.id} onClick={() => { setStatsPeriod(p.id); setStatsMonthInput(''); setShowPeriodDropdown(false) }}
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: statsPeriod === p.id ? 'var(--color-primary-light)' : 'transparent', color: statsPeriod === p.id ? 'var(--color-primary)' : 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: statsPeriod === p.id ? 600 : 400, border: 'none', cursor: 'pointer' }}>
+                            {p.label}
+                          </button>
+                        ))}
+                        {/* Separador + picker de mes integrat */}
+                        <div style={{ borderTop: '0.5px solid var(--color-border)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Mes concreto</span>
+                          <input type="month" value={statsMonthInput}
+                            min="2026-01"
+                            max={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => { setStatsMonthInput(e.target.value); if (e.target.value) { setStatsPeriod(`month:${e.target.value}`); setShowPeriodDropdown(false) } }}
+                            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', cursor: 'pointer', minWidth: 0 }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {true && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+
+                      {/* 1 — Win Rate */}
+                      <div style={cardStyle}>
+                        <div style={labelStyle}>Win Rate</div>
+                        <div style={valStyle(winRateColor)}>{winRate.toFixed(0)}%</div>
+                        <div style={{ fontSize: '12px', marginTop: '8px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                          <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{pWon}W</span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>·</span>
+                          <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>{pLost}L</span>
+                        </div>
+                      </div>
+
+                      {/* 2 — Cuota media */}
+                      <div style={cardStyle}>
+                        <div style={labelStyle}>Cuota media</div>
+                        <div style={valStyle('var(--color-warning)')}>{pAvgOdds}</div>
+                        <div style={subStyle}>Cuota promedio</div>
+                      </div>
+
+                      {/* 3 — Yield */}
+                      <div style={cardStyle}>
+                        <div style={labelStyle}>Yield</div>
+                        <div style={valStyle(yieldColor)}>{pYield >= 0 ? '+' : ''}{pYield.toFixed(2)}%</div>
+                        <div style={subStyle}>Beneficio sobre el stake</div>
+                      </div>
+
+                      {/* 4 — Stake medio */}
+                      <div style={cardStyle}>
+                        <div style={labelStyle}>Stake medio</div>
+                        <div style={valStyle('var(--color-text)')}>{pAvgStake.toFixed(1)}</div>
+                        <div style={subStyle}>Unidades por pick</div>
+                      </div>
+
+                      {/* 5 — Beneficio (banco 1.000€, 1u = 1% = 10€) — ocupa tota la fila */}
+                      <div style={{ ...cardStyle, border: `0.5px solid ${benefitEur >= 0 ? 'var(--color-primary-border)' : 'var(--color-error-border)'}`, gridColumn: '1 / -1' }}>
+                        <div style={labelStyle}>Beneficio</div>
+                        <div style={valStyle(benefitColor)}>{benefitEur >= 0 ? '+' : ''}{benefitEur.toFixed(0)}€</div>
+                        <div style={subStyle}>Banco inicial 1.000 €</div>
+                      </div>
+
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </motion.div>
         )}
 
         {activeTab === 'canales' && (
           <motion.div key="canales" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             {loadingChannels ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando canales...</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando canales...</div>
             ) : channels.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📡</div>
+                <div style={{ marginBottom: '12px' }}><AppIcon name="canales" size={40} /></div>
                 <div style={{ fontWeight: 600, marginBottom: '6px' }}>Sin canales todavía</div>
                 <button onClick={() => onNavigate('canales')}
                   style={{ marginTop: '16px', padding: '10px 20px', background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
@@ -649,98 +758,40 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {channels.map(c => (
-                  <div key={c.id} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg-soft)' }}>
-                      {c.avatar_url ? <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name[0].toUpperCase()}
+                {channels.map(c => {
+                  const yieldColor = stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)'
+                  const statCol = (value, label, color) => (
+                    <div style={{ textAlign: 'center', padding: '0 14px', borderLeft: '0.5px solid var(--color-border)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '15px', color: color || 'var(--color-text)', lineHeight: 1.2 }}>{value}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, fontSize: '15px' }}>{c.name}</span>
-                        {c.is_private && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>🔒 Privado</span>}
-                        {c.sport && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>{c.sport}</span>}
-                      </div>
-                      {c.description && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: '4px' }}>{c.description}</div>}
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>👥 {c.memberCount} miembros</span>
-                        {c.language && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{c.language}</span>}
-                      </div>
-                    </div>
-                    {onNavigateToChannel ? (
-                      <button onClick={() => onNavigateToChannel(c)}
-                        style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-                        Ir al canal
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0 }}>Tu canal</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {activeTab === 'compras' && (
-          <motion.div key="compras" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            {loadingPurchases ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando compras...</div>
-            ) : purchases.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>🛒</div>
-                <div style={{ fontWeight: 600, marginBottom: '6px' }}>Sin compras todavía</div>
-                <div style={{ fontSize: '13px' }}>Cuando compres acceso a un canal, aparecerá aquí con tu enlace personal.</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {purchases.map(p => {
-                  const deleted = !!p.channels?.deleted_at
-                  const copied = copiedPurchaseId === p.id
+                  )
                   return (
-                    <div key={p.id} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: deleted ? '0' : '14px' }}>
-                        <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg-soft)' }}>
-                          {p.channels?.avatar_url ? <img src={p.channels.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.channels?.name?.[0]?.toUpperCase() || '🛒')}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {p.offers?.name || p.channels?.name || 'Compra'}
-                          </div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {p.channels?.name && <span>Canal <strong style={{ color: 'var(--color-text-soft)' }}>{p.channels.name}</strong></span>}
-                            <span>·</span>
-                            <span>{new Date(p.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                            {p.amount != null && <><span>·</span><span style={{ fontWeight: 600, color: 'var(--color-text-soft)' }}>{(p.amount / 100).toFixed(2)} €</span></>}
-                          </div>
-                        </div>
+                    <div key={c.id} style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      {/* Avatar */}
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden', border: '2px solid var(--color-bg-soft)' }}>
+                        {c.avatar_url ? <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name[0].toUpperCase()}
                       </div>
-
-                      {deleted ? (
-                        <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-                          Este canal ya no está disponible.
+                      {/* Nom + stats en la mateixa fila + descripció */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: '15px' }}>{c.name}</span>
+                          {c.is_private && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> Privado</span>}
+                          {c.sport && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>{c.sport}</span>}
+                          {/* Stats inline al costat del nom */}
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            {statCol(c.memberCount, 'Miembros')}
+                            {statCol(c.pickCount, 'Picks')}
+                            {stats.total > 0 && statCol(`${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(1)}%`, 'Yield', yieldColor)}
+                          </div>
                         </div>
-                      ) : (
-                        <>
-                          {/* Enllaç personal — sempre recuperable, lligat al token de la compra */}
-                          <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: '8px' }}>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Tu enlace personal</div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-primary)', wordBreak: 'break-all', lineHeight: 1.5 }}>
-                              {`${window.location.origin}/acceso/${p.token}`}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => handleCopyAccessLink(p)}
-                              style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${copied ? 'var(--color-primary)' : 'var(--color-border)'}`, background: copied ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: copied ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                              {copied ? '✓ Copiado' : '📋 Copiar enlace'}
-                            </button>
-                            {onNavigateToChannel && p.channels?.invite_code && (
-                              <button onClick={() => onNavigateToChannel({ invite_code: p.channels.invite_code })}
-                                style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                                Ir al canal →
-                              </button>
-                            )}
-                          </div>
-                        </>
+                        {c.description && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.description}</div>}
+                      </div>
+                      {onNavigateToChannel && (
+                        <button onClick={() => onNavigateToChannel(c)}
+                          style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, marginLeft: '8px' }}>
+                          Ir al canal
+                        </button>
                       )}
                     </div>
                   )
@@ -749,6 +800,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
             )}
           </motion.div>
         )}
+
       </AnimatePresence>
 
       {/* MODAL EDITAR PERFIL */}
@@ -762,7 +814,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: 'var(--shadow-md)', maxHeight: '90vh', overflowY: 'auto' }}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{ fontWeight: 700, fontSize: '18px' }}>✏️ Editar perfil</div>
+                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="edit" size={16} /> Editar perfil</div>
                 <button onClick={() => setShowEditModal(false)}
                   style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   ×
@@ -774,8 +826,8 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <Avatar url={avatarPreview || avatarUrl} name={displayName} size={72} fontSize={28} />
                   <button onClick={() => fileInputRef.current?.click()}
-                    style={{ position: 'absolute', bottom: 0, right: 0, width: '24px', height: '24px', background: 'var(--color-primary)', border: '2px solid var(--color-bg)', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
-                    📷
+                    style={{ position: 'absolute', bottom: 0, right: 0, width: '24px', height: '24px', background: 'var(--color-primary)', border: '2px solid var(--color-bg)', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon name="camera" size={12} />
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleAvatarChange} style={{ display: 'none' }} />
                 </div>
@@ -803,9 +855,9 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 {(() => {
                   if (!profile?.username_changed_at) return null
                   const daysSince = (Date.now() - new Date(profile.username_changed_at).getTime()) / 86400000
-                  if (daysSince >= 7) return <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px' }}>✓ Puedes cambiar tu username</div>
+                  if (daysSince >= 7) return <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={11} /> Puedes cambiar tu username</div>
                   const daysLeft = Math.ceil(7 - daysSince)
-                  return <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>🔒 Podrás cambiarlo en {daysLeft} día{daysLeft !== 1 ? 's' : ''} (o vuelve a un username anterior tuyo en cualquier momento)</div>
+                  return <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="lock" size={11} /> Podrás cambiarlo en {daysLeft} día{daysLeft !== 1 ? 's' : ''} (o vuelve a un username anterior tuyo en cualquier momento)</div>
                 })()}
               </div>
 
@@ -850,7 +902,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: 'var(--shadow-md)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ fontWeight: 700, fontSize: '18px' }}>🔐 Privacidad de mensajes</div>
+                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="lock" size={16} /> Privacidad de mensajes</div>
                 <button onClick={() => setShowDmConfig(false)}
                   style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   ×
@@ -863,7 +915,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 {DM_OPTIONS.map(opt => (
                   <div key={opt.id} onClick={() => handleSaveDm(opt.id)}
                     style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-border)'}`, background: dmSetting === opt.id ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.15s' }}>
-                    <span style={{ fontSize: '22px' }}>{opt.icon}</span>
+                    <AppIcon name={opt.iconName} size={22} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '13px', color: dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-text)' }}>{opt.label}</div>
                       <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{opt.desc}</div>

@@ -14,6 +14,17 @@ import ForwardModal from './ForwardModal'
 import ForwardedChannelModal from '../canales/ForwardedChannelModal'
 import PinDurationModal from '../canales/PinDurationModal'
 import { ImageMessage } from '../canales/messageRenderer'
+import AppIcon from '../../../components/ui/AppIcon'
+
+// status: 'sending' | 'failed' | 'sent' | 'read'
+// onBubble: true = sobre fons verd (missatge propi), false = sobre fons clar (sota imatge/sticker)
+function MsgTick({ status, onBubble }) {
+  const base = { fontSize: '11px', letterSpacing: '-1px', lineHeight: 1, fontWeight: 600 }
+  if (status === 'sending') return <span style={{ ...base, color: onBubble ? 'rgba(1,9,6,0.3)' : 'var(--color-text-muted)', opacity: 0.7 }}>✓</span>
+  if (status === 'failed')  return <span style={{ ...base, color: 'var(--color-error)' }}>✓</span>
+  if (status === 'read')    return <span style={{ ...base, color: '#42A5F5' }}>✓✓</span>
+  return <span style={{ ...base, color: onBubble ? 'rgba(1,9,6,0.5)' : 'var(--color-text-muted)' }}>✓✓</span>
+}
 
 function getDayLabel(ts) {
   if (!ts) return null
@@ -100,8 +111,8 @@ function renderContent(content, isOwn, onViewProfile, onMention) {
     const name = idx >= 0 ? rest.slice(idx + 1) : '?'
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '12px 14px', minWidth: '200px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 }}>
-          📢
+        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <AppIcon name="megaphone" size={16} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
@@ -153,7 +164,7 @@ function renderContent(content, isOwn, onViewProfile, onMention) {
     if (match) return (
       <a href={match[2]} target="_blank" rel="noreferrer"
         style={{ color: isOwn ? '#010906' : 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-        <span>📎</span><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
+        <AppIcon name="paperclip" size={15} /><span style={{ textDecoration: 'underline', fontSize: '13px' }}>{match[1]}</span>
       </a>
     )
   }
@@ -183,7 +194,7 @@ function NewMessagesDivider() {
   )
 }
 
-export default function DMView({ conversation, currentUser, onBack, onSend, onFetchMessages, onMarkRead, onUnreadChange, onBlock, onReport, onViewProfile, onAccept, onNavigateToChannel, isPinned, onTogglePin, isMutedConv, onMuteConv, onUnmuteConv, onDeleteConv, compact = false }) {
+export default function DMView({ conversation, currentUser, onBack, onSend, onFetchMessages, onMarkRead, onUnreadChange, onBlock, onReport, onViewProfile, onAccept, onNavigateToChannel, isPinned, onTogglePin, isMutedConv, onMuteConv, onUnmuteConv, onDeleteConv, isFollowingOther = false, compact = false }) {
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -218,26 +229,53 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   const [pinDurationFor, setPinDurationFor] = useState(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState(null)
   const [blockedStatus, setBlockedStatus] = useState(null) // null | 'blocked_by_me' | 'blocked_by_them'
+  const [pendingMsgs, setPendingMsgs] = useState([]) // missatges enviats de manera optimista (pre-DB)
   const scrollRef = useRef(null)
   const bottomRef = useRef(null)
   const prevCountRef = useRef(0)
   const wasAtBottomRef = useRef(true)
   const fileInputRef = useRef(null)
 
+  // otherId robust: conversation pot ser l'objecte cru de la DB (user1_id/user2_id)
+  // o l'enriquit de fetchConversations (otherId). Cobrim ambdós casos.
+  const otherId = conversation.otherId || (
+    conversation.user1_id === currentUser?.id ? conversation.user2_id : conversation.user1_id
+  )
+
+  // Fora del useEffect perquè usePolling també ho pugui cridar com a backup del Realtime.
+  const checkBlocks = useCallback(async () => {
+    if (!otherId || !currentUser?.id) return
+    const [{ data: iBlocked }, { data: theyBlocked }] = await Promise.all([
+      supabase.from('blocks').select('id').eq('blocker_id', currentUser.id).eq('blocked_id', otherId).maybeSingle(),
+      supabase.from('blocks').select('id').eq('blocker_id', otherId).eq('blocked_id', currentUser.id).maybeSingle(),
+    ])
+    if (iBlocked) setBlockedStatus('blocked_by_me')
+    else if (theyBlocked) setBlockedStatus('blocked_by_them')
+    else setBlockedStatus(null)
+  }, [otherId, currentUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
-    if (!conversation.otherId || !currentUser?.id) return
-    Promise.all([
-      supabase.from('blocks').select('id').eq('blocker_id', currentUser.id).eq('blocked_id', conversation.otherId).maybeSingle(),
-      supabase.from('blocks').select('id').eq('blocker_id', conversation.otherId).eq('blocked_id', currentUser.id).maybeSingle(),
-    ]).then(([{ data: iBlocked }, { data: theyBlocked }]) => {
-      if (iBlocked) setBlockedStatus('blocked_by_me')
-      else if (theyBlocked) setBlockedStatus('blocked_by_them')
-      else setBlockedStatus(null)
-    })
-  }, [conversation.otherId, currentUser?.id])
+    if (!otherId || !currentUser?.id) return
+
+    checkBlocks()
+
+    // Realtime: detecta immediatament si ens bloquegen (o desbloquegen) mentre estem al xat.
+    // Requereix que la RLS de blocks permeti SELECT on blocked_id = auth.uid() — si no,
+    // Supabase filtra l'event i l'usuari bloquejat no el rep. L'usePolling de sota és el backup.
+    const sub = supabase.channel(`blocks-dm-${currentUser.id}-${otherId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'blocks' }, checkBlocks)
+      .subscribe()
+
+    return () => supabase.removeChannel(sub)
+  }, [otherId, currentUser?.id, checkBlocks]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Polling de 15 s com a backup del Realtime (que ja cobreix el cas normal). 5s era
+  // excessiu: afegia una petició constant que competia amb la resta de fetches del client
+  // i contribuïa a saturar-lo. 15s és marge de sobres per a un simple canvi de bloqueig.
+  usePolling(checkBlocks, 15000, !!otherId && !!currentUser?.id)
 
   const handleUnblockFromDM = async () => {
-    await supabase.from('blocks').delete().eq('blocker_id', currentUser.id).eq('blocked_id', conversation.otherId)
+    await supabase.from('blocks').delete().eq('blocker_id', currentUser.id).eq('blocked_id', otherId)
     setBlockedStatus(null)
   }
 
@@ -253,7 +291,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
     const safetyTimer = setTimeout(() => setLoading(false), 10000)
     try {
       const [data, { data: convData }] = await Promise.all([
-        onFetchMessages(conversation.id),
+        onFetchMessages(conversation.id, conversation.clearedAt),
         supabase.from('dm_conversations').select('pinned_message').eq('id', conversation.id).single()
       ])
       // Només sobreescrivim si tenim un array vàlid — així un error transitori
@@ -362,7 +400,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   }, [liveUnread, conversation.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshMessages = async () => {
-    const data = await onFetchMessages(conversation.id)
+    const data = await onFetchMessages(conversation.id, conversation.clearedAt)
     setMessages(data)
   }
 
@@ -471,8 +509,20 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
     if (replyTo) content = `[REPLY:${replyTo.id}|${replyTo.preview}]:${content}`
     setText('')
     setReplyTo(null)
-    await onSend(conversation.id, content)
-    await refreshMessages()
+
+    // Afegim el missatge de manera optimista mentre esperem la confirmació del servidor
+    const tempId = `temp-${Date.now()}`
+    setPendingMsgs(prev => [...prev, {
+      id: tempId, conversation_id: conversation.id, sender_id: currentUser.id,
+      content, created_at: new Date().toISOString(), read_at: null, _status: 'sending',
+    }])
+    try {
+      await onSend(conversation.id, content)
+      await refreshMessages()
+      setPendingMsgs(prev => prev.filter(m => m.id !== tempId))
+    } catch {
+      setPendingMsgs(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'failed' } : m))
+    }
   }
 
   const handleSendSticker = (sticker) => {
@@ -503,22 +553,27 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
 
   // Mateixes accions que el menú de 3 punts de la llista de converses.
   const menuItems = [
-    { icon: isPinned ? '📍' : '📌', label: isPinned ? 'Desanclar' : 'Anclar', action: () => { onTogglePin?.(); closeMenu() } },
+    { icon: 'pin', label: isPinned ? 'Desanclar' : 'Anclar', action: () => { onTogglePin?.(); closeMenu() } },
     {
-      icon: isMutedConv ? '🔔' : '🔕', label: isMutedConv ? 'Activar notificaciones' : 'Silenciar',
+      icon: isMutedConv ? 'bell' : 'bellOff', label: isMutedConv ? 'Activar notificaciones' : 'Silenciar',
       // Si està silenciat, reactiva directament; si no, obre el submenú de durades.
       action: () => { if (isMutedConv) { onUnmuteConv?.(); closeMenu() } else { setShowMuteSub(true) } },
     },
-    { icon: '🗑️', label: 'Eliminar chat', action: () => { onDeleteConv?.(); closeMenu() }, danger: true },
-    { icon: '🚫', label: 'Bloquear', action: () => { onBlock?.(); closeMenu() }, danger: true },
-    { icon: '🚩', label: 'Reportar', action: () => { onReport?.(); closeMenu() } },
+    { icon: 'delete', label: 'Eliminar chat', action: () => { onDeleteConv?.(); closeMenu() }, danger: true },
+    { icon: 'ban', label: 'Bloquear', action: () => { onBlock?.(); closeMenu() }, danger: true },
+    { icon: 'flag', label: 'Reportar', action: () => { onReport?.(); closeMenu() } },
   ]
 
   // isPending: sóc jo qui ha escrit primer i encara no m'han acceptat (envio lliurement).
-  // needsAccept: algú m'ha escrit i encara no l'he acceptat -> mostro barra Aceptar/Bloquear.
-  const isPending = !conversation.otherAccepted && conversation.user1_id === currentUser.id
+  // needsAccept: cal que accepti / mogui a General. NO aplica si segueixo l'altra persona
+  //   (isFollowingOther) — en aquest cas la conversa va a General automàticament.
+  const isPending = !conversation.otherAccepted && conversation.user1_id === currentUser.id && !conversation.clearedAt
   const otherSentCount = messages.filter(m => m.sender_id !== currentUser.id).length
-  const needsAccept = !conversation.isAccepted && conversation.user1_id !== currentUser.id && otherSentCount > 0
+  const needsAccept = !conversation.isAccepted && !isFollowingOther && otherSentCount > 0 &&
+    (conversation.user1_id !== currentUser.id || !!conversation.clearedAt)
+
+  // Combina els missatges reals amb els optimistes (pendents de confirmació del servidor)
+  const allMessages = [...messages, ...pendingMsgs]
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -527,10 +582,10 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
-        <div onClick={() => onViewProfile?.(conversation.otherId)}
+        <div onClick={() => onViewProfile?.(otherId)}
           style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, cursor: 'pointer' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>
-            {conversation.otherAvatarUrl
+            {blockedStatus !== 'blocked_by_them' && conversation.otherAvatarUrl
               ? <img src={conversation.otherAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : (conversation.otherUsername || '?')[0].toUpperCase()}
           </div>
@@ -562,7 +617,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
                   menuItems.map((item, i) => (
                     <button key={i} onClick={item.action}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: item.danger ? 'var(--color-error)' : 'var(--color-text)', textAlign: 'left', borderBottom: i < menuItems.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
-                      <span>{item.icon}</span><span>{item.label}</span>
+                      <span style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><AppIcon name={item.icon} size={15} /></span><span>{item.label}</span>
                     </button>
                   ))
                 )}
@@ -579,17 +634,17 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
         const { content: pDisplay } = parseEdited(pNoReply)
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '8px', fontSize: '13px' }}>
-            <span style={{ fontSize: '16px', flexShrink: 0 }}>📌</span>
+            <AppIcon name="pin" size={16} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{pDisplay}</div>
-            <button onClick={() => handlePin(pinnedMsg.rawContent, null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text-muted)', flexShrink: 0, padding: '0 4px' }}>✕</button>
+            <button onClick={() => handlePin(pinnedMsg.rawContent, null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, padding: '0 4px', display: 'flex', alignItems: 'center' }}><AppIcon name="close" size={14} /></button>
           </div>
         )
       })()}
 
-      {/* BANNER BLOQUEADO POR MÍ */}
+      {/* BANNERS DE BLOQUEIG */}
       {blockedStatus === 'blocked_by_me' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '8px' }}>
-          <span style={{ fontSize: '18px', flexShrink: 0 }}>🚫</span>
+          <AppIcon name="ban" size={18} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
             Has bloqueado a este usuario. No puedes enviar mensajes.
           </div>
@@ -599,24 +654,26 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           </button>
         </div>
       )}
+      {blockedStatus === 'blocked_by_them' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '8px' }}>
+          <AppIcon name="bellOff" size={18} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+            Este usuario no está disponible. No puedes enviar mensajes.
+          </div>
+        </div>
+      )}
 
       {/* MISSATGES */}
       <div ref={scrollRef} onScroll={() => { wasAtBottomRef.current = isNearBottom() }}
         style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {blockedStatus === 'blocked_by_them' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px' }}>🚫</div>
-            <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text)' }}>Usuario no encontrado</div>
-            <div style={{ fontSize: '13px' }}>No puedes enviar mensajes a este usuario.</div>
-          </div>
-        ) : loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
-        ) : messages.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
+        ) : allMessages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+            <div style={{ marginBottom: '8px' }}><AppIcon name="social" size={32} /></div>
             <div>Empieza la conversación</div>
           </div>
-        ) : messages.map((m, i) => {
+        ) : allMessages.map((m, i) => {
           const rawContent = editedMap[m.id] ?? m.content
           const isDeletedMsg = rawContent === '[DELETED]'
           const { forwardedFrom, inner: noFwd } = parseForward(rawContent)
@@ -628,7 +685,9 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           const isProfile = displayContent?.startsWith('[PROFILE]:')
           const isVoice = displayContent?.startsWith('[VOICE]:')
           const isSpecialNobubble = isSticker || isProfile
-          const prev = messages[i - 1]
+          const prev = allMessages[i - 1]
+          // _status: 'sending' | 'failed' (missatge optimista), absència = missatge real
+          const tickStatus = m._status || (m.read_at ? 'read' : 'sent')
           const dayLabel = getDayLabel(m.created_at)
           const showDaySep = !prev || getDayLabel(prev.created_at) !== dayLabel
           const isHovered = hoveredMsgId === m.id
@@ -651,7 +710,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
               {isDeletedMsg ? (
                 <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', margin: '2px 0' }}>
                   <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '7px 12px' }}>
-                    🚫 Mensaje eliminado
+                    <AppIcon name="ban" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Mensaje eliminado
                   </div>
                 </div>
               ) : (
@@ -693,14 +752,16 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
                         <span style={{ fontSize: '10px', opacity: 0.55, fontStyle: 'italic', marginLeft: '4px' }}>(editado)</span>
                       )}
                       {!isImage && !isSpecialNobubble && (
-                        <span style={{ position: 'absolute', bottom: '5px', right: '10px', fontSize: '10px', fontWeight: 500, color: isOwn ? 'rgba(1,9,6,0.65)' : 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-                          {formatTime(m.created_at)}{isOwn && m.read_at ? ' ✓✓' : ''}
+                        <span style={{ position: 'absolute', bottom: '5px', right: '10px', fontSize: '10px', fontWeight: 500, color: isOwn ? 'rgba(1,9,6,0.65)' : 'var(--color-text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          {formatTime(m.created_at)}
+                          {isOwn && <MsgTick status={tickStatus} onBubble />}
                         </span>
                       )}
                     </div>
                     {(isImage || isSpecialNobubble) && (
-                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '3px', textAlign: isOwn ? 'right' : 'left' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '3px', textAlign: isOwn ? 'right' : 'left', display: 'flex', alignItems: 'center', gap: '3px', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
                         {formatTime(m.created_at)}
+                        {isOwn && <MsgTick status={tickStatus} onBubble={false} />}
                       </div>
                     )}
                   </div>
@@ -724,21 +785,21 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
       {/* Nota subtil per a l'emissor mentre espera acceptació (input lliure, sense límit) */}
       {isPending && (
         <div style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-          ⏳ Esperando que {conversation.otherUsername} acepte la conversación
+          <AppIcon name="loading" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Esperando que {conversation.otherUsername} acepte la conversación
         </div>
       )}
 
-      {/* BARRA SOLICITUD — el xat es veu normal; just a sota, Aceptar i Bloquear */}
+      {/* BARRA SOLICITUD — el xat es veu normal; just a sota, Mover a General i Bloquear */}
       {needsAccept && (
         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }}>
           <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginRight: 'auto' }}>Solicitud de mensaje</span>
           <button onClick={() => onBlock?.()}
             style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-            🚫 Bloquear
+            <AppIcon name="ban" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Bloquear
           </button>
           <button onClick={() => onAccept?.(conversation.id)}
             style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-            ✓ Aceptar
+            <AppIcon name="success" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Mover a General
           </button>
         </div>
       )}
@@ -761,14 +822,14 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           const isBetMsg = displayContent?.startsWith('[BET]:')
           const isPollMsgDM = displayContent?.startsWith('[POLL]:')
           const canEdit = isOwnMsg && !isImgMsg && !isImgTextMsg && !isStkMsg && !isVoiceMsg && !isProfMsg && !isBetMsg && !isPollMsgDM
-          const readableDM = isImgTextMsg ? (() => { try { return JSON.parse(displayContent.replace('[IMG_MSG]:', '')).text || '📷 Imagen' } catch { return '📷 Imagen' } })() : (displayContent ?? '')
+          const readableDM = isImgTextMsg ? (() => { try { return JSON.parse(displayContent.replace('[IMG_MSG]:', '')).text || 'Imagen' } catch { return 'Imagen' } })() : (displayContent ?? '')
           const items = [
-            { icon: '📋', label: 'Copiar', action: () => { navigator.clipboard.writeText(readableDM); setMsgMenu(null) } },
-            { icon: '↩', label: 'Responder', action: () => { setReplyTo({ id: msg.id, preview: readableDM.slice(0, 80) }); setMsgMenu(null) } },
-            { icon: '↗️', label: 'Reenviar', action: () => { setForwardMsg({ content: displayContent }); setMsgMenu(null) } },
-            { icon: '📌', label: pinnedMsg?.rawContent === rawContent ? 'Desfijar' : 'Fijar', action: () => { if (pinnedMsg?.rawContent === rawContent) { handlePin(rawContent, null) } else { setPinDurationFor(rawContent); setMsgMenu(null) } } },
-            canEdit && { icon: '✏️', label: 'Editar', action: () => { setEditingMsg({ id: msg.id }); setText(displayContent); setMsgMenu(null) } },
-            isOwnMsg && !isBetMsg && { icon: '🗑', label: 'Eliminar', action: () => handleDeleteMsg(msg.id), danger: true },
+            { icon: 'copy', label: 'Copiar', action: () => { navigator.clipboard.writeText(readableDM); setMsgMenu(null) } },
+            { icon: 'reply', label: 'Responder', action: () => { setReplyTo({ id: msg.id, preview: readableDM.slice(0, 80) }); setMsgMenu(null) } },
+            { icon: 'arrowOut', label: 'Reenviar', action: () => { setForwardMsg({ content: displayContent }); setMsgMenu(null) } },
+            { icon: 'pin', label: pinnedMsg?.rawContent === rawContent ? 'Desfijar' : 'Fijar', action: () => { if (pinnedMsg?.rawContent === rawContent) { handlePin(rawContent, null) } else { setPinDurationFor(rawContent); setMsgMenu(null) } } },
+            canEdit && { icon: 'edit', label: 'Editar', action: () => { setEditingMsg({ id: msg.id }); setText(displayContent); setMsgMenu(null) } },
+            isOwnMsg && !isBetMsg && { icon: 'delete', label: 'Eliminar', action: () => handleDeleteMsg(msg.id), danger: true },
           ].filter(Boolean)
 
           const menuH = items.length * 44
@@ -784,7 +845,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
                 {items.map((item, idx) => (
                   <button key={idx} onClick={item.action}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '11px 16px', background: 'none', border: 'none', borderBottom: idx < items.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, color: item.danger ? 'var(--color-error)' : 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                    <span style={{ fontSize: '15px', width: '20px', textAlign: 'center' }}>{item.icon}</span>
+                    <span style={{ width: '20px', display: 'flex', justifyContent: 'center' }}><AppIcon name={item.icon} size={15} /></span>
                     <span>{item.label}</span>
                   </button>
                 ))}
@@ -838,10 +899,10 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
           {(replyTo || editingMsg) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '8px' }}>
               <div style={{ flex: 1, minWidth: 0, borderLeft: `3px solid ${editingMsg ? 'var(--color-warning)' : 'var(--color-primary)'}`, paddingLeft: '8px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: editingMsg ? 'var(--color-warning)' : 'var(--color-primary)', marginBottom: '1px' }}>{editingMsg ? '✏️ Editando' : '↩ Respondiendo'}</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: editingMsg ? 'var(--color-warning)' : 'var(--color-primary)', marginBottom: '1px', display: 'flex', alignItems: 'center', gap: '4px' }}>{editingMsg ? <><AppIcon name="edit" size={11} />Editando</> : <><AppIcon name="reply" size={11} />Respondiendo</>}</div>
                 {replyTo && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{replyTo.preview}</div>}
               </div>
-              <button onClick={() => { setReplyTo(null); setEditingMsg(null); setText('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', flexShrink: 0 }}>✕</button>
+              <button onClick={() => { setReplyTo(null); setEditingMsg(null); setText('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, display: 'flex', alignItems: 'center' }}><AppIcon name="close" size={16} /></button>
             </div>
           )}
 
@@ -859,7 +920,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
             <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/jpeg,image/png,image/gif,image/webp,.pdf" style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-              {uploading ? '⏳' : '📎'}
+              {uploading ? <AppIcon name="loading" size={16} /> : <AppIcon name="paperclip" size={16} />}
             </button>
             <VoiceRecordButton userId={currentUser.id} onSend={async content => { await onSend(conversation.id, content); await refreshMessages() }} />
             <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
@@ -878,8 +939,8 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
             </div>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <button onClick={() => setShowStickers(v => !v)}
-                style={{ background: showStickers ? 'var(--color-primary-light)' : 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', fontSize: '16px', color: showStickers ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
-                😊
+                style={{ background: showStickers ? 'var(--color-primary-light)' : 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', display: 'flex', color: showStickers ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
+                <AppIcon name="smile" size={16} />
               </button>
               <AnimatePresence>
                 {showStickers && <StickerPicker onSelect={handleSendSticker} onSendGif={handleSendGif} onClose={() => setShowStickers(false)} user={currentUser} />}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import AppIcon from '../../components/ui/AppIcon'
 import { usePolling } from '../../hooks/usePolling'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams, useNavigate } from 'react-router-dom'
@@ -32,69 +33,87 @@ import { ProfileNavContext } from '../../contexts/ProfileNavContext'
 import { AdminModeProvider } from '../../contexts/AdminModeContext'
 import './dashboard.css'
 
-// Versió mostrada al modal BETA. Actualitzar a mà a cada fita rellevant del producte.
-const APP_VERSION = 'v0.9 · Beta privada'
+const APP_VERSION = 'v0.9 · Beta pública'
 
 const SHORTCUT_OPTIONS = [
-  { id: 'miperfil',     label: 'Perfil',           icon: '👤' },
-  { id: 'estadisticas', label: 'Estadísticas',      icon: '📊' },
-  { id: 'historial',    label: 'Historial',         icon: '📋' },
-  { id: 'social',       label: 'Mensajes',          icon: '💬' },
-  { id: 'canales',      label: 'Canales',           icon: '📡' },
-  { id: 'feed',         label: 'Feed',              icon: '🔥' },
-  { id: 'tipsters',     label: 'Tipsters',          icon: '🎯' },
-  { id: 'ranking',      label: 'Ranking',           icon: '🏆' },
-  { id: 'faqs',         label: 'FAQs',              icon: '❓' },
-  { id: 'contacto',     label: 'Contacto',          icon: '📱' },
-  { id: 'sugerencias',  label: 'Sugerencias',       icon: '💡' },
+  { id: 'miperfil',     label: 'Perfil',           icon: 'user' },
+  { id: 'estadisticas', label: 'Estadísticas',      icon: 'stats' },
+  { id: 'historial',    label: 'Historial',         icon: 'historial' },
+  { id: 'social',       label: 'Mensajes',          icon: 'social' },
+  { id: 'canales',      label: 'Canales',           icon: 'canales' },
+  { id: 'feed',         label: 'Feed',              icon: 'feed' },
+  { id: 'tipsters',     label: 'Tipsters',          icon: 'tipsters' },
+  { id: 'ranking',      label: 'Ranking',           icon: 'ranking' },
+  { id: 'faqs',         label: 'FAQs',              icon: 'faqs' },
+  { id: 'contacto',     label: 'Contacto',          icon: 'contacto' },
+  { id: 'sugerencias',  label: 'Sugerencias',       icon: 'sugerencias' },
 ]
 
 // Emails amb accés al panell d'admin — ha de coincidir amb ADMIN_EMAILS a AdminPanel.jsx
 const ADMIN_EMAILS = ['fyourbet@gmail.com']
 
-const DEFAULT_SHORTCUTS = ['estadisticas', 'social', 'ranking', 'contacto']
-const MAX_SHORTCUTS = 5
+// Cada shortcut és un objecte: { type:'tab'|'dm'|'channel', ... }
+const scKey = (item) =>
+  item.type === 'tab' ? `tab:${item.id}`
+  : item.type === 'dm' ? `dm:${item.userId}`
+  : `ch:${item.channelId}`
+
+const DEFAULT_SHORTCUTS = [
+  { type: 'tab', id: 'estadisticas', label: 'Estadísticas', icon: 'stats' },
+  { type: 'tab', id: 'social',       label: 'Mensajes',     icon: 'social' },
+  { type: 'tab', id: 'canales',      label: 'Canales',      icon: 'canales' },
+  { type: 'tab', id: 'ranking',      label: 'Ranking',      icon: 'ranking' },
+  { type: 'tab', id: 'contacto',     label: 'Contacto',     icon: 'contacto' },
+]
+const MAX_SHORTCUTS = 7
 
 const SIDEBAR = [
   {
     label: 'Mi perfil',
     items: [
-      { id: 'miperfil', label: 'Perfil', icon: '👤' },
-      { id: 'estadisticas', label: 'Estadísticas personales', icon: '📊' },
-      { id: 'historial', label: 'Historial', icon: '📋' },
+      { id: 'miperfil',     label: 'Perfil',                   icon: 'user' },
+      { id: 'estadisticas', label: 'Estadísticas personales',   icon: 'stats' },
+      { id: 'historial',    label: 'Historial',                 icon: 'historial' },
     ]
   },
   {
     label: 'Social',
     items: [
-      { id: 'social', label: 'Mensajes', icon: '💬' },
-      { id: 'canales', label: 'Canales', icon: '📡' },
-      { id: 'feed', label: 'Feed', icon: '🔥' },
-      { id: 'tipsters', label: 'Tipsters', icon: '🎯' },
-      { id: 'ranking', label: 'Ranking', icon: '🏆' },
+      { id: 'social',    label: 'Mensajes',  icon: 'social' },
+      { id: 'canales',   label: 'Canales',   icon: 'canales' },
+      { id: 'feed',      label: 'Feed',      icon: 'feed' },
+      { id: 'tipsters',  label: 'Tipsters',  icon: 'tipsters' },
+      { id: 'ranking',   label: 'Ranking',   icon: 'ranking' },
     ]
   },
   {
     label: 'Contacto',
     items: [
-      { id: 'faqs', label: 'FAQs', icon: '❓' },
-      { id: 'contacto', label: 'Redes sociales & Soporte', icon: '📱' },
-      { id: 'sugerencias', label: 'Ayúdanos a mejorar', icon: '💡' },
+      { id: 'faqs',        label: 'FAQs',                    icon: 'faqs' },
+      { id: 'contacto',    label: 'Redes sociales & Soporte', icon: 'contacto' },
+      { id: 'sugerencias', label: 'Ayúdanos a mejorar',       icon: 'sugerencias' },
     ]
   },
 ]
 
-function ShortcutConfigModal({ shortcuts, onSave, onClose }) {
+function ShortcutConfigModal({ shortcuts, onSave, onClose, userId }) {
   const [selected, setSelected] = useState([...shortcuts])
+  const [view, setView] = useState('main') // 'main' | 'dm' | 'canal'
+  const [dmList, setDmList]         = useState([])
+  const [channelList, setChannelList] = useState([])
+  const [subLoading, setSubLoading] = useState(false)
 
-  const toggle = (id) => {
-    if (selected.includes(id)) {
-      setSelected(selected.filter(s => s !== id))
-    } else {
-      if (selected.length >= MAX_SHORTCUTS) return
-      setSelected([...selected, id])
-    }
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const isAdded = (item) => selected.some(s => scKey(s) === scKey(item))
+  const full = selected.length >= MAX_SHORTCUTS
+
+  const add = (item) => {
+    if (full || isAdded(item)) return
+    setSelected(prev => [...prev, item])
+    setView('main')
   }
+
+  const remove = (idx) => setSelected(prev => prev.filter((_, i) => i !== idx))
 
   const move = (index, dir) => {
     const next = [...selected]
@@ -104,7 +123,70 @@ function ShortcutConfigModal({ shortcuts, onSave, onClose }) {
     setSelected(next)
   }
 
-  const handleSave = () => { onSave(selected); onClose() }
+  const openDMPicker = async () => {
+    setView('dm')
+    setSubLoading(true)
+    try {
+      const { data: convs } = await supabase
+        .from('dm_conversations')
+        .select('id, user1_id, user2_id, user1_hidden_at, user2_hidden_at')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      const visible = (convs || []).filter(c => {
+        const h = c.user1_id === userId ? c.user1_hidden_at : c.user2_hidden_at
+        return !h
+      })
+      if (visible.length) {
+        const otherIds = visible.map(c => c.user1_id === userId ? c.user2_id : c.user1_id)
+        const { data: profiles } = await supabase.from('profiles').select('id, username').in('id', otherIds)
+        const pm = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+        setDmList(visible.map(c => {
+          const oid = c.user1_id === userId ? c.user2_id : c.user1_id
+          return { userId: oid, username: pm[oid]?.username || '?' }
+        }))
+      }
+    } catch { /* silenci */ }
+    setSubLoading(false)
+  }
+
+  const openCanalPicker = async () => {
+    setView('canal')
+    setSubLoading(true)
+    try {
+      const [{ data: memberData }, { data: ownedData }] = await Promise.all([
+        supabase.from('channel_members').select('channels(id, name, invite_code, is_private, deleted_at)').eq('user_id', userId).limit(30),
+        supabase.from('channels').select('id, name, invite_code, is_private, deleted_at').eq('owner_id', userId).is('deleted_at', null).limit(10),
+      ])
+      const fromMembership = (memberData || []).map(m => m.channels).filter(c => c && !c.deleted_at)
+      const fromOwned = (ownedData || [])
+      // Canals propis primers, sense duplicats
+      const seen = new Set()
+      const merged = [...fromOwned, ...fromMembership].filter(c => {
+        if (!c || seen.has(c.id)) return false
+        seen.add(c.id)
+        return true
+      })
+      setChannelList(merged)
+    } catch { /* silenci */ }
+    setSubLoading(false)
+  }
+
+  const itemLabel = (item) => {
+    if (item.type === 'tab') return SHORTCUT_OPTIONS.find(o => o.id === item.id)?.label || item.id
+    if (item.type === 'dm') return item.username
+    return item.name
+  }
+
+  const itemIcon = (item) => {
+    if (item.type === 'tab') return SHORTCUT_OPTIONS.find(o => o.id === item.id)?.icon || 'user'
+    if (item.type === 'dm') return 'social'
+    return item.isPrivate ? 'lock' : 'canales'
+  }
+
+  // ── Estils reutilitzables ──────────────────────────────────────────────────
+  const rowBtn = { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', width: '100%', transition: 'background 0.12s', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+  const hover = { onMouseEnter: e => e.currentTarget.style.background = 'var(--color-bg-soft)', onMouseLeave: e => e.currentTarget.style.background = 'none' }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -112,78 +194,165 @@ function ShortcutConfigModal({ shortcuts, onSave, onClose }) {
       onClick={onClose}>
       <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }}
         onClick={e => e.stopPropagation()}
-        style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '28px', width: '100%', maxWidth: '460px', boxShadow: 'var(--shadow-md)' }}>
+        style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '28px', width: '100%', maxWidth: '460px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-md)' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <div style={{ fontWeight: 700, fontSize: '16px' }}>Atajos de navegación</div>
+        {/* Capçalera */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {view !== 'main' && (
+              <button onClick={() => setView('main')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '0 4px 0 0' }}>← Atrás</button>
+            )}
+            <div style={{ fontWeight: 700, fontSize: '16px' }}>
+              {view === 'main' ? 'Atajos de navegación' : view === 'dm' ? 'Mensajes' : 'Canales'}
+            </div>
+          </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>×</button>
         </div>
-        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-          Máximo {MAX_SHORTCUTS} atajos. Reordénalos con las flechas.
-        </div>
 
-        {/* Seleccionados */}
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-          Seleccionados ({selected.length}/{MAX_SHORTCUTS})
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '20px', minHeight: '48px' }}>
-          {selected.length === 0 && (
-            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '12px', textAlign: 'center', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-              Ningún atajo seleccionado
-            </div>
-          )}
-          {selected.map((id, i) => {
-            const opt = SHORTCUT_OPTIONS.find(o => o.id === id)
-            if (!opt) return null
-            return (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)' }}>
-                <span style={{ fontSize: '15px' }}>{opt.icon}</span>
-                <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>{opt.label}</span>
-                <div style={{ display: 'flex', gap: '2px' }}>
-                  <button onClick={() => move(i, -1)} disabled={i === 0}
-                    style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: '14px', color: i === 0 ? 'var(--color-border)' : 'var(--color-primary)', padding: '2px 4px', fontFamily: 'var(--font-sans)' }}>←</button>
-                  <button onClick={() => move(i, 1)} disabled={i === selected.length - 1}
-                    style={{ background: 'none', border: 'none', cursor: i === selected.length - 1 ? 'default' : 'pointer', fontSize: '14px', color: i === selected.length - 1 ? 'var(--color-border)' : 'var(--color-primary)', padding: '2px 4px', fontFamily: 'var(--font-sans)' }}>→</button>
-                  <button onClick={() => toggle(id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-error)', padding: '2px 4px' }}>×</button>
-                </div>
+        {view === 'main' && (
+          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', flexShrink: 0 }}>
+            Máximo {MAX_SHORTCUTS} atajos. Reordénalos con las flechas.
+          </div>
+        )}
+        {view !== 'main' && (
+          <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '14px', flexShrink: 0 }}>
+            Pulsa <strong>Aceptar</strong> para añadir el apartado general, o elige uno concreto.
+          </div>
+        )}
+
+        {/* Cos amb scroll */}
+        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+
+          {/* ── Vista principal ── */}
+          {view === 'main' && (
+            <>
+              {/* Seleccionados */}
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+                Seleccionados ({selected.length}/{MAX_SHORTCUTS})
               </div>
-            )
-          })}
-        </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '20px', minHeight: '48px' }}>
+                {selected.length === 0 && (
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '12px', textAlign: 'center', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                    Ningún atajo seleccionado
+                  </div>
+                )}
+                {selected.map((item, i) => (
+                  <div key={scKey(item)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)' }}>
+                    <AppIcon name={itemIcon(item)} size={15} />
+                    <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemLabel(item)}</span>
+                    <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                      <button onClick={() => move(i, -1)} disabled={i === 0}
+                        style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: '14px', color: i === 0 ? 'var(--color-border)' : 'var(--color-primary)', padding: '2px 4px', fontFamily: 'var(--font-sans)' }}>←</button>
+                      <button onClick={() => move(i, 1)} disabled={i === selected.length - 1}
+                        style={{ background: 'none', border: 'none', cursor: i === selected.length - 1 ? 'default' : 'pointer', fontSize: '14px', color: i === selected.length - 1 ? 'var(--color-border)' : 'var(--color-primary)', padding: '2px 4px', fontFamily: 'var(--font-sans)' }}>→</button>
+                      <button onClick={() => remove(i)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-error)', padding: '2px 4px' }}>×</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-        {/* Disponibles */}
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-          Añadir
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '24px' }}>
-          {SHORTCUT_OPTIONS.filter(o => !selected.includes(o.id)).map(opt => {
-            const disabled = selected.length >= MAX_SHORTCUTS
-            return (
-              <button key={opt.id} onClick={() => toggle(opt.id)} disabled={disabled}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 1, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                <span style={{ fontSize: '14px' }}>{opt.icon}</span>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text)' }}>{opt.label}</span>
+              {/* Añadir */}
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Añadir</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {SHORTCUT_OPTIONS.map(opt => {
+                  const needsPicker = opt.id === 'social' || opt.id === 'canales'
+                  const disabled = full
+                  return (
+                    <button key={opt.id} disabled={disabled}
+                      onClick={() => {
+                        if (needsPicker) { opt.id === 'social' ? openDMPicker() : openCanalPicker() }
+                        else add({ type: 'tab', id: opt.id, label: opt.label, icon: opt.icon })
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 1, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', justifyContent: needsPicker ? 'space-between' : undefined }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AppIcon name={opt.icon} size={14} />
+                        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text)' }}>{opt.label}</span>
+                      </span>
+                      {needsPicker && <AppIcon name="chevronRight" size={12} color="var(--color-text-muted)" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ── Picker de DMs ── */}
+          {view === 'dm' && (
+            <>
+              <button disabled={full || isAdded({ type: 'tab', id: 'social' })}
+                onClick={() => add({ type: 'tab', id: 'social', label: 'Mensajes', icon: 'social' })}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '11px 14px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', cursor: (full || isAdded({ type: 'tab', id: 'social' })) ? 'default' : 'pointer', opacity: (full || isAdded({ type: 'tab', id: 'social' })) ? 0.5 : 1, fontFamily: 'var(--font-sans)', transition: 'opacity 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  <AppIcon name="social" size={15} /> Mensajes (general)
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)' }}>Aceptar</span>
               </button>
-            )
-          })}
-          {SHORTCUT_OPTIONS.filter(o => !selected.includes(o.id)).length === 0 && (
-            <div style={{ gridColumn: '1/-1', fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', padding: '8px' }}>
-              Todas las opciones están seleccionadas
-            </div>
+              {subLoading && <div style={{ textAlign: 'center', padding: '12px', fontSize: '13px', color: 'var(--color-text-muted)' }}>Cargando…</div>}
+              {!subLoading && dmList.length === 0 && <div style={{ textAlign: 'center', padding: '12px', fontSize: '13px', color: 'var(--color-text-muted)' }}>Sin conversaciones</div>}
+              {!subLoading && dmList.map(dm => {
+                const item = { type: 'dm', userId: dm.userId, username: dm.username }
+                const added = isAdded(item)
+                return (
+                  <button key={dm.userId} disabled={full || added} {...hover}
+                    onClick={() => add(item)}
+                    style={{ ...rowBtn, opacity: (full || added) ? 0.4 : 1, cursor: (full || added) ? 'default' : 'pointer', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AppIcon name="social" size={14} color="var(--color-text-muted)" />
+                      @{dm.username}
+                    </span>
+                    {added && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Añadido</span>}
+                  </button>
+                )
+              })}
+            </>
+          )}
+
+          {/* ── Picker de canals ── */}
+          {view === 'canal' && (
+            <>
+              <button disabled={full || isAdded({ type: 'tab', id: 'canales' })}
+                onClick={() => add({ type: 'tab', id: 'canales', label: 'Canales', icon: 'canales' })}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '11px 14px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', cursor: (full || isAdded({ type: 'tab', id: 'canales' })) ? 'default' : 'pointer', opacity: (full || isAdded({ type: 'tab', id: 'canales' })) ? 0.5 : 1, fontFamily: 'var(--font-sans)', transition: 'opacity 0.15s' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  <AppIcon name="canales" size={15} /> Canales (general)
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)' }}>Aceptar</span>
+              </button>
+              {subLoading && <div style={{ textAlign: 'center', padding: '12px', fontSize: '13px', color: 'var(--color-text-muted)' }}>Cargando…</div>}
+              {!subLoading && channelList.length === 0 && <div style={{ textAlign: 'center', padding: '12px', fontSize: '13px', color: 'var(--color-text-muted)' }}>Sin canales</div>}
+              {!subLoading && channelList.map(ch => {
+                const item = { type: 'channel', channelId: ch.id, inviteCode: ch.invite_code, name: ch.name, isPrivate: ch.is_private }
+                const added = isAdded(item)
+                return (
+                  <button key={ch.id} disabled={full || added} {...hover}
+                    onClick={() => add(item)}
+                    style={{ ...rowBtn, opacity: (full || added) ? 0.4 : 1, cursor: (full || added) ? 'default' : 'pointer', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AppIcon name={ch.is_private ? 'lock' : 'canales'} size={14} color="var(--color-text-muted)" />
+                      {ch.name}
+                    </span>
+                    {added && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Añadido</span>}
+                  </button>
+                )
+              })}
+            </>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleSave}
-            style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '11px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-            Guardar
-          </button>
-          <button onClick={onClose}
-            style={{ padding: '11px 20px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600, fontSize: '13px', fontFamily: 'var(--font-sans)', color: 'var(--color-text)' }}>
-            Cancelar
-          </button>
-        </div>
+        {/* Botons inferiors — només a la vista principal */}
+        {view === 'main' && (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexShrink: 0 }}>
+            <button onClick={() => { onSave(selected); onClose() }}
+              style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '11px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
+              Guardar
+            </button>
+            <button onClick={onClose}
+              style={{ padding: '11px 20px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600, fontSize: '13px', fontFamily: 'var(--font-sans)', color: 'var(--color-text)' }}>
+              Cancelar
+            </button>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   )
@@ -231,7 +400,16 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   const [shortcuts, setShortcuts] = useState(() => {
     try {
       const saved = localStorage.getItem(shortcutKey)
-      return saved ? JSON.parse(saved) : DEFAULT_SHORTCUTS
+      if (!saved) return DEFAULT_SHORTCUTS
+      const parsed = JSON.parse(saved)
+      // Migra format antic (string[]) → nou format (object[])
+      if (Array.isArray(parsed) && parsed.length && typeof parsed[0] === 'string') {
+        return parsed.map(id => {
+          const opt = SHORTCUT_OPTIONS.find(o => o.id === id)
+          return opt ? { type: 'tab', id: opt.id, label: opt.label, icon: opt.icon } : null
+        }).filter(Boolean)
+      }
+      return parsed
     } catch { return DEFAULT_SHORTCUTS }
   })
 
@@ -244,9 +422,6 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [adminWarning, setAdminWarning] = useState(null)
   const [deletedChannels, setDeletedChannels] = useState([])
-  const [recentPurchase, setRecentPurchase] = useState(null)
-  const purchaseCheckedRef = useRef(false)
-
   useEffect(() => {
     if (!user?.id) return
     supabase.from('profiles').select('avatar_url, is_verified, verified_notified, admin_warning, warning_notified').eq('id', user.id).single()
@@ -278,31 +453,6 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
       })
   }, [user?.id])
 
-  // Detecta compres recents (últims 30min) no mostrades encara — per si l'usuari estava dins l'app
-  useEffect(() => {
-    if (!user?.id || purchaseCheckedRef.current) return
-    purchaseCheckedRef.current = true
-    const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-    supabase
-      .from('purchases')
-      .select('id, token, channels(name, invite_code), offers(name)')
-      .eq('user_id', user.id)
-      .gte('created_at', cutoff)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return
-        if (!localStorage.getItem(`fyb_purchase_notified_${data.id}`)) {
-          setRecentPurchase(data)
-        }
-      })
-  }, [user?.id])
-
-  const dismissRecentPurchase = () => {
-    if (recentPurchase) localStorage.setItem(`fyb_purchase_notified_${recentPurchase.id}`, '1')
-    setRecentPurchase(null)
-  }
 
   const [preselectedChannelId, setPreselectedChannelId] = useState(null)
   const [searchParams] = useSearchParams()
@@ -315,7 +465,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
   } = useBets(user)
 
   const { count: unreadCount, setConvCount: setDmUnreadCount, refetch: refetchDmUnread } = useUnreadDMCount(user?.id)
-  const { count: unreadChannelCount, unreadCounts: unreadChannelCounts, setChannelCount: setChannelUnreadCount, refetch: refetchChannelUnread } = useUnreadChannelCount(user?.id)
+  const { count: unreadChannelCount, unreadCounts: unreadChannelCounts, setChannelCount: setChannelUnreadCount, setActiveChannel: setActiveChannelUnread, refetch: refetchChannelUnread } = useUnreadChannelCount(user?.id)
   // Heartbeat de presència: alimenta les analítiques d'usuaris actius de l'admin.
   usePresence(user?.id)
   // Follow compartit per al perfil emergent global (mateixa font que Social/Tipsters).
@@ -393,46 +543,11 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             shortcuts={shortcuts}
             onSave={saveShortcuts}
             onClose={() => setShowShortcutConfig(false)}
+            userId={user?.id}
           />
         )}
       </AnimatePresence>
 
-      {/* Modal de compra recent — si l'usuari estava dins l'app quan va completar el pagament */}
-      <AnimatePresence>
-        {recentPurchase && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 310, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-            onClick={dismissRecentPurchase}>
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-              style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px 28px', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', textAlign: 'center', fontFamily: 'var(--font-sans)' }}>
-              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', color: 'var(--color-primary)', fontWeight: 700 }}>✓</div>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--color-text)', marginBottom: '6px' }}>¡Enhorabuena por tu compra! 🎉</div>
-                <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-                  {recentPurchase.offers?.name && <span>Compraste <strong style={{ color: 'var(--color-text)' }}>{recentPurchase.offers.name}</strong><br /></span>}
-                  Canal <strong style={{ color: 'var(--color-text)' }}>{recentPurchase.channels?.name}</strong>
-                </div>
-              </div>
-              <div style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', textAlign: 'left' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Tu enlace personal</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-primary)', wordBreak: 'break-all', lineHeight: 1.5 }}>
-                  {`${window.location.origin}/acceso/${recentPurchase.token}`}
-                </div>
-              </div>
-              <button
-                onClick={() => { dismissRecentPurchase(); if (recentPurchase.channels?.invite_code) setPendingCanalCode(recentPurchase.channels.invite_code); setTab('canales') }}
-                style={{ width: '100%', background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '14px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '15px', fontFamily: 'var(--font-sans)' }}>
-                Entrar al canal →
-              </button>
-              <button onClick={dismissRecentPurchase}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                Cerrar
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Avís de l'admin (text custom) — apareix una sola vegada */}
       <AnimatePresence>
@@ -441,7 +556,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 310, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-warning)', borderRadius: 'var(--radius-xl)', padding: '36px 28px', maxWidth: '460px', width: '100%', textAlign: 'center', boxShadow: '0 0 40px rgba(245,158,11,0.25)' }}>
-              <div style={{ fontSize: '40px', marginBottom: '14px' }}>⚠️</div>
+              <div style={{ marginBottom: '14px' }}><AppIcon name="warning" size={40} color="var(--color-warning)" /></div>
               <div style={{ fontWeight: 700, fontSize: '20px', marginBottom: '12px', color: 'var(--color-warning)' }}>Aviso del equipo FYB</div>
               <div style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap', textAlign: 'left', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: '24px' }}>
                 {adminWarning}
@@ -462,7 +577,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 309, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '36px 28px', maxWidth: '460px', width: '100%', textAlign: 'center', boxShadow: '0 0 40px rgba(239,68,68,0.25)' }}>
-              <div style={{ fontSize: '40px', marginBottom: '14px' }}>🚫</div>
+              <div style={{ marginBottom: '14px' }}><AppIcon name="ban" size={40} color="var(--color-error)" /></div>
               <div style={{ fontWeight: 700, fontSize: '20px', marginBottom: '12px', color: 'var(--color-error)' }}>
                 {deletedChannels.length === 1 ? 'Canal eliminado' : `${deletedChannels.length} canales eliminados`}
               </div>
@@ -497,13 +612,13 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-xl)', padding: '40px 32px', maxWidth: '420px', width: '100%', textAlign: 'center', boxShadow: '0 0 40px rgba(15,110,86,0.2)' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: 900, color: '#010906', margin: '0 auto 20px' }}>✓</div>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#010906', margin: '0 auto 20px' }}><AppIcon name="check" size={26} /></div>
               <div style={{ fontWeight: 700, fontSize: '22px', marginBottom: '10px' }}>¡Estás verificado en FYB!</div>
               <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '28px' }}>
                 El equipo de FYB ha verificado tu cuenta. A partir de ahora:<br />
-                <span style={{ color: 'var(--color-text)' }}>✓ Badge verificado visible en tu perfil</span><br />
-                <span style={{ color: 'var(--color-text)' }}>✓ Apareces en la sección Verificados de Tipsters</span><br />
-                <span style={{ color: 'var(--color-text)' }}>✓ Acceso prioritario a futuras funciones exclusivas</span>
+                <span style={{ color: 'var(--color-text)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={12} color="var(--color-primary)" /> Badge verificado visible en tu perfil</span><br />
+                <span style={{ color: 'var(--color-text)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={12} color="var(--color-primary)" /> Apareces en la sección Verificados de Tipsters</span><br />
+                <span style={{ color: 'var(--color-text)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={12} color="var(--color-primary)" /> Acceso prioritario a futuras funciones exclusivas</span>
               </div>
               <button onClick={() => setShowVerifiedModal(false)}
                 style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-lg)', padding: '12px 32px', cursor: 'pointer', fontWeight: 700, fontSize: '15px', fontFamily: 'var(--font-sans)' }}>
@@ -528,7 +643,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '21px', fontWeight: 800 }}>FindYour<span style={{ color: 'var(--color-primary)' }}>Bet</span></div>
                   <button onClick={() => setShowBetaModal(false)}
-                    style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: '4px' }}>✕</button>
+                    style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '4px', display: 'flex' }}><AppIcon name="close" size={18} /></button>
                 </div>
                 <span style={{ display: 'inline-block', background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '0.5px solid var(--color-primary-border)', borderRadius: '999px', padding: '3px 10px', fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px' }}>
                   {APP_VERSION}
@@ -538,7 +653,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
               {/* Cos amb scroll */}
               <div style={{ padding: '20px 28px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
                 <section>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🎯 Qué es y qué buscamos</div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Qué es y qué buscamos</div>
                   <p style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.65, margin: 0 }}>
                     FindYourBet es una <strong>red social de pronósticos deportivos</strong>, no un simple tracker. Nuestro objetivo es que los pronósticos dejen de ser algo opaco y solitario: aquí registras tus picks, ves tu rendimiento real con datos verificables y descubres a los tipsters que de verdad ganan a largo plazo.
                   </p>
@@ -548,7 +663,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 </section>
 
                 <section>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🧭 Cómo usarla</div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Cómo usarla</div>
                   <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Registra tus picks</strong> en el Historial para que tus estadísticas (yield, acierto, racha) sean reales.</li>
                     <li><strong>Sigue a tipsters</strong> y entra en sus canales para ver sus picks y análisis en tiempo real.</li>
@@ -558,7 +673,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 </section>
 
                 <section>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>✅ Qué incluye ahora</div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Qué incluye ahora</div>
                   <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li>Registro de picks con estadísticas e historial completo</li>
                     <li>Canales públicos con chat, picks y encuestas</li>
@@ -571,7 +686,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 </section>
 
                 <section>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🚧 Próximamente</div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}><AppIcon name="clock" size={12} /> Próximamente</div>
                   <ul style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6, margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Canales privados</strong> (por enlace, VIP de pago y stakazos) — todavía no disponibles</li>
                     <li>Actualizaciones en <strong>tiempo real</strong> (sin esperas de recarga)</li>
@@ -583,7 +698,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 </section>
 
                 <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.6, background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                  Estás usando una <strong>beta privada</strong>: algunas cosas pueden cambiar o fallar. Tu feedback nos ayuda a mejorar — escríbenos desde <strong>Contacto / Sugerencias</strong>.
+                  FindYourBet está en beta pública. Algunas cosas pueden cambiar o mejorar. Tu feedback nos ayuda — escríbenos desde <strong>Contacto / Sugerencias</strong>.
                 </div>
               </div>
 
@@ -612,22 +727,55 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
             </motion.button>
           </div>
           <div className="dash-nav-tabs">
-            {shortcuts.map(id => {
-              const opt = SHORTCUT_OPTIONS.find(o => o.id === id)
-              if (!opt) return null
-              return (
-                <motion.button key={id}
-                  className={`dash-tab ${tab === id ? 'active' : ''}`}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setTab(id)}>
-                  {opt.label}
-                  {id === 'social' && unreadCount > 0 && (
-                    <span style={{ marginLeft: '6px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </motion.button>
-              )
+            {shortcuts.map(item => {
+              const key = scKey(item)
+              if (item.type === 'tab') {
+                const opt = SHORTCUT_OPTIONS.find(o => o.id === item.id)
+                if (!opt) return null
+                return (
+                  <motion.button key={key}
+                    className={`dash-tab ${tab === item.id ? 'active' : ''}`}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setTab(item.id)}>
+                    {opt.label}
+                    {item.id === 'social' && unreadCount > 0 && (
+                      <span style={{ marginLeft: '6px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                    {item.id === 'canales' && unreadChannelCount > 0 && (
+                      <span style={{ marginLeft: '6px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
+                        {unreadChannelCount > 9 ? '9+' : unreadChannelCount}
+                      </span>
+                    )}
+                  </motion.button>
+                )
+              }
+              if (item.type === 'dm') {
+                return (
+                  <motion.button key={key}
+                    className="dash-tab"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleStartDMExternal(item.userId)}
+                    title={`@${item.username}`}>
+                    <AppIcon name="social" size={12} style={{ marginRight: 3, opacity: 0.55, flexShrink: 0 }} />
+                    {item.username}
+                  </motion.button>
+                )
+              }
+              if (item.type === 'channel') {
+                return (
+                  <motion.button key={key}
+                    className="dash-tab"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleNavigateToChannel({ invite_code: item.inviteCode })}
+                    title={item.name}>
+                    <AppIcon name={item.isPrivate ? 'lock' : 'canales'} size={12} style={{ marginRight: 3, opacity: 0.55, flexShrink: 0 }} />
+                    {item.name}
+                  </motion.button>
+                )
+              }
+              return null
             })}
             <motion.button whileTap={{ scale: 0.97 }}
               onClick={() => setShowShortcutConfig(true)}
@@ -635,7 +783,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
               style={{ padding: '7px 10px', fontSize: '13px', fontWeight: 500, color: 'var(--color-text-muted)', background: 'transparent', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.opacity = 1}
               onMouseLeave={e => e.currentTarget.style.opacity = 0.5}>
-              ✏️
+              <AppIcon name="edit" size={15} />
             </motion.button>
           </div>
         </div>
@@ -643,14 +791,14 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
           {/* CAMPANA NOTIFICACIONS */}
           <div style={{ position: 'relative' }}>
             <motion.button whileTap={{ scale: 0.9 }} onClick={() => { const next = !showNotifs; setShowNotifs(next); if (!next) markAllRead() }}
-              style={{ position: 'relative', background: showNotifs ? 'var(--color-bg-soft)' : 'none', border: '0.5px solid', borderColor: showNotifs ? 'var(--color-border)' : 'transparent', borderRadius: 'var(--radius-md)', cursor: 'pointer', padding: '7px 10px', fontSize: '18px', display: 'flex', alignItems: 'center' }}>
-              🔔
-              {notifCount > 0 && (
-                <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '9px', fontWeight: 700, padding: '1px 5px', minWidth: '16px', textAlign: 'center', lineHeight: '14px' }}>
-                  {notifCount > 9 ? '9+' : notifCount}
-                </span>
-              )}
+              style={{ background: showNotifs ? 'var(--color-bg-soft)' : 'none', border: '0.5px solid', borderColor: showNotifs ? 'var(--color-border)' : 'transparent', borderRadius: 'var(--radius-md)', cursor: 'pointer', padding: '7px 10px', display: 'flex', alignItems: 'center' }}>
+              <AppIcon name="bell" size={18} />
             </motion.button>
+            {notifCount > 0 && (
+              <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '9px', fontWeight: 700, padding: '1px 5px', minWidth: '16px', textAlign: 'center', lineHeight: '14px', pointerEvents: 'none' }}>
+                {notifCount > 9 ? '9+' : notifCount}
+              </span>
+            )}
             <AnimatePresence>
               {showNotifs && (
                 <NotificationsPanel
@@ -682,7 +830,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
         <aside className="dash-sidebar">
           <div className="sidebar-section">
             <button className="sidebar-item" onClick={() => setShowModal(true)}>
-              <span className="sidebar-icon">✏️</span>
+              <span className="sidebar-icon"><AppIcon name="newbet" size={15} /></span>
               Nuevo pick
             </button>
           </div>
@@ -694,7 +842,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                   <button
                     className={`sidebar-item ${tab === item.id ? 'active' : ''}`}
                     onClick={() => setTab(item.id)}>
-                    <span className="sidebar-icon">{item.icon}</span>
+                    <span className="sidebar-icon"><AppIcon name={item.icon} size={15} /></span>
                     {item.label}
                     {item.id === 'social' && unreadCount > 0 && (
                       <span style={{ marginLeft: 'auto', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
@@ -718,7 +866,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
               <button
                 className={`sidebar-item ${tab === 'admin' ? 'active' : ''}`}
                 onClick={() => setTab('admin')}>
-                <span className="sidebar-icon">⚙️</span>
+                <span className="sidebar-icon"><AppIcon name="admin" size={15} /></span>
                 Centro de control
                 {adminPendingCount > 0 && (
                   <span style={{ marginLeft: 'auto', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
@@ -768,6 +916,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
                 onAddBet={handleAddBetFromCanal}
                 unreadChannelCounts={unreadChannelCounts}
                 onActiveUnreadChange={setChannelUnreadCount}
+                onActiveChannelChange={setActiveChannelUnread}
                 onRefreshUnread={refetchChannelUnread}
               />
             </div>
@@ -811,7 +960,7 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
 
           {/* Centre de control admin — sense visited check, es munta/desmunta directament */}
           {tab === 'admin' && ADMIN_EMAILS.includes(user?.email) && (
-            <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}>⏳ Cargando panel...</div>}>
+            <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando panel...</div>}>
               <AdminPanel user={user} />
             </Suspense>
           )}

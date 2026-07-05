@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import AppIcon from '../../components/ui/AppIcon'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { FormLabel } from '../../components/ui/FormLabel'
@@ -43,7 +44,7 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
 
   useEffect(() => {
     if (!open || !user?.id || preselectedChannelId) return
-    supabase.from('channels').select('id, name, is_private').eq('owner_id', user.id)
+    supabase.from('channels').select('id, name, is_private').eq('owner_id', user.id).is('deleted_at', null)
       .then(({ data }) => setMyChannels(data || []))
   }, [open, user?.id])
 
@@ -148,7 +149,7 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
           <div key={c.id} onClick={() => toggleChannel(c.id)}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, background: selected ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.12s' }}>
             <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, background: selected ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}>
-              {selected && <span style={{ color: '#010906', fontSize: '10px', fontWeight: 700 }}>✓</span>}
+              {selected && <AppIcon name="check" size={10} color="#010906" />}
             </div>
             <span style={{ fontSize: '13px', fontWeight: selected ? 600 : 400, color: selected ? 'var(--color-primary)' : 'var(--color-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
           </div>
@@ -170,19 +171,19 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
           {/* Tabs Públicos / Privados */}
           <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '3px', marginBottom: '10px' }}>
             {[
-              { id: 'public',  label: '🌐 Públicos' },
-              { id: 'private', label: '🔒 Privados' },
+              { id: 'public',  icon: 'globe', label: 'Públicos' },
+              { id: 'private', icon: 'lock',  label: 'Privados' },
             ].map(t => (
               <button key={t.id} onClick={() => { setChannelTab(t.id); setChannelSearch('') }}
-                style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: channelTab === t.id ? 'var(--color-primary)' : 'transparent', color: channelTab === t.id ? '#010906' : 'var(--color-text-muted)' }}>
-                {t.label}
+                style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: channelTab === t.id ? 'var(--color-primary)' : 'transparent', color: channelTab === t.id ? '#010906' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                <AppIcon name={t.icon} size={12} />{t.label}
               </button>
             ))}
           </div>
 
           {/* Buscador */}
           <div style={{ position: 'relative', marginBottom: '8px' }}>
-            <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', pointerEvents: 'none', opacity: 0.4 }}>🔍</span>
+            <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><AppIcon name="search" size={13} /></span>
             <input
               type="text"
               placeholder="Entra el nombre del canal"
@@ -233,7 +234,7 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
                 <div style={{ position: 'absolute', top: '3px', left: createForm.isPrivate ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
               </div>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>🔒 Canal privado</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="lock" size={13} /> Canal privado</div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>Solo accesible con enlace de invitación.</div>
               </div>
             </div>
@@ -274,12 +275,12 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
             {/* MODE SWITCHER */}
             <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', marginBottom: '20px' }}>
               {[
-                { id: 'foto',   label: '📷 Foto (Recomendado)' },
-                { id: 'manual', label: '📝 Manual' },
+                { id: 'foto',   icon: 'camera',   label: 'Foto (Recomendado)' },
+                { id: 'manual', icon: 'document', label: 'Manual' },
               ].map(m => (
                 <button key={m.id} onClick={() => switchMode(m.id)}
-                  style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: mode === m.id ? 'var(--color-primary)' : 'transparent', color: mode === m.id ? '#010906' : 'var(--color-text-muted)' }}>
-                  {m.label}
+                  style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: mode === m.id ? 'var(--color-primary)' : 'transparent', color: mode === m.id ? '#010906' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <AppIcon name={m.icon} size={13} />{m.label}
                 </button>
               ))}
             </div>
@@ -380,10 +381,10 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
                       onDrop={handleDrop}
                       style={{ border: `1.5px dashed ${dragOver ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', padding: '40px 20px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', transition: 'all 0.15s' }}>
                       {uploading ? (
-                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>⏳ Subiendo imagen...</div>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="loading" size={14} /> Subiendo imagen...</div>
                       ) : (
                         <>
-                          <div style={{ fontSize: '36px', marginBottom: '8px' }}>📷</div>
+                          <div style={{ marginBottom: '8px', color: 'var(--color-text-muted)' }}><AppIcon name="camera" size={36} /></div>
                           <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Sube la foto de tu pick</div>
                           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Arrastra, toca para seleccionar o pega con Ctrl+V</div>
                         </>
@@ -433,14 +434,14 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
 
             {preselectedChannelId && (
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '18px', padding: '10px 12px', background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-primary-border)' }}>
-                📡 Este pick se publicará en este canal y se añadirá a tu historial.
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="canales" size={13} /> Este pick se publicará en este canal y se añadirá a tu historial.</span>
               </div>
             )}
 
             <label onClick={() => setConfirmed(v => !v)}
               style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 14px', background: confirmed ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', border: `0.5px solid ${confirmed ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', marginBottom: '14px', cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none' }}>
               <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${confirmed ? 'var(--color-primary)' : 'var(--color-border)'}`, background: confirmed ? 'var(--color-primary)' : 'transparent', flexShrink: 0, marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
-                {confirmed && <span style={{ color: '#010906', fontSize: '12px', fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                {confirmed && <AppIcon name="check" size={12} color="#010906" />}
               </div>
               <span style={{ fontSize: '12px', color: confirmed ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.6 }}>
                 He revisado bien el pick y entiendo que <strong>no podré editarlo ni borrarlo</strong> una vez publicado.
@@ -448,7 +449,7 @@ export function BetModal({ open, onClose, form, setForm, onSubmit, user, presele
             </label>
 
             <Button full onClick={() => onSubmit(preselectedChannelId)} disabled={!canSubmit}>
-              📤 Publicar Apuesta
+              <AppIcon name="send" size={14} style={{ marginRight: 6 }} /> Publicar Apuesta
             </Button>
           </motion.div>
         </motion.div>

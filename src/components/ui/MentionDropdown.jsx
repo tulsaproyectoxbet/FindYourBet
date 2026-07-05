@@ -1,5 +1,7 @@
 // Llista de suggeriments d'usuaris en escriure @ al xat.
 // Es posiciona just damunt de l'input (l'ancestre ha de ser position:relative).
+import AppIcon from './AppIcon'
+
 export default function MentionDropdown({ items, active, onPick }) {
   if (!items?.length) return null
   return (
@@ -14,7 +16,7 @@ export default function MentionDropdown({ items, active, onPick }) {
           <span style={{ fontSize: '13px', fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             @{u.username}{u._self ? ' (tú)' : ''}
           </span>
-          {u.is_verified && <span style={{ fontSize: '12px', color: 'var(--color-primary)', flexShrink: 0 }}>✓</span>}
+          {u.is_verified && <span style={{ color: 'var(--color-primary)', flexShrink: 0, display: 'flex' }}><AppIcon name="check" size={12} /></span>}
         </div>
       ))}
     </div>

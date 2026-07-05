@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
+import AppIcon from '../../../components/ui/AppIcon'
 
 const REPORT_REASONS = [
   'Spam o publicidad no deseada',
@@ -77,7 +78,7 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '28px', maxWidth: '440px', width: '100%', pointerEvents: 'auto' }}>
           {sent ? (
             <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+              <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
               <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px' }}>Reporte enviado</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
                 Revisaremos el perfil de <strong>{reportedUsername}</strong> lo antes posible.
@@ -91,14 +92,14 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '3px' }}>🚩 Reportar usuario</div>
+                  <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={17} /> Reportar usuario</div>
                   <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
                     ¿Quieres reportar a <strong style={{ color: 'var(--color-text)' }}>{reportedUsername}</strong>?
                   </div>
                 </div>
                 <button onClick={onClose}
                   style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text-muted)', width: '30px', height: '30px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'var(--font-sans)' }}>
-                  ✕
+                  <AppIcon name="close" size={14} />
                 </button>
               </div>
 

@@ -4,6 +4,7 @@ import ForwardModal from '../social/ForwardModal'
 import PostModal from './PostModal'
 import { useProfileNav } from '../../../contexts/ProfileNavContext'
 import Username from '../../../components/ui/Username'
+import AppIcon from '../../../components/ui/AppIcon'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -86,7 +87,7 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
                   style={{ position: 'absolute', top: '30px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '160px', overflow: 'hidden' }}>
                   <button onClick={() => { onReport?.(post.id); setShowMenu(false) }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-error)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                    <span>🚩</span><span>Reportar</span>
+                    <AppIcon name="flag" size={13} /><span>Reportar</span>
                   </button>
                 </motion.div>
               </>
@@ -148,17 +149,17 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '6px 8px 10px', borderTop: '0.5px solid var(--color-border)' }}>
           <motion.button whileTap={{ scale: 0.88 }} onClick={() => onLike(post.id, hasLiked)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: hasLiked ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontWeight: hasLiked ? 700 : 400, borderRadius: 'var(--radius-md)' }}>
-            <span>{hasLiked ? '❤️' : '🤍'}</span>
+            <AppIcon name="heart" size={15} color={hasLiked ? 'var(--color-primary)' : undefined} />
             {likeCount > 0 && <span style={{ fontSize: '13px' }}>{likeCount}</span>}
           </motion.button>
           <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowModal(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-            <span>💬</span>
+            <AppIcon name="social" size={15} />
             {commentCount > 0 && <span style={{ fontSize: '13px' }}>{commentCount}</span>}
           </motion.button>
           <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowForward(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
-            <span style={{ fontSize: '15px' }}>↩</span>
+            <AppIcon name="arrowOut" size={15} />
             <span>Reenviar</span>
           </motion.button>
           {channel && (

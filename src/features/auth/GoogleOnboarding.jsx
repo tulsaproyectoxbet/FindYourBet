@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { isReservedUsername, isUsernameBanned } from '../../lib/reservedUsernames'
 import { Input } from '../../components/ui/Input'
 import { FormLabel } from '../../components/ui/FormLabel'
+import AppIcon from '../../components/ui/AppIcon'
 import './auth.css'
 
 const NATIONALITIES = ['España', 'México', 'Argentina', 'Colombia', 'Chile', 'Perú', 'Venezuela', 'Ecuador', 'Bolivia', 'Paraguay', 'Uruguay', 'Otra']
@@ -149,7 +150,7 @@ export default function GoogleOnboarding({ user, onComplete }) {
           </motion.div>
 
           <motion.div className="auth-privacy-note" variants={fadeUp} custom={7}>
-            🔒 Tus datos están protegidos y nunca serán compartidos con terceros.
+            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Tus datos están protegidos y nunca serán compartidos con terceros.
           </motion.div>
 
         </motion.div>

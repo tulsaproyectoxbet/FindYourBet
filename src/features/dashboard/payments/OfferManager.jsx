@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { MIN_ACCESS_PRICE } from '../../../lib/commission'
 import { clampLines, LINE_LIMIT } from '../../../lib/textLimits'
+import AppIcon from '../../../components/ui/AppIcon'
 
 function formatPrice(cents) {
   return (cents / 100).toFixed(2).replace('.', ',') + ' €'
@@ -13,7 +14,7 @@ function CopyButton({ text }) {
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
       style={{ padding: '5px 10px', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: copied ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: copied ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-      {copied ? '✓' : '📋'}
+      {copied ? <AppIcon name="check" size={13} /> : <AppIcon name="copy" size={13} />}
     </button>
   )
 }
@@ -116,7 +117,9 @@ export default function OfferManager({ channelId, userId }) {
       {!stripeStatus?.onboarded ? (
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
           <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', marginBottom: '4px' }}>
-            {stripeStatus?.connected ? '⏳ Verificación incompleta' : '💳 Conecta Stripe para cobrar'}
+            {stripeStatus?.connected
+              ? <><AppIcon name="clock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Verificación incompleta</>
+              : <><AppIcon name="creditCard" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Conecta Stripe para cobrar</>}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '12px', lineHeight: 1.5 }}>
             {stripeStatus?.connected
@@ -129,7 +132,7 @@ export default function OfferManager({ channelId, userId }) {
         </div>
       ) : (
         <div style={{ background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600 }}>
-          ✓ Stripe conectado y verificado
+          <AppIcon name="check" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} /> Stripe conectado y verificado
         </div>
       )}
 
@@ -161,7 +164,7 @@ export default function OfferManager({ channelId, userId }) {
                       {offer.active ? 'Pausar' : 'Activar'}
                     </button>
                     <button onClick={() => handleDeleteOffer(offer.id)} style={{ padding: '5px 8px', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '11px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-                      🗑
+                      <AppIcon name="delete" size={14} />
                     </button>
                   </div>
                 </div>

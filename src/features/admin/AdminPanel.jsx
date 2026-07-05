@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { ADMIN_USER_IDS } from '../../lib/adminUsers'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../lib/textLimits'
+import AppIcon from '../../components/ui/AppIcon'
 
 // Emails amb accés al panell d'administració.
 // Afegir més si cal.
@@ -39,7 +40,7 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
             <span>Cuota: {parseFloat(bet.odds || 0).toFixed(2)}</span>
             <span>Stake: {bet.stake}</span>
             <span style={{ color: bet.status === 'won' ? 'var(--color-primary)' : bet.status === 'lost' ? 'var(--color-error)' : bet.status === 'void' ? 'var(--color-info)' : 'var(--color-text-muted)', fontWeight: 600 }}>
-              {bet.status === 'won' ? '✓ Ganada' : bet.status === 'lost' ? '✗ Perdida' : bet.status === 'void' ? '● Nula' : '⏳ Pendiente'}
+              {bet.status === 'won' ? <><AppIcon name="check" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Ganada</> : bet.status === 'lost' ? <><AppIcon name="close" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Perdida</> : bet.status === 'void' ? '● Nula' : <><AppIcon name="loading" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Pendiente</>}
             </span>
           </div>
           <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -59,11 +60,11 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
           </button>
           <button onClick={() => act(onClear)} disabled={loading}
             style={{ padding: '6px 12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'var(--font-sans)' }}>
-            ✓ Validar
+            <AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Validar
           </button>
           <button onClick={() => act(onInvalidate)} disabled={loading}
             style={{ padding: '6px 12px', background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--color-error)', fontFamily: 'var(--font-sans)' }}>
-            ✕ Invalidar
+            <AppIcon name="close" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Invalidar
           </button>
         </div>
       </div>
@@ -86,9 +87,9 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
 }
 
 const SG_STATUS_OPTIONS = [
-  { value: 'pending',  label: '⏳ Pendiente' },
-  { value: 'accepted', label: '✅ Aceptada' },
-  { value: 'rejected', label: '❌ Rechazada' },
+  { value: 'pending',  label: 'Pendiente' },
+  { value: 'accepted', label: 'Aceptada' },
+  { value: 'rejected', label: 'Rechazada' },
 ]
 const SG_STATUS_COLORS = {
   pending:  { border: 'var(--color-warning)',        left: 'rgba(245,158,11,0.6)' },
@@ -144,7 +145,7 @@ function SuggestionRow({ suggestion, onUpdate }) {
 
           {suggestion.image_url && (
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '6px' }}>📷 Imagen adjunta</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="camera" size={11} /> Imagen adjunta</div>
               <a href={suggestion.image_url} target="_blank" rel="noopener noreferrer">
                 <img src={suggestion.image_url} alt="Adjunto" style={{ maxWidth: '320px', maxHeight: '240px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
               </a>
@@ -169,7 +170,7 @@ function SuggestionRow({ suggestion, onUpdate }) {
 
           <button onClick={handleSave} disabled={saving}
             style={{ marginTop: '12px', background: saved ? 'var(--color-primary-light)' : 'var(--color-primary)', color: saved ? 'var(--color-primary)' : '#010906', border: saved ? '0.5px solid var(--color-primary-border)' : 'none', padding: '8px 20px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', transition: 'all 0.2s', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar cambios'}
+            {saving ? 'Guardando...' : saved ? <><AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Guardado</> : 'Guardar cambios'}
           </button>
         </div>
       )}
@@ -186,7 +187,7 @@ function SugerenciasTab({ adminUserId }) {
     (async () => {
       const { data, error } = await supabase.from('suggestions')
         .select('id, title, message, status, admin_response, image_url, created_at, user_id')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }).limit(50)
       if (error) { console.error('[SugerenciasTab]', error); setLoading(false); return }
       if (!data?.length) { setSuggestions([]); setLoading(false); return }
 
@@ -213,11 +214,11 @@ function SugerenciasTab({ adminUserId }) {
   const displayed = filter === 'all' ? suggestions : suggestions.filter(s => s.status === filter)
   const pending = suggestions.filter(s => s.status === 'pending').length
 
-  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
 
   if (!suggestions.length) return (
     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
-      <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+      <div style={{ marginBottom: '8px' }}><AppIcon name="message" size={32} /></div>
       <div>Sin sugerencias aún.</div>
     </div>
   )
@@ -227,9 +228,14 @@ function SugerenciasTab({ adminUserId }) {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{suggestions.length} total · {pending} pendiente{pending !== 1 ? 's' : ''}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
-          {[['all', 'Todas'], ['pending', '⏳'], ['accepted', '✅'], ['rejected', '❌']].map(([val, label]) => (
+          {[
+              { val: 'all',      label: 'Todas' },
+              { val: 'pending',  label: <AppIcon name="clock" size={12} /> },
+              { val: 'accepted', label: <AppIcon name="check" size={12} /> },
+              { val: 'rejected', label: <AppIcon name="close" size={12} /> },
+            ].map(({ val, label }) => (
             <button key={val} onClick={() => setFilter(val)}
-              style={{ padding: '4px 10px', border: `0.5px solid ${filter === val ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: filter === val ? 'var(--color-primary-light)' : 'transparent', color: filter === val ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: filter === val ? 700 : 400, fontFamily: 'var(--font-sans)' }}>
+              style={{ padding: '4px 10px', border: `0.5px solid ${filter === val ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: filter === val ? 'var(--color-primary-light)' : 'transparent', color: filter === val ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: filter === val ? 700 : 400, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {label}
             </button>
           ))}
@@ -241,9 +247,9 @@ function SugerenciasTab({ adminUserId }) {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'pending',  label: '⏳ Pendiente' },
-  { value: 'resolved', label: '✅ Arreglado' },
-  { value: 'rejected', label: '❌ Rechazado' },
+  { value: 'pending',  label: 'Pendiente' },
+  { value: 'resolved', label: 'Arreglado' },
+  { value: 'rejected', label: 'Rechazado' },
 ]
 
 const STATUS_COLORS = {
@@ -305,7 +311,7 @@ function TicketRow({ ticket, onUpdate }) {
 
           {ticket.image_url && (
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '6px' }}>📷 Imagen adjunta</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="camera" size={11} /> Imagen adjunta</div>
               <a href={ticket.image_url} target="_blank" rel="noopener noreferrer">
                 <img src={ticket.image_url} alt="Adjunto" style={{ maxWidth: '320px', maxHeight: '240px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
               </a>
@@ -330,7 +336,7 @@ function TicketRow({ ticket, onUpdate }) {
 
           <button onClick={handleSave} disabled={saving}
             style={{ marginTop: '12px', background: saved ? 'var(--color-primary-light)' : 'var(--color-primary)', color: saved ? 'var(--color-primary)' : '#010906', border: saved ? '0.5px solid var(--color-primary-border)' : 'none', padding: '8px 20px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', transition: 'all 0.2s', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar cambios'}
+            {saving ? 'Guardando...' : saved ? <><AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Guardado</> : 'Guardar cambios'}
           </button>
         </div>
       )}
@@ -347,7 +353,7 @@ function ProblemasTab() {
     (async () => {
       const { data, error } = await supabase.from('support_tickets')
         .select('id, title, message, email, status, admin_response, image_url, created_at, user_id')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }).limit(50)
       if (error) { console.error('[ProblemasTab]', error); setLoading(false); return }
       if (!data?.length) { setTickets([]); setLoading(false); return }
 
@@ -369,11 +375,11 @@ function ProblemasTab() {
   const displayed = filter === 'all' ? tickets : tickets.filter(t => t.status === filter)
   const pending = tickets.filter(t => t.status === 'pending').length
 
-  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
 
   if (!tickets.length) return (
     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
-      <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+      <div style={{ marginBottom: '8px' }}><AppIcon name="success" size={32} /></div>
       <div>Sin problemas reportados.</div>
     </div>
   )
@@ -383,9 +389,14 @@ function ProblemasTab() {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{tickets.length} total · {pending} pendiente{pending !== 1 ? 's' : ''}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
-          {[['all', 'Todos'], ['pending', '⏳'], ['resolved', '✅'], ['rejected', '❌']].map(([val, label]) => (
+          {[
+              { val: 'all',      label: 'Todos' },
+              { val: 'pending',  label: <AppIcon name="clock" size={12} /> },
+              { val: 'resolved', label: <AppIcon name="check" size={12} /> },
+              { val: 'rejected', label: <AppIcon name="close" size={12} /> },
+            ].map(({ val, label }) => (
             <button key={val} onClick={() => setFilter(val)}
-              style={{ padding: '4px 10px', border: `0.5px solid ${filter === val ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: filter === val ? 'var(--color-primary-light)' : 'transparent', color: filter === val ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: filter === val ? 700 : 400, fontFamily: 'var(--font-sans)' }}>
+              style={{ padding: '4px 10px', border: `0.5px solid ${filter === val ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: filter === val ? 'var(--color-primary-light)' : 'transparent', color: filter === val ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: filter === val ? 700 : 400, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {label}
             </button>
           ))}
@@ -427,7 +438,7 @@ function VerificadosTab() {
   const rest = filtered.filter(p => !p.is_verified)
   const displayed = [...verified, ...rest]
 
-  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
 
   return (
     <div>
@@ -442,7 +453,7 @@ function VerificadosTab() {
           onFocus={e => e.target.style.borderColor = 'var(--color-primary)'}
           onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
         />
-        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px', opacity: 0.5, pointerEvents: 'none' }}>🔍</span>
+        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none', display: 'flex' }}><AppIcon name="search" size={14} /></span>
       </div>
 
       <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
@@ -461,12 +472,12 @@ function VerificadosTab() {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontWeight: 600, fontSize: '13px' }}>{p.username}</span>
             {p.is_verified && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '15px', height: '15px', borderRadius: '50%', background: 'var(--color-primary)', color: '#010906', fontSize: '9px', fontWeight: 900 }}>✓</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '15px', height: '15px', borderRadius: '50%', background: 'var(--color-primary)', color: '#010906' }}><AppIcon name="check" size={9} /></span>
             )}
           </div>
           <button onClick={() => handleToggle(p)} disabled={toggling === p.id}
             style={{ padding: '5px 12px', border: `0.5px solid ${p.is_verified ? 'var(--color-error-border)' : 'var(--color-primary-border)'}`, borderRadius: 'var(--radius-md)', background: p.is_verified ? 'var(--color-error-light)' : 'var(--color-primary-light)', color: p.is_verified ? 'var(--color-error)' : 'var(--color-primary)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: toggling === p.id ? 0.5 : 1 }}>
-            {p.is_verified ? '✕ Desverificar' : '✓ Verificar'}
+            {p.is_verified ? <><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Desverificar</> : <><AppIcon name="check" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Verificar</>}
           </button>
         </div>
       ))}
@@ -540,11 +551,11 @@ function UserReportsTab() {
     return n
   })
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
 
   if (reports.length === 0) return (
     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
-      <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+      <div style={{ marginBottom: '8px' }}><AppIcon name="success" size={32} /></div>
       <div>Sin reportes de usuarios.</div>
     </div>
   )
@@ -570,10 +581,10 @@ function UserReportsTab() {
           {g.hasPending ? (
             <button onClick={(e) => { e.stopPropagation(); markGroupReviewed(g) }}
               style={{ padding: '5px 12px', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-              ✓ Marcar revisado
+              <AppIcon name="check" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Marcar revisado
             </button>
           ) : (
-            <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, flexShrink: 0 }}>✓ Revisado</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={12} /> Revisado</span>
           )}
         </div>
         {/* Detall: motiu de cada reporter (dedupat) */}
@@ -790,12 +801,12 @@ function AnalyticsTab() {
       <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>{rangeLabel}</div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>⏳ Cargando analíticas...</div>
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando analíticas...</div>
       ) : !data ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>No se pudieron cargar las analíticas.</div>
       ) : (
         <>
-          <Section title="👥 Usuarios" />
+          <Section title="Usuarios" />
           <div style={grid}>
             <Kpi label="Total registrados" value={fmt(data.usersTotal)} color="var(--color-primary)" hint="Histórico" />
             <Kpi label="Nuevos hoy" value={fmt(data.usersToday)} />
@@ -803,10 +814,10 @@ function AnalyticsTab() {
             <Kpi label="Nuevos en el rango" value={fmt(data.usersRange)} color="var(--color-primary)" hint={rangeLabel} />
           </div>
 
-          <Section title="🟢 Actividad" />
+          <Section title="Actividad" />
           {presenceErr && (
             <div style={{ fontSize: '12px', color: 'var(--color-warning, #f59e0b)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: '10px', lineHeight: 1.5 }}>
-              ⚠️ Falta la columna <strong>last_seen</strong> en la tabla profiles. Ejecuta el SQL que te ha pasado el asistente en Supabase para empezar a registrar la actividad.
+              <AppIcon name="warning" size={13} color="var(--color-warning, #f59e0b)" style={{ marginRight: 5, verticalAlign: 'middle' }} /> Falta la columna <strong>last_seen</strong> en la tabla profiles. Ejecuta el SQL que te ha pasado el asistente en Supabase para empezar a registrar la actividad.
             </div>
           )}
           <div style={grid}>
@@ -816,7 +827,7 @@ function AnalyticsTab() {
             <Kpi label="Activos en el rango" value={fmt(data.activeRange)} hint={rangeLabel} />
           </div>
 
-          <Section title="📊 Contenido y actividad" />
+          <Section title="Contenido y actividad" />
           <div style={grid}>
             <Kpi label="Total apuestas" value={fmt(data.betsTotal)} color="var(--color-primary)" hint="Histórico" />
             <Kpi label="Apuestas hoy" value={fmt(data.betsToday)} />
@@ -824,7 +835,7 @@ function AnalyticsTab() {
             <Kpi label="Canales activos" value={fmt(data.channels)} />
           </div>
 
-          <Section title="📈 Evolución diaria (rango)" />
+          <Section title="Evolución diaria (rango)" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
             <MiniBars title="Nuevos registros / día" days={data.regSeries} color="var(--color-primary)" />
             <MiniBars title="Apuestas / día" days={data.betSeries} color="var(--color-warning, #f59e0b)" />
@@ -870,6 +881,7 @@ export default function AdminPanel({ user }) {
       .select('*')
       .eq('review_status', 'review')
       .order('created_at', { ascending: false })
+      .limit(50)
 
     if (!bets?.length) { setReviewBets([]); setReportsByBet({}); setLoading(false); return }
 
@@ -912,7 +924,7 @@ export default function AdminPanel({ user }) {
   if (!isAdmin) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-text-muted)' }}>
-        <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔒</div>
+        <div style={{ marginBottom: '12px' }}><AppIcon name="lock" size={32} /></div>
         <div>Acceso restringido.</div>
       </div>
     )
@@ -921,23 +933,23 @@ export default function AdminPanel({ user }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontWeight: 700, fontSize: '22px', marginBottom: '4px' }}>⚙️ Centro de control</h2>
+        <h2 style={{ fontWeight: 700, fontSize: '22px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="settings" size={20} /> Centro de control</h2>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Gestión interna de FYB.</p>
       </div>
 
       {/* Pestanyes del panell */}
       <div style={{ display: 'flex', gap: '4px', borderBottom: '0.5px solid var(--color-border)', marginBottom: '20px' }}>
         {[
-          { id: 'analiticas',   label: '📊 Analíticas' },
-          { id: 'review',       label: `🚩 Picks en revisión${reviewBets.length > 0 ? ` (${reviewBets.length})` : ''}` },
-          { id: 'problemas',    label: `🆘 Problemas${pendingTicketsCount > 0 ? ` (${pendingTicketsCount})` : ''}` },
-          { id: 'sugerencias',  label: `💬 Sugerencias${suggestionsCount > 0 ? ` (${suggestionsCount})` : ''}` },
-          { id: 'verificados',  label: '✓ Verificados' },
-          { id: 'reportes',     label: `👤 Reportes${userReportsCount > 0 ? ` (${userReportsCount})` : ''}` },
+          { id: 'analiticas',   icon: 'stats',       label: 'Analíticas' },
+          { id: 'review',       icon: 'flag',        label: `Picks en revisión${reviewBets.length > 0 ? ` (${reviewBets.length})` : ''}` },
+          { id: 'problemas',    icon: 'warning',     label: `Problemas${pendingTicketsCount > 0 ? ` (${pendingTicketsCount})` : ''}` },
+          { id: 'sugerencias',  icon: 'message',     label: `Sugerencias${suggestionsCount > 0 ? ` (${suggestionsCount})` : ''}` },
+          { id: 'verificados',  icon: 'shieldCheck', label: 'Verificados' },
+          { id: 'reportes',     icon: 'users',       label: `Reportes${userReportsCount > 0 ? ` (${userReportsCount})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{ padding: '8px 16px', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === t.id ? 700 : 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-            {t.label}
+            style={{ padding: '8px 16px', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === t.id ? 700 : 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <AppIcon name={t.icon} size={13} />{t.label}
           </button>
         ))}
       </div>
@@ -951,10 +963,10 @@ export default function AdminPanel({ user }) {
       {activeTab === 'review' && (
         <>
           {loading ? (
-            <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>⏳ Cargando...</div>
+            <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando...</div>
           ) : reviewBets.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+              <div style={{ marginBottom: '8px' }}><AppIcon name="success" size={32} /></div>
               <div>Sin picks pendientes de revisión.</div>
             </div>
           ) : (

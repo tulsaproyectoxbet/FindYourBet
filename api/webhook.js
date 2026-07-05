@@ -16,8 +16,8 @@ async function getRawBody(req) {
 
 // Envia l'email d'accés al canal via Resend
 async function sendAccessEmail({ to, channelName, tipsterUsername, offerName, accessLink, inviteCode, purchaseDate }) {
-  if (!process.env.BREVO_API_KEY) {
-    console.log('[sendAccessEmail] BREVO_API_KEY no configurat, email omès')
+  if (!process.env.RESEND_API_KEY) {
+    console.log('[sendAccessEmail] RESEND_API_KEY no configurat, email omès')
     return
   }
 
@@ -100,17 +100,17 @@ async function sendAccessEmail({ to, channelName, tipsterUsername, offerName, ac
 </body>
 </html>`
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'api-key': process.env.BREVO_API_KEY,
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: 'FindYourBet', email: 'fyourbet@gmail.com' },
-      to: [{ email: to }],
+      from: 'FindYourBet <noreply@fyourbet.com>',
+      to: [to],
       subject: `Tu acceso al canal ${channelName} - FindYourBet`,
-      htmlContent: html,
+      html,
     }),
   })
 

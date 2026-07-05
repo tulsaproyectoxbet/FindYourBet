@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import AppIcon from '../../components/ui/AppIcon'
 
 const PACKS = {
   '🔥': ['🔥','💥','⚡','✨','🚀','💪','🙌','🤩','🥳','🎊','🎉','💯','😎','🫶','❤️','💚'],
@@ -109,7 +110,7 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
       >
         {/* TABS PRINCIPALS */}
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid var(--color-border)' }}>
-          {[['emoji', '😊 Emoji'], ['gif', 'GIF'], ['mygif', 'Mis GIFs']].map(([id, label]) => (
+          {[['emoji', 'Emoji'], ['gif', 'GIF'], ['mygif', 'Mis GIFs']].map(([id, label]) => (
             <button key={id} onClick={() => setMainTab(id)}
               style={{
                 flex: 1, border: 'none', background: 'none', cursor: 'pointer',
@@ -121,10 +122,10 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
             >{label}</button>
           ))}
           <button onClick={onClose}
-            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', padding: '10px 12px', color: 'var(--color-text-muted)', lineHeight: 1, flexShrink: 0 }}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '10px 12px', color: 'var(--color-text-muted)', lineHeight: 1, flexShrink: 0, display: 'flex' }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
-          >✕</button>
+          ><AppIcon name="close" size={14} /></button>
         </div>
 
         {/* TAB EMOJI */}
@@ -185,7 +186,7 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
             )}
             <button onClick={() => uploadRef.current?.click()} disabled={uploading}
               style={{ width: '100%', padding: '9px', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-soft)', color: uploading ? 'var(--color-text-muted)' : 'var(--color-primary)', cursor: uploading ? 'default' : 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', marginBottom: '10px' }}>
-              {uploading ? '⏳ Subiendo...' : '+ Subir GIF (máx. 2 MB)'}
+              {uploading ? <><AppIcon name="loading" size={12} style={{ marginRight:4, verticalAlign:'middle' }} /> Subiendo...</> : '+ Subir GIF (máx. 2 MB)'}
             </button>
             {loadingMyGifs ? (
               <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 0', fontSize: '13px' }}>Cargando...</div>

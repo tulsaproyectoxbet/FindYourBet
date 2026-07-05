@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 
 export default function PaymentSuccess({ user }) {
   const [searchParams] = useSearchParams()
@@ -54,14 +55,14 @@ export default function PaymentSuccess({ user }) {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-bg)', fontFamily: 'var(--font-sans)' }}>
-      <div style={{ fontSize: '32px' }}>⏳</div>
+      <AppIcon name="loading" size={32} />
       <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>Confirmando tu pago...</div>
     </div>
   )
 
   if (!purchase) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-bg)', fontFamily: 'var(--font-sans)', padding: '24px' }}>
-      <div style={{ fontSize: '48px' }}>⚠️</div>
+      <AppIcon name="warning" size={48} color="var(--color-warning, #f59e0b)" />
       <div style={{ fontWeight: 700, fontSize: '18px', color: 'var(--color-text)', textAlign: 'center' }}>Pago recibido</div>
       <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: '320px' }}>
         Tu pago se ha procesado correctamente. En unos momentos recibirás un email con tu enlace de acceso.
@@ -81,8 +82,8 @@ export default function PaymentSuccess({ user }) {
 
         {/* Header d'èxit */}
         <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: 'var(--color-primary)', fontWeight: 700 }}>
-            ✓
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+            <AppIcon name="check" size={28} />
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: '22px', color: 'var(--color-text)', marginBottom: '6px' }}>¡Acceso conseguido!</div>
@@ -102,7 +103,7 @@ export default function PaymentSuccess({ user }) {
             </div>
             <button onClick={handleCopy}
               style={{ width: '100%', padding: '9px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${copied ? 'var(--color-primary)' : 'var(--color-border)'}`, background: copied ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: copied ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-              {copied ? '✓ Copiado' : '📋 Copiar enlace'}
+              {copied ? <><AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Copiado</> : <><AppIcon name="copy" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Copiar enlace</>}
             </button>
           </div>
 
@@ -122,7 +123,7 @@ export default function PaymentSuccess({ user }) {
         </div>
 
         <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', textAlign: 'center', padding: '4px 0' }}>
-          📧 También te hemos enviado este enlace por email
+          <AppIcon name="mail" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} /> También te hemos enviado este enlace por email
         </div>
 
       </motion.div>

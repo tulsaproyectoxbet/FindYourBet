@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../lib/textLimits'
+import AppIcon from '../../components/ui/AppIcon'
 
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
 
@@ -41,7 +42,7 @@ function MisPeticiones({ user }) {
       .then(({ data }) => { setTickets(data || []); setLoading(false) })
   }, [user?.id])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
   if (!tickets.length) return (
     <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
       No tienes peticiones enviadas aún.
@@ -75,7 +76,7 @@ function MisPeticiones({ user }) {
           )}
           {t.admin_response ? (
             <div style={{ marginTop: '12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>💬 Respuesta de FYB</div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> Respuesta de FYB</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{t.admin_response}</div>
             </div>
           ) : t.status && t.status !== 'pending' && (
@@ -90,14 +91,14 @@ function MisPeticiones({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <SectionHeader>⏳ Pendientes ({pending.length})</SectionHeader>
+      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> Pendientes ({pending.length})</span></SectionHeader>
       {pending.length === 0
         ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>No tienes peticiones pendientes.</div>
         : pending.map(renderItem)}
 
       {history.length > 0 && (
         <>
-          <SectionHeader>📁 Historial ({history.length})</SectionHeader>
+          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> Historial ({history.length})</span></SectionHeader>
           {history.map(renderItem)}
         </>
       )}
@@ -119,7 +120,7 @@ function MisSugerencias({ user }) {
       .then(({ data }) => { setItems(data || []); setLoading(false) })
   }, [user?.id])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>⏳ Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
   if (!items.length) return (
     <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
       No tienes sugerencias enviadas aún.
@@ -155,7 +156,7 @@ function MisSugerencias({ user }) {
             )}
             {s.admin_response ? (
               <div style={{ marginTop: '12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>💬 Respuesta de FYB</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> Respuesta de FYB</div>
                 <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{s.admin_response}</div>
               </div>
             ) : s.status && s.status !== 'pending' && (
@@ -171,14 +172,14 @@ function MisSugerencias({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <SectionHeader>⏳ Pendientes ({pending.length})</SectionHeader>
+      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> Pendientes ({pending.length})</span></SectionHeader>
       {pending.length === 0
         ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>No tienes sugerencias pendientes.</div>
         : pending.map(renderItem)}
 
       {history.length > 0 && (
         <>
-          <SectionHeader>📁 Historial ({history.length})</SectionHeader>
+          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> Historial ({history.length})</span></SectionHeader>
           {history.map(renderItem)}
         </>
       )}
@@ -237,7 +238,7 @@ function RedesSoporte({ user }) {
 
       <div style={{ marginBottom: '24px', maxWidth: '360px' }}>
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
-          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>📱 Redes sociales</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="phone" size={15} /> Redes sociales</div>
           {[
             {
               name: 'X', handle: '@fyourbet', url: 'https://x.com/fyourbet',
@@ -280,7 +281,7 @@ function RedesSoporte({ user }) {
         {sent ? (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             style={{ textAlign: 'center', padding: '24px', color: 'var(--color-primary)' }}>
-            <div style={{ fontSize: '36px', marginBottom: '12px' }}>✅</div>
+            <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={36} color="var(--color-primary)" /></div>
             <div style={{ fontWeight: 600, fontSize: '15px' }}>¡Mensaje recibido!</div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>Te responderemos en menos de 24h. Puedes seguir el estado en "Estado de mi petición".</div>
           </motion.div>
@@ -321,7 +322,7 @@ function RedesSoporte({ user }) {
                 </div>
               ) : (
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                  📷 Adjuntar imagen
+                  <AppIcon name="camera" size={14} /> Adjuntar imagen
                   <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                 </label>
               )}
@@ -336,7 +337,7 @@ function RedesSoporte({ user }) {
 
       {/* Estat de les peticions */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', maxWidth: '560px' }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>📋 Estado de mi petición</div>
+        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="historial" size={16} /> Estado de mi petición</div>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: 0, marginBottom: '16px' }}>
           Aquí puedes consultar el estado de todos tus problemas enviados y ver si el equipo te ha respondido.
         </p>
@@ -398,7 +399,7 @@ function Sugerencias({ user }) {
         {sent ? (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             style={{ textAlign: 'center', padding: '32px', color: 'var(--color-primary)' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+            <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
             <div style={{ fontWeight: 600, fontSize: '16px' }}>¡Gracias por tu sugerencia!</div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>El equipo de FYB la revisará y, si encaja con la visión de la plataforma, la implementará. Puedes seguir el estado en "Estado de mi sugerencia".</div>
           </motion.div>
@@ -431,7 +432,7 @@ function Sugerencias({ user }) {
                 </div>
               ) : (
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                  📷 Adjuntar imagen
+                  <AppIcon name="camera" size={14} /> Adjuntar imagen
                   <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                 </label>
               )}
@@ -446,7 +447,7 @@ function Sugerencias({ user }) {
 
       {/* Estat de les suggerències de l'usuari */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', maxWidth: '560px' }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>💡 Estado de mi sugerencia</div>
+        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="sugerencias" size={16} /> Estado de mi sugerencia</div>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: 0, marginBottom: '16px' }}>
           Aquí puedes consultar el estado de todas tus sugerencias y ver si el equipo te ha respondido.
         </p>

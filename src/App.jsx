@@ -10,75 +10,16 @@ import OfferPage from './features/dashboard/payments/OfferPage'
 import PaymentSuccess from './features/dashboard/payments/PaymentSuccess'
 import AccesoPage from './features/dashboard/payments/AccesoPage'
 import LegalPage from './features/legal/LegalPage'
+import InfoPage from './features/info/InfoPage'
+import ContactPage from './features/info/ContactPage'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import CookieConsent from './components/CookieConsent'
+import AppIcon from './components/ui/AppIcon'
 import { supabase } from './lib/supabase'
-
-const SECRET_CODE = 'FYBM67'
-
-function GateScreen({ onUnlock }) {
-  const [code, setCode] = useState('')
-  const [error, setError] = useState(false)
-
-  const handleSubmit = () => {
-    if (code.trim().toUpperCase() === SECRET_CODE) {
-      localStorage.setItem('fyb_unlocked', '1')
-      onUnlock()
-    } else {
-      setError(true)
-      setTimeout(() => setError(false), 1500)
-    }
-  }
-
-  const handleKey = (e) => {
-    if (e.key === 'Enter') handleSubmit()
-  }
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-        <div style={{ fontSize: '13px', color: '#444', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
-          Acceso restringido
-        </div>
-        <input
-          type="text"
-          value={code}
-          onChange={e => { setCode(e.target.value.toUpperCase()); setError(false) }}
-          onKeyDown={handleKey}
-          placeholder="Código de acceso"
-          maxLength={10}
-          autoFocus
-          style={{
-            background: '#111',
-            border: `1px solid ${error ? '#ff4444' : '#222'}`,
-            color: '#fff',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            fontSize: '16px',
-            outline: 'none',
-            textAlign: 'center',
-            letterSpacing: '4px',
-            width: '220px',
-            transition: 'border-color 0.2s',
-            fontFamily: 'monospace'
-          }}
-        />
-        {error && (
-          <div style={{ fontSize: '12px', color: '#ff4444' }}>Código incorrecto</div>
-        )}
-        <button
-          onClick={handleSubmit}
-          style={{ background: '#1a1a1a', border: '1px solid #333', color: '#666', padding: '8px 24px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', marginTop: '4px' }}>
-          Acceder
-        </button>
-      </div>
-    </div>
-  )
-}
 
 function AppRoutes() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [unlocked, setUnlocked] = useState(() => localStorage.getItem('fyb_unlocked') === '1')
   const navigate = useNavigate()
 
   const buildUser = async (authUser) => {
@@ -113,13 +54,16 @@ function AppRoutes() {
     }
   }
 
-  // Comprova si un email està a la llista negra. Si ho està, força logout.
+  // Comprova si l'usuari està a la llista negra. Si ho està, força logout.
+  // Via RPC SECURITY DEFINER `check_my_ban` (mira auth.email() internament): la taula
+  // banned_emails ja no és llegible pel client, així no s'exposa la llista d'emails banejats.
   const checkBannedAndLogout = async (email) => {
     if (!email) return false
-    const { data } = await supabase.from('banned_emails').select('reason').eq('email', email.toLowerCase()).maybeSingle()
-    if (data) {
+    const { data } = await supabase.rpc('check_my_ban')
+    if (data && data.length > 0) {
+      const reason = data[0].reason
       await supabase.auth.signOut()
-      alert(`Tu cuenta ha sido bloqueada.${data.reason ? `\n\nMotivo: ${data.reason}` : ''}`)
+      alert(`Tu cuenta ha sido bloqueada.${reason ? `\n\nMotivo: ${reason}` : ''}`)
       return true
     }
     return false
@@ -174,9 +118,9 @@ function AppRoutes() {
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // INITIAL_SESSION ja el gestiona getSession; TOKEN_REFRESHED és silenciós i no
-      // ha de re-avaluar needsOnboarding perquè pot arribar amb perfil incomplet.
-      if (_event === 'INITIAL_SESSION' || _event === 'TOKEN_REFRESHED') return
+      // INITIAL_SESSION ja el gestiona getSession; TOKEN_REFRESHED és silenciós.
+      // PASSWORD_RECOVERY el gestiona ResetPasswordPage amb el seu propi listener.
+      if (_event === 'INITIAL_SESSION' || _event === 'TOKEN_REFRESHED' || _event === 'PASSWORD_RECOVERY') return
       if (session?.user) {
         // Comprova ban (banned_emails table o profile.banned) i força logout si cal
         const banned = await checkBannedAndLogout(session.user.email)
@@ -246,16 +190,11 @@ function AppRoutes() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-      <div style={{ fontSize: '32px' }}>⏳</div>
+      <AppIcon name="loading" size={32} />
     </div>
   )
 
-  // Rutes públiques (excloses del gate beta): compres, accessos post-pagament i
-  // pàgines legals. Les legals han de ser accessibles sempre (obligació LSSI/RGPD i
-  // s'enllacen des del registre), fins i tot sense el codi d'accés beta.
   const path = window.location.pathname
-  const isPublicRoute = path.startsWith('/oferta/') || path.startsWith('/payment/') || path.startsWith('/acceso/') || path.startsWith('/legal')
-  if (!unlocked && !isPublicRoute) return <GateScreen onUnlock={() => setUnlocked(true)} />
 
   return (
     <>
@@ -269,12 +208,16 @@ function AppRoutes() {
       <Route path="/oferta/:id" element={<OfferPage user={user} />} />
       <Route path="/payment/success" element={<PaymentSuccess user={user} />} />
       <Route path="/acceso/:token" element={<AccesoPage user={user} />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/legal" element={<Navigate to="/legal/aviso-legal" replace />} />
       <Route path="/legal/:doc" element={<LegalPage />} />
+      <Route path="/info" element={<Navigate to="/info/como-funciona" replace />} />
+      <Route path="/info/:doc" element={<InfoPage />} />
+      <Route path="/contacto" element={<ContactPage />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
     {/* Banner de cookies — no cal a les pàgines legals (ja informen elles mateixes) */}
-    {!path.startsWith('/legal') && <CookieConsent />}
+    {!path.startsWith('/legal') && !path.startsWith('/info') && path !== '/contacto' && <CookieConsent />}
     </>
   )
 }

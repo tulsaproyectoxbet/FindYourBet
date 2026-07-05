@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../../lib/supabase'
+import AppIcon from '../../../components/ui/AppIcon'
 import { useDMs } from './hooks/useDMs'
 import { useFollow } from './hooks/useFollow'
 import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
@@ -88,6 +89,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
     setNewFolderName(''); setFolderError(''); setShowCreateFolder(false)
   }
 
+  const [showSolicitudes, setShowSolicitudes] = useState(false)
   const [view, setView] = useState('list') // 'list' | 'dm' | 'profile' | 'search'
   const [activeConv, setActiveConv] = useState(null)
   const [activeProfile, setActiveProfile] = useState(null)
@@ -118,10 +120,16 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
   }
 
   const handleStartDM = async (userId) => {
-    const mutual = isFollowing(userId) && isFollower(userId)
-    const conv = await startConversation(userId, mutual)
+    // Auto-accept per al destinatari si ell ens segueix — la nostra conversa no apareixerà
+    // com a solicitud per a ell perquè ja hi ha una relació prèvia en el seu sentit.
+    const conv = await startConversation(userId, isFollower(userId))
     if (conv) {
-      setActiveConv(conv)
+      // startConversation retorna l'objecte cru de la DB sense el camp enriquit clearedAt.
+      // El calculem aquí perquè DMView l'usa per filtrar els missatges anteriors a l'esborrat.
+      // Sense això, el buscador / perfils / accés extern recuperen tots els missatges esborrats.
+      const isUser1 = conv.user1_id === user.id
+      const clearedAt = (isUser1 ? conv.user1_cleared_at : conv.user2_cleared_at) || null
+      setActiveConv({ ...conv, clearedAt })
       setView('dm')
     }
   }
@@ -139,8 +147,20 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
   // Xats buits (has obert el chat però no s'ha enviat res) NO surten a la llista:
   // és com si no hagués passat res. La conversa oberta segueix visible al panell.
   const hasMsgs = (c) => !!c.lastMessage
-  const pending = conversations.filter(c => !c.isAccepted && c.user1_id !== user.id && hasMsgs(c))
-  const active = conversations.filter(c => (c.isAccepted || c.user1_id === user.id) && hasMsgs(c))
+  // Conversa va a General (active) si:
+  //   - acceptada explícitament, O
+  //   - el segueixo (bypass solicitud), O
+  //   - jo vaig iniciar (user1) SENSE haver esborrat mai (espero la primera resposta)
+  // Qualsevol altra cosa amb missatge va a Solicituds (pending).
+  const active = conversations.filter(c => {
+    if (!hasMsgs(c)) return false
+    if (c.isAccepted) return true
+    if (isFollowing(c.otherId)) return true
+    // Cas especial: jo he iniciat, l'altre no ha acceptat, i no he esborrat mai → General (espera)
+    if (c.user1_id === user.id && !c.clearedAt) return true
+    return false
+  })
+  const pending = conversations.filter(c => hasMsgs(c) && !active.some(a => a.id === c.id))
   const sortedConvs = [...active].sort((a, b) => {
     const aPin = isDMPinned(a.id), bPin = isDMPinned(b.id)
     if (aPin && !bPin) return -1
@@ -167,7 +187,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
     const timeStr = miniTimeAgo(c.lastMessageAt)
     return (
       <div key={c.id} className={`canales-mini-item${isActive ? ' active' : ''}`}>
-        <div onClick={() => handleOpenConv(c)} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0, cursor: 'pointer' }}>
+        <div onClick={() => handleOpenConv(c)} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: 0, cursor: 'pointer' }}>
           <div className="canales-mini-avatar" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
             {c.otherAvatarUrl
               ? <img src={c.otherAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
@@ -181,13 +201,13 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <div className="canales-mini-body">
             <div className="canales-mini-row">
               <span className="canales-mini-name">
-                {cpinned && <span style={{ fontSize: '10px', marginRight: '3px' }}>📌</span>}
+                {cpinned && <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '3px' }}><AppIcon name="pin" size={10} /></span>}
                 {c.otherUsername}
               </span>
               <span className="canales-mini-time">{timeStr}</span>
             </div>
             <div className="canales-mini-preview">
-              {cmuted && <span style={{ marginRight: '4px' }}>🔕</span>}
+              {cmuted && <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '4px' }}><AppIcon name="bellOff" size={12} /></span>}
               {c.lastMessageIsOwn && !preview ? null : c.lastMessageIsOwn ? `Tú: ${preview}` : preview || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sin mensajes</span>}
             </div>
           </div>
@@ -208,17 +228,17 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                   style={{ position: 'absolute', top: '26px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '175px', overflow: 'hidden' }}>
                   <button onClick={() => { cpinned ? unpinDM(c.id) : pinDM(c.id); setMiniMenuId(null) }}
                     style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                    {cpinned ? '📍 Desanclar' : '📌 Anclar'}
+                    {cpinned ? <><AppIcon name="pin" size={13} /> Desanclar</> : <><AppIcon name="pin" size={13} /> Anclar</>}
                   </button>
                   <button onClick={() => {
                     if (cmuted) { unmute(dmKey); setMiniMenuId(null) }
                     else { setMiniMuteId(c.id); setMiniMenuId(null) }
                   }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                    {cmuted ? '🔔 Activar notificaciones' : '🔕 Silenciar'}
+                    {cmuted ? <><AppIcon name="bell" size={13} /> Activar notificaciones</> : <><AppIcon name="bellOff" size={13} /> Silenciar</>}
                   </button>
                   <button onClick={() => { setMiniMoveId(c.id); setMiniMenuId(null) }}
                     style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                    📁 Mover a carpeta
+                    <AppIcon name="folder" size={13} /> Mover a carpeta
                   </button>
                   <button onClick={() => {
                     if (window.confirm(`¿Eliminar la conversación con ${c.otherUsername}?`)) {
@@ -227,15 +247,15 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                     }
                     setMiniMenuId(null)
                   }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-error)' }}>
-                    🗑️ Eliminar chat
+                    <AppIcon name="delete" size={13} /> Eliminar chat
                   </button>
                   <button onClick={() => { setBlockTarget({ id: c.otherId, username: c.otherUsername, convId: c.id }); setMiniMenuId(null) }}
                     style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-error)' }}>
-                    🚫 Bloquear
+                    <AppIcon name="ban" size={13} /> Bloquear
                   </button>
                   <button onClick={() => { setReportTarget({ id: c.otherId, username: c.otherUsername }); setMiniMenuId(null) }}
                     style={{ ...miniMenuBtnStyle, color: 'var(--color-warning, #f59e0b)' }}>
-                    🚩 Reportar
+                    <AppIcon name="flag" size={13} /> Reportar
                   </button>
                 </motion.div>
               </>
@@ -265,7 +285,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                     return (
                       <button key={f.id} onClick={() => { assignToFolder(c.id, f.id); setMiniMoveId(null) }}
                         style={{ ...miniMenuBtnStyle, borderBottom: i < dmFolders.folders.length - 1 ? '0.5px solid var(--color-border)' : 'none', color: here ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: here ? 700 : 400 }}>
-                        {here ? '✓ ' : '📁 '}{f.name}
+                        {here ? <><AppIcon name="check" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /></> : <><AppIcon name="folder" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /></>}{f.name}
                       </button>
                     )
                   })}
@@ -288,6 +308,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <DMView
             key={`${activeConv.id}-${blockBump}`}
             conversation={activeConv}
+            isFollowingOther={isFollowing(activeConv.otherId || activeConv.user2_id)}
             currentUser={user}
             onBack={() => { setView('list'); setActiveConv(null); onRefreshUnread?.() }}
             onSend={sendMessage}
@@ -303,7 +324,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
             onDeleteConv={() => {
               if (window.confirm(`¿Eliminar la conversación con ${activeConv.otherUsername}?`)) {
                 blockUser(activeConv.id)
-                setView('list'); setActiveConv(null)
+                setActiveConv(null); setActiveProfile(null); setView('list')
               }
             }}
             onBlock={() => setBlockTarget({ id: activeConv.otherId, username: activeConv.otherUsername, convId: activeConv.id })}
@@ -312,9 +333,9 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
             onAccept={async (id) => {
               await acceptConversation(id)
               setActiveConv(prev => prev ? { ...prev, isAccepted: true } : prev)
-              // Si hi ha carpetes secundàries, pregunta on posar-lo; si no, va a General.
-              if (dmFolders.folders.length > 1) setFolderPickFor(id)
-              else assignToFolder(id, 'general')
+              // Acceptar una solicitud sempre mou a General (sense modal de carpeta).
+              assignToFolder(id, 'general')
+              if (showSolicitudes) setShowSolicitudes(false)
             }}
             onNavigateToChannel={onNavigateToChannel}
             compact
@@ -340,14 +361,14 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', overflowY: 'auto', padding: '0 40px', boxSizing: 'border-box' }}>
             <div style={{ width: '100%', maxWidth: '380px', paddingTop: '18%' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ fontSize: '52px', opacity: 0.2 }}>💬</div>
+                <div style={{ opacity: 0.2 }}><AppIcon name="message" size={52} /></div>
                 <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', opacity: 0.7, textAlign: 'center' }}>
                   {active.length + pending.length > 0 ? 'Selecciona o busca una conversación' : 'Busca un usuario para empezar'}
                 </div>
               </div>
               <input
                 type="text"
-                placeholder="🔍 Buscar usuario por nombre o @username..."
+                placeholder="Buscar usuario por nombre o @username..."
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
                 maxLength={50}
@@ -373,11 +394,11 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                       <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                         <button onClick={() => isFollowing(u.id) ? unfollow(u.id) : follow(u.id, user?.name || 'alguien')}
                           style={{ padding: '5px 12px', borderRadius: 'var(--radius-md)', border: isFollowing(u.id) ? '0.5px solid var(--color-border)' : 'none', background: isFollowing(u.id) ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: isFollowing(u.id) ? 'var(--color-text-muted)' : '#010906', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                          {isMutual(u.id) ? '👥 Amigos' : isFollowing(u.id) ? 'Siguiendo' : '+ Seguir'}
+                          {isMutual(u.id) ? <><AppIcon name="users" size={12} /> Amigos</> : isFollowing(u.id) ? 'Siguiendo' : '+ Seguir'}
                         </button>
                         <button onClick={() => handleStartDM(u.id)}
                           style={{ padding: '5px 10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                          💬
+                          <AppIcon name="message" size={14} />
                         </button>
                       </div>
                     </div>
@@ -395,12 +416,31 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
       {/* Mini-llista converses — dreta */}
       <div className="canales-mini-list" style={{ width: `${miniPct}%` }}>
 
-        {/* Solicituds pendents — mateix format que les converses normals (no es filtren per carpeta) */}
+        {/* VISTA SOLICITUDS */}
+        {showSolicitudes ? (
+          <>
+            <div className="canales-mini-section" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => setShowSolicitudes(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '16px', padding: '0 4px 0 0', lineHeight: 1 }}>←</button>
+              <span>Solicitudes</span>
+              <span style={{ marginLeft: 'auto', background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px', minWidth: '18px', textAlign: 'center' }}>{pending.length}</span>
+            </div>
+            {pending.length === 0
+              ? <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px' }}>Sin solicitudes pendientes</div>
+              : pending.map(renderConvItem)
+            }
+          </>
+        ) : (
+        <>
+
+        {/* Badge de solicituds — visible a dalt de tot si hi ha pendents */}
         {pending.length > 0 && (
-          <div>
-            <div className="canales-mini-section">Solicitudes ({pending.length})</div>
-            {pending.map(renderConvItem)}
-          </div>
+          <button onClick={() => setShowSolicitudes(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
+            <AppIcon name="mail" size={15} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Solicitudes</span>
+            <span style={{ background: 'var(--color-error)', color: '#fff', borderRadius: '999px', fontSize: '10px', fontWeight: 700, padding: '1px 6px', minWidth: '18px', textAlign: 'center' }}>{pending.length}</span>
+          </button>
         )}
 
         {/* Capçalera minimalista: NOM_CARPETA ▾ ........ +  (substitueix "Mensajes") */}
@@ -408,7 +448,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <button onClick={() => setShowFolderMenu(v => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit', maxWidth: '80%' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeFolderObj?.name}</span>
-            {dmFolders.isFolderMuted(dmFolders.activeFolder) && <span style={{ fontSize: '10px' }}>🔕</span>}
+            {dmFolders.isFolderMuted(dmFolders.activeFolder) && <span style={{ display: 'inline-flex', alignItems: 'center' }}><AppIcon name="bellOff" size={10} /></span>}
             <span style={{ fontSize: '9px', opacity: 0.7 }}>▾</span>
           </button>
           <button onClick={() => { setShowCreateFolder(true); setNewFolderName(''); setFolderError('') }} title="Crear carpeta"
@@ -449,12 +489,12 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
                                   style={{ position: 'absolute', top: '100%', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 26, minWidth: '145px', overflow: 'hidden' }}>
                                   <button onClick={() => { toggleFolderMute(f.id); setFolderDotsId(null) }}
                                     style={{ ...miniMenuBtnStyle, borderBottom: f.id !== 'general' ? '0.5px solid var(--color-border)' : 'none' }}>
-                                    {fMuted ? '🔔 Activar' : '🔕 Silenciar'}
+                                    {fMuted ? <><AppIcon name="bell" size={13} /> Activar</> : <><AppIcon name="bellOff" size={13} /> Silenciar</>}
                                   </button>
                                   {f.id !== 'general' && (
                                     <button onClick={() => { setFolderDotsId(null); setShowFolderMenu(false); setDeleteFolderTarget({ id: f.id, name: f.name }); setDeleteFolderInput('') }}
                                       style={{ ...miniMenuBtnStyle, color: 'var(--color-error)' }}>
-                                      🗑️ Eliminar
+                                      <AppIcon name="delete" size={13} /> Eliminar
                                     </button>
                                   )}
                                 </motion.div>
@@ -484,6 +524,8 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
             {dmFolders.activeFolder === 'general' ? 'Sin conversaciones todavía' : 'Esta carpeta está vacía'}
           </div>
         )}
+      </>
+      )}
       </div>
     </div>
 
@@ -493,6 +535,11 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           username={blockTarget.username}
           onConfirm={async () => {
             await supabase.from('blocks').upsert({ blocker_id: user.id, blocked_id: blockTarget.id })
+            // Desfem el seguiment mutu: bloquejar = desconnexió total
+            await Promise.all([
+              supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', blockTarget.id),
+              supabase.from('follows').delete().eq('follower_id', blockTarget.id).eq('following_id', user.id),
+            ])
             // NO esborrem la conversa: queda accessible en mode lectura (sense input).
             // Si la tenim oberta, en forcem el remount perquè DMView re-detecti el bloqueig.
             if (activeConv?.id === blockTarget.convId) setBlockBump(b => b + 1)
@@ -524,7 +571,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
             onClick={e => e.stopPropagation()}
             style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '380px', width: '100%' }}>
-            <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '4px' }}>📁 Nueva carpeta</div>
+            <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="folder" size={17} /> Nueva carpeta</div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '14px' }}>Organiza tus chats. Máximo {MAX_SECONDARY_FOLDERS} carpetas.</div>
             <input autoFocus value={newFolderName} maxLength={15}
               onChange={e => { setNewFolderName(e.target.value); setFolderError('') }}
@@ -562,7 +609,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
               {dmFolders.folders.map(f => (
                 <button key={f.id} onClick={() => { assignToFolder(folderPickFor, f.id); setFolderPickFor(null) }}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '14px', fontWeight: 600, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                  📁 {f.name}
+                  <AppIcon name="folder" size={14} /> {f.name}
                 </button>
               ))}
             </div>
@@ -580,7 +627,7 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
           <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
             onClick={e => e.stopPropagation()}
             style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '400px', width: '100%' }}>
-            <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)' }}>🗑️ Eliminar "{deleteFolderTarget.name}"</div>
+            <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="delete" size={16} /> Eliminar "{deleteFolderTarget.name}"</div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: '14px' }}>
               Se eliminará la carpeta y <strong>todos los chats que contiene</strong>. Esta acción es irreversible.
             </div>

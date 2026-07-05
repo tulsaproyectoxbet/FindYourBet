@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { hasMatchStarted } from './hooks/useBets'
 import PostModal from './feed/PostModal'
+import AppIcon from '../../components/ui/AppIcon'
 import './dashboard.css'
 
 const SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'Béisbol', 'Fútbol Americano', 'eSports', 'MMA', 'Otros']
@@ -204,7 +205,7 @@ function StatsPanel({ allBets }) {
 
   if (resolved.length === 0) return (
     <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', textAlign: 'center' }}>
-      <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
+      <div style={{ marginBottom: '8px' }}><AppIcon name="stats" size={28} /></div>
       <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Las estadísticas aparecerán cuando tengas picks resueltos.</div>
     </div>
   )
@@ -214,7 +215,7 @@ function StatsPanel({ allBets }) {
 
       {/* Forma recent */}
       {recentForm.length > 0 && (
-        <StatSection title="⚡ Forma reciente">
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="zap" size={10} /> Forma reciente</span>}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))', gap: '6px' }}>
             {recentForm.map((b, i) => (
               <div key={i} title={b.event}
@@ -230,7 +231,7 @@ function StatsPanel({ allBets }) {
       )}
 
       {/* Rachas */}
-      <StatSection title="🔥 Rachas">
+      <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="flame" size={10} /> Rachas</span>}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '0.5px solid var(--color-border)' }}>
             <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Mejor racha</div>
@@ -247,7 +248,7 @@ function StatsPanel({ allBets }) {
 
       {/* Hazañas */}
       {(maxOddsWon || longestOddsLost) && (
-        <StatSection title="🏅 Hazañas">
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="medal" size={10} /> Hazañas</span>}>
           {maxOddsWon && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: longestOddsLost ? '0.5px solid var(--color-border)' : 'none' }}>
               <div>
@@ -271,7 +272,7 @@ function StatsPanel({ allBets }) {
 
       {/* Top apostes */}
       {topBets.length > 0 && (
-        <StatSection title="💎 Mejores picks">
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="gem" size={10} /> Mejores picks</span>}>
           {topBets.map((b, i) => (
             <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: i < topBets.length - 1 ? '0.5px solid var(--color-border)' : 'none' }}>
               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0 }}>{i + 1}</div>
@@ -330,7 +331,7 @@ function BetCard({ b, onResolveBet, onViewPost }) {
 
         {/* Badge */}
         <span style={{ alignSelf: 'flex-start', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 700, background: isLive ? 'rgba(245,158,11,0.12)' : cfg.bg, color: isLive ? 'var(--color-warning)' : cfg.accent, border: `0.5px solid ${isLive ? 'rgba(245,158,11,0.3)' : cfg.border}` }}>
-          {isLive ? '🔴 En curso' : cfg.label}
+          {isLive ? <><span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--color-warning)', marginRight: '4px', verticalAlign: 'middle' }} />En curso</> : cfg.label}
         </span>
 
         {/* Títol */}
@@ -359,8 +360,8 @@ function BetCard({ b, onResolveBet, onViewPost }) {
           {b.status === 'pending' && started && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'won') }} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✓ Win</motion.button>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>✗ Loss</motion.button>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'won') }} style={{ flex: 1, background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><AppIcon name="check" size={12} /> Win</motion.button>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><AppIcon name="close" size={12} /> Loss</motion.button>
               </div>
               {/* Nul: aposta anul·lada (diners retornats) — no afecta cap estadística */}
               <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'void') }} style={{ width: '100%', background: 'var(--color-info-light)', color: 'var(--color-info)', border: '0.5px solid var(--color-info-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>● Nula</motion.button>
@@ -459,10 +460,10 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
 
           {/* Cartes */}
           {loadingBets ? (
-            <div className="empty-state"><div className="empty-icon">⏳</div><div>Cargando picks...</div></div>
+            <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>Cargando picks...</div></div>
           ) : bets.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">{period === 'activas' ? '✅' : '📋'}</div>
+              <div className="empty-icon"><AppIcon name={period === 'activas' ? 'success' : 'historial'} size={48} /></div>
               <div className="empty-title">{period === 'activas' ? 'Sin picks activos' : 'Sin picks en este período'}</div>
               <div className="empty-sub">{period === 'activas' ? 'Todos tus picks ya han sido resueltos.' : 'No hay picks registrados para el período seleccionado.'}</div>
             </div>
