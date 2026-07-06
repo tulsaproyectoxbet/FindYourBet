@@ -1,0 +1,18 @@
+name: Sync to Vercel repo
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to FYBet/FindYourBet
+        run: |
+          git remote add target https://x-access-token:${{ secrets.SYNC_TOKEN }}@github.com/FYBet/FindYourBet.git
+          git push target master:main --force
