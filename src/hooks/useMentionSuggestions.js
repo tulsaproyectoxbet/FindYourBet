@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { isAdminUserId } from '../lib/adminUsers'
 
 // Font de suggeriments per a les mencions @. Prioritza:
 //  1) Tu mateix.
@@ -21,7 +20,7 @@ export function useMentionSuggestions(currentUser) {
         if (ids.length) {
           const { data } = await supabase
             .from('profiles').select('id, username, avatar_url, is_verified').in('id', ids).limit(200)
-          profiles = (data || []).filter(p => !isAdminUserId(p.id))
+          profiles = (data || [])
         }
         if (cancelled) return
         const self = { id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url, is_verified: currentUser.is_verified, _self: true }
@@ -49,7 +48,7 @@ export function useMentionSuggestions(currentUser) {
         const seen = new Set(out.map(p => p.id))
         for (const p of (data || [])) {
           if (out.length >= 6) break
-          if (!seen.has(p.id) && !isAdminUserId(p.id)) { out.push(p); seen.add(p.id) }
+          if (!seen.has(p.id)) { out.push(p); seen.add(p.id) }
         }
       } catch {
         // ignore

@@ -13,7 +13,6 @@ import ProfileView from './ProfileView'
 import ReportUserModal from './ReportUserModal'
 import BlockUserModal from './BlockUserModal'
 import Username from '../../../components/ui/Username'
-import { isAdminUserId } from '../../../lib/adminUsers'
 import { formatMsgPreview } from '../../../lib/formatMsgPreview'
 import '../dashboard.css'
 
@@ -114,8 +113,10 @@ export default function Social({ user, initialDMUserId, onNavigateToChannel, onA
       ...(myBlocks || []).map(b => b.blocked_id),
       ...(blockedByOthers || []).map(b => b.blocker_id),
     ])
-    // Exclou admins (fyourbet) i usuaris bloquejats
-    setSearchResults((data || []).filter(u => !hidden.has(u.id) && !isAdminUserId(u.id)).slice(0, 10))
+    // fyourbet (admin) SÍ apareix a la cerca de DMs: es comporta com un tipster normal.
+    // La seva privacitat de MEMBRE (a quins canals s'ha unit) es manté a part. Només
+    // s'exclouen els usuaris bloquejats.
+    setSearchResults((data || []).filter(u => !hidden.has(u.id)).slice(0, 10))
     setSearching(false)
   }
 

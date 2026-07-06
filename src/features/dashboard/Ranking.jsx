@@ -4,7 +4,6 @@ import { fadeUp, stagger } from '../../lib/animations'
 import { supabase } from '../../lib/supabase'
 import { useProfileNav } from '../../contexts/ProfileNavContext'
 import Username from '../../components/ui/Username'
-import { isAdminUserId } from '../../lib/adminUsers'
 import AppIcon from '../../components/ui/AppIcon'
 import './dashboard.css'
 
@@ -191,7 +190,7 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
 
       setRanking(
         entries
-          .filter(e => !hiddenSet.has(e.userId) && !isAdminUserId(e.userId))
+          .filter(e => !hiddenSet.has(e.userId))
           .map(e => ({ ...e, username: profileMap[e.userId] ?? e.userId.slice(0, 6), isVerified: verifiedSet.has(e.userId) }))
           .slice(0, 50)
       )
@@ -371,7 +370,6 @@ function useChannelRanking(channelType) {
         }
 
         const result = channels.map(c => {
-          if (isAdminUserId(c.owner_id)) return null
           const bets = betsByChannel[c.id] || []
           if (bets.length < MIN_CH_BETS) return null
 
