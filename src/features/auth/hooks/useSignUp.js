@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { isReservedUsername, isUsernameBanned } from '../../../lib/reservedUsernames'
 
@@ -24,6 +24,33 @@ export function useSignUp({ onLogin }) {
   const [registered, setRegistered] = useState(false)
 
   const update = (field, val) => setForm(prev => ({ ...prev, [field]: val }))
+
+  // Auto-login després de confirmar el correu. Mentre la pantalla de "revisa el correu"
+  // és visible, sondegem el login cada 5s. Quan l'usuari clica l'enllaç de confirmació
+  // (encara que sigui des d'un altre dispositiu com el mòbil), el següent intent té èxit
+  // i entrem directament al dispositiu on es va fer el registre, sense tornar a demanar res.
+  useEffect(() => {
+    if (!registered) return
+    let cancelled = false
+    let attempts = 0
+    const email = form.email.trim().toLowerCase()
+    const pass = form.pass
+    const desiredUsername = form.user.trim().toLowerCase()
+    const poll = async () => {
+      if (cancelled) return
+      attempts++
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass })
+      if (cancelled) return
+      if (!error && data?.session) {
+        clearInterval(iv)
+        onLogin({ id: data.user.id, name: form.name.trim(), username: desiredUsername, email, avatar_url: null, needsOnboarding: false })
+      } else if (attempts >= 60) {
+        clearInterval(iv) // ~5 min sense confirmar: parem de sondejar (l'usuari pot entrar manualment)
+      }
+    }
+    const iv = setInterval(poll, 5000)
+    return () => { cancelled = true; clearInterval(iv) }
+  }, [registered]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const skipDev = () =>
     onLogin({ name: 'Dev', surname: 'Test', user: 'devtest', email: 'dev@test.com', id: 'dev-skip' })
@@ -77,7 +104,7 @@ export function useSignUp({ onLogin }) {
           email: email.trim().toLowerCase(),
           password: pass,
           options: {
-            data: { name: name.trim(), surname, birthdate, nationality },
+            data: { username: desiredUsername, name: name.trim(), surname, birthdate, nationality },
             emailRedirectTo: `${window.location.origin}/dashboard`,
           },
         }),
@@ -112,19 +139,9 @@ export function useSignUp({ onLogin }) {
         return
       }
 
-      // Si cal confirmar l'email: creem el perfil igualment i mostrem la pantalla de confirmació
-      // (Supabase ja ha enviat el mail de confirmació — il·limitat).
-      // El query builder de Supabase NO és una promesa nativa: no té .catch().
-      // L'emboliquem amb try/catch propi. Si falla, el perfil es crearà al primer login.
-      try {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          username: desiredUsername,
-          name: name.trim(),
-          username_changed_at: new Date().toISOString(),
-        })
-      } catch { /* silenciós: es reintenta al primer login */ }
-
+      // Si cal confirmar l'email NO podem crear el perfil des del client: encara no hi ha
+      // sessió i l'RLS bloqueja l'escriptura. El crea el trigger handle_new_user() al
+      // servidor (llegeix el username del metadata). Aquí només mostrem "revisa el correu".
       setLoading(false)
       setRegistered(true)
     } catch (e) {
