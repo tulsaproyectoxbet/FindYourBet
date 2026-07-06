@@ -113,13 +113,17 @@ export function useSignUp({ onLogin }) {
       }
 
       // Si cal confirmar l'email: creem el perfil igualment i mostrem la pantalla de confirmació
-      // (Supabase ja ha enviat el mail de confirmació — il·limitat)
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        username: desiredUsername,
-        name: name.trim(),
-        username_changed_at: new Date().toISOString(),
-      }).catch(() => {})
+      // (Supabase ja ha enviat el mail de confirmació — il·limitat).
+      // El query builder de Supabase NO és una promesa nativa: no té .catch().
+      // L'emboliquem amb try/catch propi. Si falla, el perfil es crearà al primer login.
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          username: desiredUsername,
+          name: name.trim(),
+          username_changed_at: new Date().toISOString(),
+        })
+      } catch { /* silenciós: es reintenta al primer login */ }
 
       setLoading(false)
       setRegistered(true)
