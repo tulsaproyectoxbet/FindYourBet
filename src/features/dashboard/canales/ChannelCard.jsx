@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp } from '../../../lib/animations'
 import { supabase } from '../../../lib/supabase'
 import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
@@ -9,21 +10,22 @@ import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
 import AppIcon from '../../../components/ui/AppIcon'
 
 
-function timeAgo(ts) {
+function timeAgo(ts, t) {
   if (!ts) return ''
   const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (m < 1) return 'ahora'
+  if (m < 1) return t('canales.now')
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d`
-  return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+  return new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
 }
 
 const menuBtn = { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)' }
 
 function ActionMenu({ isPinned, muted, isOwner, onPin, onUnpin, onSilenciar, onActivar, onDelete, onLeave, onClose }) {
+  const { t } = useTranslation()
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
@@ -31,15 +33,15 @@ function ActionMenu({ isPinned, muted, isOwner, onPin, onUnpin, onSilenciar, onA
         style={{ position: 'absolute', top: '32px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '190px', overflow: 'hidden' }}>
         <button onClick={isPinned ? onUnpin : onPin}
           style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)' }}>
-          {isPinned ? <><AppIcon name="pin" size={14} /> Desanclar</> : <><AppIcon name="pin" size={14} /> Anclar</>}
+          {isPinned ? <><AppIcon name="pin" size={14} /> {t('social.unpin')}</> : <><AppIcon name="pin" size={14} /> {t('social.pin')}</>}
         </button>
         <button onClick={muted ? onActivar : onSilenciar}
           style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)' }}>
-          {muted ? <><AppIcon name="bell" size={14} /> Activar notificaciones</> : <><AppIcon name="bellOff" size={14} /> Silenciar</>}
+          {muted ? <><AppIcon name="bell" size={14} /> {t('social.unmuteNotifs')}</> : <><AppIcon name="bellOff" size={14} /> {t('social.muteNotifs')}</>}
         </button>
         <button onClick={isOwner ? onDelete : onLeave}
           style={{ ...menuBtn, color: 'var(--color-error)' }}>
-          {isOwner ? <><AppIcon name="delete" size={14} /> Eliminar canal</> : <><AppIcon name="leave" size={14} /> Salir del canal</>}
+          {isOwner ? <><AppIcon name="delete" size={14} /> {t('canales.deleteChannel')}</> : <><AppIcon name="leave" size={14} /> {t('leaveChannel.confirm')}</>}
         </button>
       </motion.div>
     </>
@@ -47,6 +49,7 @@ function ActionMenu({ isPinned, muted, isOwner, onPin, onUnpin, onSilenciar, onA
 }
 
 function MuteMenu({ muteKey, isMuted, muteLabel, onMute, onUnmute, onClose }) {
+  const { t } = useTranslation()
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
@@ -55,13 +58,13 @@ function MuteMenu({ muteKey, isMuted, muteLabel, onMute, onUnmute, onClose }) {
         {isMuted && (
           <button onClick={() => { onUnmute(); onClose() }}
             style={{ ...menuBtn, borderBottom: '0.5px solid var(--color-border)', color: 'var(--color-primary)', fontWeight: 700 }}>
-            <AppIcon name="bell" size={14} /> Activar notificaciones
+            <AppIcon name="bell" size={14} /> {t('social.unmuteNotifs')}
           </button>
         )}
         {MUTE_DURATIONS.map((d, i) => (
           <button key={i} onClick={() => { onMute(d.ms); onClose() }}
             style={{ ...menuBtn, borderBottom: i < MUTE_DURATIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none' }}>
-            {d.label}
+            {t(d.labelKey)}
           </button>
         ))}
       </motion.div>
@@ -70,6 +73,7 @@ function MuteMenu({ muteKey, isMuted, muteLabel, onMute, onUnmute, onClose }) {
 }
 
 export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdminDeleted, isOwner, memberCount, lastMessage, unreadCount = 0, isPinned = false, onPin, onUnpin }) {
+  const { t } = useTranslation()
   const { adminMode } = useAdminMode()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
@@ -102,12 +106,12 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
     return (
       <motion.div layout variants={fadeUp}
         style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="warning" size={13} /> Esta acción es irreversible</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="warning" size={13} /> {t('chatView.info.irreversible')}</div>
         <div style={{ fontSize: '12px', color: 'var(--color-error)', lineHeight: 1.5 }}>
-          Se eliminarán permanentemente todos los mensajes, picks e historial del canal <strong>"{channel.name}"</strong>.
+          {t('chatView.info.deleteDesc')}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-          Escribe <strong style={{ color: 'var(--color-error)', letterSpacing: '0.5px' }}>ELIMINAR</strong> para confirmar:
+          {t('chatView.info.typeConfirmPre')} <strong style={{ color: 'var(--color-error)', letterSpacing: '0.5px' }}>ELIMINAR</strong> {t('chatView.info.typeConfirmPost')}
         </div>
         <input
           autoFocus
@@ -120,13 +124,13 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => { setConfirmDelete(false); setDeleteInput('') }}
             style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => { onDelete(channel.id); setConfirmDelete(false); setDeleteInput('') }}
             disabled={deleteInput !== 'ELIMINAR'}
             style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', background: deleteInput === 'ELIMINAR' ? 'var(--color-error)' : 'var(--color-bg-soft)', color: deleteInput === 'ELIMINAR' ? '#fff' : 'var(--color-text-muted)', cursor: deleteInput === 'ELIMINAR' ? 'pointer' : 'default', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-            Eliminar canal
+            {t('canales.deleteChannel')}
           </button>
         </div>
       </motion.div>
@@ -153,14 +157,14 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
             {isPinned && <span style={{ display: 'inline-flex', alignItems: 'center' }}><AppIcon name="pin" size={12} /></span>}
             {channel.name}
             {channel.channel_type === 'free_private' && (
-              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', border: '0.5px solid var(--color-border)', padding: '1px 7px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> Privado</span>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', border: '0.5px solid var(--color-border)', padding: '1px 7px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> {t('tipsters.chanType.free_private')}</span>
             )}
-            {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="warning" size={10} /> Eliminado</span>}
+            {channel.deleted_at && <span style={{ fontSize: '10px', color: 'var(--color-error)', fontWeight: 700, background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', padding: '1px 8px', borderRadius: 'var(--radius-full)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="warning" size={10} /> {t('canales.deleted')}</span>}
             {muted && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="bellOff" size={10} /> {muteLabel(muteKey)}</span>}
-            {lastMessage && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400 }}>{timeAgo(lastMessage.created_at)}</span>}
+            {lastMessage && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 400 }}>{timeAgo(lastMessage.created_at, t)}</span>}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px', opacity: muted ? 0.6 : 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-            {lastMessage ? formatLastMsg(lastMessage.content) : (channel.description || 'Sin mensajes aún')}
+            {lastMessage ? formatLastMsg(lastMessage.content) : (channel.description || t('canales.noMessages'))}
           </div>
         </div>
       </div>
@@ -168,7 +172,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
       {/* Right side: Propietario badge + ⋮ menu */}
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
         {isOwner && (
-          <span style={{ fontSize: '11px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>Propietario</span>
+          <span style={{ fontSize: '11px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>{t('canales.owner')}</span>
         )}
 
         {/* ⋮ context menu */}
@@ -225,7 +229,7 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="shield" size={16} /> Eliminar canal como admin</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="shield" size={16} /> {t('chatView.info.deleteChannel')}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 Canal: <strong style={{ color: 'var(--color-text)' }}>{channel.name}</strong>
               </div>
@@ -236,11 +240,11 @@ export default function ChannelCard({ channel, onClick, onLeave, onDelete, onAdm
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowAdminDelete(false)}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button onClick={handleAdminDelete} disabled={deleting || !adminReason.trim()}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: deleting || !adminReason.trim() ? 0.5 : 1 }}>
-                  {deleting ? 'Eliminando...' : 'Eliminar canal'}
+                  {deleting ? t('configuracion.deleting') : t('canales.deleteChannel')}
                 </button>
               </div>
             </motion.div>

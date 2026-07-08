@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import AppIcon from '../../components/ui/AppIcon'
 
@@ -164,6 +165,7 @@ export function VoicePlayer({ url, isOwn }) {
 // ── Botó de gravació ────────────────────────────────────────────────────────
 
 export function VoiceRecordButton({ onSend, userId }) {
+  const { t } = useTranslation()
   const [state, setState] = useState('idle') // idle | recording | uploading
   const [seconds, setSeconds] = useState(0)
   const [error, setError] = useState('')
@@ -193,7 +195,7 @@ export function VoiceRecordButton({ onSend, userId }) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      setError('Sin acceso al micrófono')
+      setError(t('voice.noMic'))
       return
     }
 
@@ -253,21 +255,21 @@ export function VoiceRecordButton({ onSend, userId }) {
       })
 
       if (!blob || blob.size === 0) {
-        setError('No se grabó audio')
+        setError(t('voice.noAudio'))
         setState('idle')
         return
       }
 
       const url = await uploadVoiceBlob(blob, userId)
       if (!url) {
-        setError('Error al subir el audio')
+        setError(t('voice.uploadError'))
         setState('idle')
         return
       }
 
       await onSend(`[VOICE]:${url}`)
     } catch {
-      setError('Error al enviar')
+      setError(t('voice.errorSending'))
     } finally {
       mrRef.current = null
       setState('idle')
@@ -277,7 +279,7 @@ export function VoiceRecordButton({ onSend, userId }) {
 
   if (state === 'uploading') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-      <AppIcon name="loading" size={13} /> Enviando...
+      <AppIcon name="loading" size={13} /> {t('voice.sending')}
     </div>
   )
 
@@ -290,17 +292,17 @@ export function VoiceRecordButton({ onSend, userId }) {
       </span>
       <button onClick={cancelRecording}
         style={{ background: 'none', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', color: 'var(--color-error)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-        Cancelar
+        {t('common.cancel')}
       </button>
       <button onClick={sendRecording}
         style={{ background: 'var(--color-error)', border: 'none', borderRadius: 'var(--radius-md)', padding: '4px 12px', cursor: 'pointer', fontSize: '12px', color: '#fff', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-        <AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Enviar
+        <AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t('common.send')}
       </button>
     </div>
   )
 
   return (
-    <button onClick={startRecording} title={error || 'Mensaje de voz'}
+    <button onClick={startRecording} title={error || t('voice.title')}
       style={{ background: error ? 'var(--color-error-light)' : 'var(--color-bg)', border: `0.5px solid ${error ? 'var(--color-error-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', color: error ? 'var(--color-error)' : 'var(--color-text-muted)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
       <AppIcon name="mic" size={16} />
     </button>

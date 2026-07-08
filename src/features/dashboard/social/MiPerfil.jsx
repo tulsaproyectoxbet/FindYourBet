@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import PostModal from '../feed/PostModal'
 import FollowListModal from './FollowListModal'
@@ -15,9 +16,9 @@ import ComingSoon from '../../../components/ui/ComingSoon'
 import AppIcon from '../../../components/ui/AppIcon'
 
 const DM_OPTIONS = [
-  { id: 'followers', iconName: 'lock',  label: 'Solo seguidores mutuos', desc: 'Solo quien te siga y tú le sigas puede escribirte' },
-  { id: 'request',   iconName: 'mail',  label: 'Un mensaje', desc: 'Cualquiera puede enviarte 1 mensaje. Tú decides si aceptas' },
-  { id: 'everyone',  iconName: 'globe', label: 'Todos', desc: 'Cualquiera puede escribirte sin restricción' },
+  { id: 'followers', iconName: 'lock',  labelKey: 'profile.dmMutual',   descKey: 'profile.dmMutualDesc' },
+  { id: 'request',   iconName: 'mail',  labelKey: 'profile.dmRequest',  descKey: 'profile.dmRequestDesc' },
+  { id: 'everyone',  iconName: 'globe', labelKey: 'profile.dmEveryone', descKey: 'profile.dmEveryoneDesc' },
 ]
 
 const inputStyle = {
@@ -44,6 +45,7 @@ function Avatar({ url, name, size = 80, fontSize = 32 }) {
 }
 
 export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigateToChannel }) {
+  const { t } = useTranslation()
   const openProfile = useProfileNav()
   const { isAdmin, adminMode, toggleAdminMode } = useAdminMode()
   const [profile, setProfile] = useState(null)
@@ -178,12 +180,12 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
     if (!file) return
     const allowed = ['image/jpeg', 'image/png']
     if (!allowed.includes(file.type)) {
-      setSaveError('Formato no permitido. Solo JPG o PNG.')
+      setSaveError(t('profile.avatarFormatError'))
       e.target.value = ''
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setSaveError('La foto pesa más de 5MB.')
+      setSaveError(t('profile.avatarSizeError'))
       e.target.value = ''
       return
     }
@@ -197,7 +199,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
     setSaveError('')
 
     if (!editForm.name.trim() || !editForm.username.trim()) {
-      setSaveError('El nombre y username son obligatorios')
+      setSaveError(t('profile.nameUsernameRequired'))
       setSaving(false)
       return
     }
@@ -210,13 +212,13 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
     if (usernameChanged) {
       // Bloca usernames reservats (marca, rols admin, etc.)
       if (isReservedUsername(newUsername)) {
-        setSaveError('Este username está reservado y no puede usarse.')
+        setSaveError(t('profile.usernameReserved'))
         setSaving(false)
         return
       }
       // Bloca usernames banejats per l'admin (taula banned_usernames)
       if (await isUsernameBanned(supabase, newUsername)) {
-        setSaveError('Este username está bloqueado y no puede usarse.')
+        setSaveError(t('profile.usernameBanned'))
         setSaving(false)
         return
       }
@@ -237,7 +239,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         const daysSince = (Date.now() - new Date(profile.username_changed_at).getTime()) / 86400000
         if (daysSince < 7) {
           const daysLeft = Math.ceil(7 - daysSince)
-          setSaveError(`Aún no puedes cambiar tu nombre de usuario. Podrás hacerlo en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}.`)
+          setSaveError(t('profile.usernameCooldown', { days: daysLeft }))
           setSaving(false)
           return
         }
@@ -247,7 +249,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
       const { data: existing } = await supabase
         .from('profiles').select('id').ilike('username', newUsername).neq('id', user.id).maybeSingle()
       if (existing) {
-        setSaveError('Este username ya está en uso')
+        setSaveError(t('profile.usernameTaken'))
         setSaving(false)
         return
       }
@@ -261,7 +263,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         .gt('expires_at', new Date().toISOString())
         .maybeSingle()
       if (othersReservation) {
-        setSaveError('Este username está reservado por otro usuario. Inténtalo en unos días.')
+        setSaveError(t('profile.usernameOtherReserved'))
         setSaving(false)
         return
       }
@@ -291,7 +293,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
 
       if (uploadError) {
         console.log('uploadError:', uploadError)
-        setSaveError('Error al subir la foto')
+        setSaveError(t('profile.avatarUploadError'))
         setSaving(false)
         return
       }
@@ -323,17 +325,17 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
       ])
     } catch (e) {
-      setSaveError(e.message === 'timeout' ? 'La conexión ha tardado demasiado. Inténtalo de nuevo.' : 'Error al guardar')
+      setSaveError(e.message === 'timeout' ? t('profile.saveTimeout') : t('profile.saveError'))
       setSaving(false)
       return
     }
     if (updateResult.error) {
-      setSaveError('Error al guardar: ' + updateResult.error.message)
+      setSaveError(t('profile.saveError') + ': ' + updateResult.error.message)
       setSaving(false)
       return
     }
     if (!updateResult.data) {
-      setSaveError('No se pudo guardar (sin permisos o sesión caducada).')
+      setSaveError(t('profile.saveNoPerms'))
       setSaving(false)
       return
     }
@@ -370,7 +372,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
   }
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando perfil...</div>
+    <div style={{ textAlign: 'center', padding: '80px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> {t('profile.loadingProfile')}</div>
   )
 
   const username = profile?.username || 'Usuario'
@@ -390,10 +392,10 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
             <button onClick={() => { setShowEditModal(true); setShowConfig(false) }}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <AppIcon name="edit" size={13} /> Editar perfil
+              <AppIcon name="edit" size={13} /> {t('profile.editProfile')}
             </button>
             <button onClick={() => { setShowDmConfig(true); setShowConfig(false) }}
-              title="Privacidad de notificaciones"
+              title={t('profile.privacyNotifs')}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-muted)' }}>
               <AppIcon name="bell" size={15} />
             </button>
@@ -410,14 +412,14 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }}
                   style={{ position: 'absolute', top: '44px', right: '12px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '200px', overflow: 'hidden' }}>
                   {[
-                    { iconName: 'lock',        label: 'Privacidad de mensajes', action: () => { setShowDmConfig(true); setShowConfig(false) } },
-                    { iconName: 'stats',       label: 'Mis estadísticas',       action: () => { onNavigate('estadisticas'); setShowConfig(false) } },
-                    { iconName: 'historial',   label: 'Mi historial',           action: () => { onNavigate('historial'); setShowConfig(false) } },
-                    { iconName: 'settings',    label: 'Configuración',          action: () => { onNavigate('configuracion'); setShowConfig(false) } },
+                    { iconName: 'lock',        labelKey: 'profile.dmPrivacy',   action: () => { setShowDmConfig(true); setShowConfig(false) } },
+                    { iconName: 'stats',       labelKey: 'profile.myStats',     action: () => { onNavigate('estadisticas'); setShowConfig(false) } },
+                    { iconName: 'historial',   labelKey: 'profile.myHistory',   action: () => { onNavigate('historial'); setShowConfig(false) } },
+                    { iconName: 'settings',    labelKey: 'profile.settings',    action: () => { onNavigate('configuracion'); setShowConfig(false) } },
                   ].map((item, i, arr) => (
                     <button key={i} onClick={item.action}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text)', textAlign: 'left', borderBottom: i < arr.length - 1 ? '0.5px solid var(--color-border)' : 'none', fontFamily: 'var(--font-sans)' }}>
-                      <AppIcon name={item.iconName} size={14} /><span>{item.label}</span>
+                      <AppIcon name={item.iconName} size={14} /><span>{t(item.labelKey)}</span>
                     </button>
                   ))}
                 </motion.div>
@@ -465,9 +467,9 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
 
           {/* STATS SOCIALS */}
           <div style={{ display: 'flex', gap: '0', marginBottom: '16px' }}>
-            <StatPill label="Seguidores" value={followersCount} onClick={() => setFollowListType('followers')} />
-            <StatPill label="Siguiendo" value={followingCount} onClick={() => setFollowListType('following')} />
-            <StatPill label="Picks" value={stats.total} />
+            <StatPill label={t('profile.followers')} value={followersCount} onClick={() => setFollowListType('followers')} />
+            <StatPill label={t('profile.following')} value={followingCount} onClick={() => setFollowListType('following')} />
+            <StatPill label={t('profile.picks')} value={stats.total} />
             <div style={{ textAlign: 'center', padding: '0 20px' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' }}>
                 {stats.yieldVal >= 0 ? '+' : ''}{stats.yieldVal.toFixed(1)}%
@@ -480,7 +482,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           <div onClick={() => setShowDmConfig(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-muted)' }}>
             {currentDmOption?.iconName && <AppIcon name={currentDmOption.iconName} size={12} />}
-            <span>Mensajes: <strong style={{ color: 'var(--color-text)' }}>{currentDmOption?.label}</strong></span>
+            <span>{t('profile.messages')}: <strong style={{ color: 'var(--color-text)' }}>{currentDmOption ? t(currentDmOption.labelKey) : ''}</strong></span>
             <AppIcon name="edit" size={10} />
           </div>
         </div>
@@ -489,13 +491,13 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
       {/* TABS */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '0.5px solid var(--color-border)' }}>
         {[
-          { id: 'stats', label: 'Rendimiento' },
-          { id: 'picks', label: 'Últimos picks' },
-          { id: 'canales', label: 'Canales' },
-        ].map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); if (t.id === 'canales') fetchChannels() }}
-            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-            {t.label}
+          { id: 'stats',    labelKey: 'profile.tabStats' },
+          { id: 'picks',    labelKey: 'profile.tabPicks' },
+          { id: 'canales',  labelKey: 'profile.tabChannels' },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === 'canales') fetchChannels() }}
+            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === tab.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -510,29 +512,29 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
           <motion.div key="picks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', width: 'fit-content' }}>
               {[
-                { id: 'public',  label: `Públicos (${publicBets.length})` },
-                { id: 'private', label: `Premium (${premiumBets.length})` },
-              ].map(t => (
-                <button key={t.id} onClick={() => setPicksSubTab(t.id)}
-                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === t.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-                  {t.label}
+                { id: 'public',  labelKey: 'profile.picksPublic',  n: publicBets.length },
+                { id: 'private', labelKey: 'profile.picksPremium', n: premiumBets.length },
+              ].map(ptab => (
+                <button key={ptab.id} onClick={() => setPicksSubTab(ptab.id)}
+                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === ptab.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === ptab.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+                  {t(ptab.labelKey, { n: ptab.n })}
                 </button>
               ))}
             </div>
             {recentBets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '12px' }}><AppIcon name="document" size={40} /></div>
-                <div style={{ fontWeight: 600, marginBottom: '6px' }}>Sin picks todavía</div>
-                <div style={{ fontSize: '13px' }}>Tus picks resueltos aparecerán aquí.</div>
+                <div style={{ fontWeight: 600, marginBottom: '6px' }}>{t('profile.noPicks')}</div>
+                <div style={{ fontSize: '13px' }}>{t('profile.noPicksDesc')}</div>
                 <button onClick={() => onNavigate('historial')}
                   style={{ marginTop: '16px', padding: '10px 20px', background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
-                  + Nuevo pick
+                  {t('profile.newPick')}
                 </button>
               </div>
             ) : shownBets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '8px' }}><AppIcon name="document" size={32} /></div>
-                <div>{picksSubTab === 'public' ? 'Sin picks públicos' : 'Sin picks premium'}</div>
+                <div>{picksSubTab === 'public' ? t('profile.noPicksPublic') : t('profile.noPicksPremium')}</div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
@@ -544,7 +546,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                   const statusBorder = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
                   const label = isWon
                     ? <><AppIcon name="check" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Win</>
-                    : isVoid ? '● Nula'
+                    : isVoid ? `● ${t('historial.status.void')}`
                     : <><AppIcon name="close" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Loss</>
                   return (
                     <div key={b.id} onClick={() => setPostModalBetId(b.id)}
@@ -577,10 +579,10 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                       {/* Footer: canal + data */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '0.5px solid var(--color-border)', marginTop: 'auto', gap: '8px' }}>
                         <span style={{ fontSize: '11px', color: b.channel && !b.channel.deleted_at ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: b.channel && !b.channel.deleted_at ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontStyle: b.channel?.deleted_at ? 'italic' : 'normal' }}>
-                          {b.channel ? (b.channel.deleted_at ? 'Canal eliminado' : b.channel.name) : ''}
+                          {b.channel ? (b.channel.deleted_at ? t('profile.channelDeleted') : b.channel.name) : ''}
                         </span>
                         <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-                          {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                          {new Date(b.date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
                         </span>
                       </div>
                     </div>
@@ -597,7 +599,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
             {stats.total === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '8px' }}><AppIcon name="barChart" size={32} /></div>
-                <div>Aún no tienes picks registrados.</div>
+                <div>{t('profile.noPicksRegistered')}</div>
               </div>
             ) : (() => {
               // Filtratge de període sobre totes les apostes carregades
@@ -643,19 +645,19 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               const valStyle = (color) => ({ fontSize: '34px', fontWeight: 700, color, lineHeight: 1 })
               const subStyle = { fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }
 
-              // Etiqueta del mes — construïda manualment per garantir "Agosto de 2026"
+              // Etiqueta del mes — construïda manualment per garantir locale correcte
               const monthLabel = statsPeriod.startsWith('month:') ? (() => {
                 const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
-                const name = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
-                return name.charAt(0).toUpperCase() + name.slice(1) + ' de ' + y
+                const name = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+                return name.charAt(0).toUpperCase() + name.slice(1) + ' ' + y
               })() : null
 
               const PERIOD_OPTS = [
-                { id: 'total', label: 'Total' },
-                { id: '1m',    label: 'Este mes' },
-                { id: '3m',    label: 'Últimos 3 meses' },
-                { id: '6m',    label: 'Últimos 6 meses' },
-                { id: '1y',    label: 'Último año' },
+                { id: 'total', label: t('profile.periodTotal') },
+                { id: '1m',    label: t('profile.periodThisMonth') },
+                { id: '3m',    label: t('profile.period3Months') },
+                { id: '6m',    label: t('profile.period6Months') },
+                { id: '1y',    label: t('profile.period1Year') },
               ]
 
               return (
@@ -681,7 +683,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                         ))}
                         {/* Separador + picker de mes integrat */}
                         <div style={{ borderTop: '0.5px solid var(--color-border)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Mes concreto</span>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{t('profile.specificMonth')}</span>
                           <input type="month" value={statsMonthInput}
                             min="2026-01"
                             max={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`}
@@ -709,30 +711,30 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
 
                       {/* 2 — Cuota media */}
                       <div style={cardStyle}>
-                        <div style={labelStyle}>Cuota media</div>
+                        <div style={labelStyle}>{t('profile.avgOdds')}</div>
                         <div style={valStyle('var(--color-warning)')}>{pAvgOdds}</div>
-                        <div style={subStyle}>Cuota promedio</div>
+                        <div style={subStyle}>{t('profile.avgOddsDesc')}</div>
                       </div>
 
                       {/* 3 — Yield */}
                       <div style={cardStyle}>
                         <div style={labelStyle}>Yield</div>
                         <div style={valStyle(yieldColor)}>{pYield >= 0 ? '+' : ''}{pYield.toFixed(2)}%</div>
-                        <div style={subStyle}>Beneficio sobre el stake</div>
+                        <div style={subStyle}>{t('profile.yieldDesc')}</div>
                       </div>
 
                       {/* 4 — Stake medio */}
                       <div style={cardStyle}>
-                        <div style={labelStyle}>Stake medio</div>
+                        <div style={labelStyle}>{t('profile.avgStake')}</div>
                         <div style={valStyle('var(--color-text)')}>{pAvgStake.toFixed(1)}</div>
-                        <div style={subStyle}>Unidades por pick</div>
+                        <div style={subStyle}>{t('profile.avgStakeDesc')}</div>
                       </div>
 
                       {/* 5 — Beneficio (banco 1.000€, 1u = 1% = 10€) — ocupa tota la fila */}
                       <div style={{ ...cardStyle, border: `0.5px solid ${benefitEur >= 0 ? 'var(--color-primary-border)' : 'var(--color-error-border)'}`, gridColumn: '1 / -1' }}>
-                        <div style={labelStyle}>Beneficio</div>
+                        <div style={labelStyle}>{t('profile.benefit')}</div>
                         <div style={valStyle(benefitColor)}>{benefitEur >= 0 ? '+' : ''}{benefitEur.toFixed(0)}€</div>
-                        <div style={subStyle}>Banco inicial 1.000 €</div>
+                        <div style={subStyle}>{t('profile.bankDesc')}</div>
                       </div>
 
                     </div>
@@ -746,14 +748,14 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
         {activeTab === 'canales' && (
           <motion.div key="canales" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             {loadingChannels ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando canales...</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> {t('profile.loadingChannels')}</div>
             ) : channels.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '12px' }}><AppIcon name="canales" size={40} /></div>
-                <div style={{ fontWeight: 600, marginBottom: '6px' }}>Sin canales todavía</div>
+                <div style={{ fontWeight: 600, marginBottom: '6px' }}>{t('profile.noChannels')}</div>
                 <button onClick={() => onNavigate('canales')}
                   style={{ marginTop: '16px', padding: '10px 20px', background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
-                  + Crear canal
+                  {t('profile.createChannel')}
                 </button>
               </div>
             ) : (
@@ -776,12 +778,12 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 700, fontSize: '15px' }}>{c.name}</span>
-                          {c.is_private && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> Privado</span>}
+                          {c.is_private && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><AppIcon name="lock" size={10} /> {t('profile.private')}</span>}
                           {c.sport && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>{c.sport}</span>}
                           {/* Stats inline al costat del nom */}
                           <div style={{ display: 'flex', alignItems: 'center' }}>
-                            {statCol(c.memberCount, 'Miembros')}
-                            {statCol(c.pickCount, 'Picks')}
+                            {statCol(c.memberCount, t('channels.members'))}
+                            {statCol(c.pickCount, t('profile.picks'))}
                             {stats.total > 0 && statCol(`${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(1)}%`, 'Yield', yieldColor)}
                           </div>
                         </div>
@@ -790,7 +792,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                       {onNavigateToChannel && (
                         <button onClick={() => onNavigateToChannel(c)}
                           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, marginLeft: '8px' }}>
-                          Ir al canal
+                          {t('profile.goToChannel')}
                         </button>
                       )}
                     </div>
@@ -814,7 +816,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: 'var(--shadow-md)', maxHeight: '90vh', overflowY: 'auto' }}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="edit" size={16} /> Editar perfil</div>
+                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="edit" size={16} /> {t('profile.editProfile')}</div>
                 <button onClick={() => setShowEditModal(false)}
                   style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   ×
@@ -832,19 +834,19 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                   <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleAvatarChange} style={{ display: 'none' }} />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>Foto de perfil</div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>JPG o PNG. Máx 5MB.</div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{t('profile.profilePhoto')}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>{t('profile.photoDesc')}</div>
                   <button onClick={() => fileInputRef.current?.click()}
                     style={{ fontSize: '12px', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
-                    Cambiar foto
+                    {t('profile.changePhoto')}
                   </button>
                 </div>
               </div>
 
               {/* CAMPS */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Nombre completo *</label>
-                <input style={inputStyle} placeholder="Tu nombre" value={editForm.name}
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>{t('profile.fullName')}</label>
+                <input style={inputStyle} placeholder={t('profile.namePlaceholder')} value={editForm.name}
                   onChange={e => setEditForm(p => ({ ...p, name: stripEmojis(e.target.value) }))} maxLength={50} />
               </div>
 
@@ -855,21 +857,20 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                 {(() => {
                   if (!profile?.username_changed_at) return null
                   const daysSince = (Date.now() - new Date(profile.username_changed_at).getTime()) / 86400000
-                  if (daysSince >= 7) return <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={11} /> Puedes cambiar tu username</div>
+                  if (daysSince >= 7) return <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="check" size={11} /> {t('profile.usernameCanChange')}</div>
                   const daysLeft = Math.ceil(7 - daysSince)
-                  return <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="lock" size={11} /> Podrás cambiarlo en {daysLeft} día{daysLeft !== 1 ? 's' : ''} (o vuelve a un username anterior tuyo en cualquier momento)</div>
+                  return <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="lock" size={11} /> {t('profile.usernameChangeable', { days: daysLeft })}</div>
                 })()}
               </div>
 
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Bio</label>
                 <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3}
-                  placeholder="Cuéntale a la comunidad quién eres como tipster..."
+                  placeholder={t('profile.bioPlaceholder')}
                   value={editForm.bio} onChange={e => setEditForm(p => ({ ...p, bio: clampBio(e.target.value) }))}
                   maxLength={MAX_BIO_LEN} />
                 <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>{editForm.bio.length}/{MAX_BIO_LEN}</div>
               </div>
-
 
               {saveError && (
                 <div style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', color: 'var(--color-error)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', marginBottom: '16px' }}>
@@ -880,11 +881,11 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={handleSaveProfile} disabled={saving}
                   style={{ flex: 1, background: saving ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: saving ? 'var(--color-text-muted)' : '#010906', border: 'none', padding: '12px', borderRadius: 'var(--radius-md)', cursor: saving ? 'default' : 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)' }}>
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
+                  {saving ? t('profile.saving') : t('profile.saveChanges')}
                 </button>
                 <button onClick={() => setShowEditModal(false)}
                   style={{ padding: '12px 20px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'var(--font-sans)', color: 'var(--color-text)' }}>
-                  Cancelar
+                  {t('social.cancel')}
                 </button>
               </div>
             </motion.div>
@@ -902,14 +903,14 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: 'var(--shadow-md)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="lock" size={16} /> Privacidad de mensajes</div>
+                <div style={{ fontWeight: 700, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="lock" size={16} /> {t('profile.dmPrivacy')}</div>
                 <button onClick={() => setShowDmConfig(false)}
                   style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   ×
                 </button>
               </div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                Controla quién puede enviarte mensajes directos
+                {t('profile.dmPrivacyDesc')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {DM_OPTIONS.map(opt => (
@@ -917,8 +918,8 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                     style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-border)'}`, background: dmSetting === opt.id ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.15s' }}>
                     <AppIcon name={opt.iconName} size={22} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px', color: dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-text)' }}>{opt.label}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{opt.desc}</div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-text)' }}>{t(opt.labelKey)}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{t(opt.descKey)}</div>
                     </div>
                     <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${dmSetting === opt.id ? 'var(--color-primary)' : 'var(--color-border)'}`, background: dmSetting === opt.id ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {dmSetting === opt.id && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#010906' }} />}
@@ -926,7 +927,7 @@ export default function MiPerfil({ user, onNavigate, onAvatarUpdated, onNavigate
                   </div>
                 ))}
               </div>
-              {savingDm && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', textAlign: 'center' }}>Guardando...</div>}
+              {savingDm && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', textAlign: 'center' }}>{t('profile.saving')}</div>}
             </motion.div>
           </motion.div>
         )}

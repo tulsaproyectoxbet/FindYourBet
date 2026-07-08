@@ -1,17 +1,55 @@
-export const INFO_ORDER = ['como-funciona', 'tipsters', 'ranking', 'precios']
+// Contingut de les pàgines informatives de FindYourBet (FYB).
+// Selector per idioma: getInfoDocs(lang)
 
-export const INFO_DOCS = {
+// ─── ESPAÑOL ─────────────────────────────────────────────────────────────────
+const INFO_DOCS_ES = {
+  'como-funciona': {
+    slug: 'como-funciona', short: 'Cómo funciona', title: 'Cómo funciona FindYourBet',
+    desc: 'Todo lo que necesitas saber para empezar en la red social de pronósticos deportivos.',
+    blocks: [
+      { h3: '¿Qué es FindYourBet?' },
+      { p: 'FindYourBet (FYB) es una red social de pronósticos deportivos. No es una casa de apuestas: es el lugar donde apostadores y tipsters registran sus picks, construyen su historial y conectan con otros apasionados del deporte.' },
+      { p: 'En FYB los picks se publican antes del partido y no se pueden editar ni borrar. Lo que ves es real.' },
+      { note: 'FYB no organiza ni acepta apuestas. Solo registra pronósticos. Apostar es responsabilidad exclusiva del usuario en su casa de apuestas.' },
+      { h3: 'Registro y acceso' },
+      { p: 'FYB está en beta pública. Cualquiera puede registrarse de forma gratuita.' },
+      { ul: [
+        'Puedes registrarte con email y contraseña, o directamente con Google.',
+        'Confirmas que tienes 18 años o más.',
+        'Eliges un nombre de usuario único.',
+        'Completas tu perfil con foto y bio cuando quieras.',
+      ] },
+      { h3: 'Tu perfil' },
+      { p: 'Tu perfil es tu carta de presentación. Muestra tu foto, bio, seguidores, estadísticas de rendimiento y el historial de picks. Cualquiera puede visitar el perfil público de otro usuario y ver su trayectoria completa.' },
+      { h3: 'Los canales' },
+      { p: 'Cada tipster puede crear sus propios canales donde publica sus picks. Hay canales públicos (abiertos a todos) y canales privados (solo con código de invitación).' },
+      { p: 'Dentro de un canal puedes publicar picks, mensajes, imágenes y GIFs.' },
+      { h3: 'Los picks' },
+      { p: 'Publicar un pick es rápido: evento, selección, cuota, stake (del 1 al 10 según tu confianza), deporte y un análisis opcional. Cuando el partido termina, marcas el resultado: Ganada, Perdida o Nula.' },
+      { p: 'Las apuestas nulas (anuladas por el organizador) se guardan en el historial pero no afectan a las estadísticas.' },
+      { h3: 'Comunidad' },
+      { ul: [
+        'Sigue a otros usuarios para ver sus picks en tu feed.',
+        'Da like y comenta en los picks que más te gusten.',
+        'Envía mensajes directos a cualquier usuario.',
+        'Organiza tus conversaciones en carpetas personalizadas.',
+      ] },
+      { h3: 'El feed' },
+      { p: 'El feed tiene dos pestañas: Siguiendo (los picks de los tipsters que sigues, en orden cronológico) y Para ti (picks de tipsters que quizás no conoces todavía).' },
+      { p: 'Desde el feed puedes dar like, comentar y seguir a cualquier tipster directamente.' },
+      { h3: 'Notificaciones' },
+      { p: 'FYB te avisa cuando alguien interactúa con tus picks, empieza a seguirte, se une a tu canal o te manda un mensaje.' },
+    ],
+  },
+
   'tipsters': {
-    slug: 'tipsters',
-    short: 'Tipsters',
-    title: 'Tipsters en FindYourBet',
+    slug: 'tipsters', short: 'Tipsters', title: 'Tipsters en FindYourBet',
     desc: 'Todo lo que necesitas saber para convertirte en tipster y hacer crecer tu comunidad.',
     blocks: [
       { h3: '¿Qué es un tipster en FYB?' },
       { p: 'En FindYourBet, cualquier usuario que publica pronósticos deportivos es considerado un tipster.' },
       { p: 'No existen categorías especiales ni requisitos para empezar. Lo que diferencia a unos tipsters de otros son sus resultados, su constancia y la confianza que generan dentro de la comunidad.' },
       { note: 'Para garantizar la transparencia, todos los picks se registran antes del inicio del evento y no pueden editarse ni eliminarse una vez publicados.' },
-
       { h3: 'Cómo empezar' },
       { p: 'Convertirte en tipster es muy sencillo:' },
       { ul: [
@@ -19,9 +57,8 @@ export const INFO_DOCS = {
         'Accede a la sección Canales.',
         'Crea tu primer canal.',
         'Publica tu primer pick.',
-      ]},
+      ] },
       { p: 'Desde ese momento, tus estadísticas comenzarán a calcularse automáticamente.' },
-
       { h3: 'Qué puedes hacer como tipster' },
       { p: 'Como tipster podrás:' },
       { ul: [
@@ -33,8 +70,7 @@ export const INFO_DOCS = {
         'Recibir interacciones de otros usuarios.',
         'Aparecer en los rankings de la plataforma.',
         'Comunicarte con otros miembros de la comunidad.',
-      ]},
-
+      ] },
       { h3: 'Estadísticas transparentes' },
       { p: 'FindYourBet calcula automáticamente las estadísticas de todos los tipsters a partir de los picks registrados en la plataforma.' },
       { p: 'Entre otras métricas, los usuarios podrán consultar:' },
@@ -45,13 +81,11 @@ export const INFO_DOCS = {
         'Stake medio.',
         'Beneficio acumulado.',
         'Historial de picks.',
-      ]},
+      ] },
       { p: 'Las apuestas anuladas permanecen registradas en el historial, pero no afectan a las estadísticas.' },
-
       { h3: 'Verificación de tipster' },
       { p: 'La insignia de tipster verificado puede ser otorgada por el equipo de FindYourBet a aquellas cuentas que demuestren actividad, consistencia y un comportamiento adecuado dentro de la comunidad.' },
       { p: 'La verificación es visible en el perfil, los canales y los rankings de la plataforma.' },
-
       { h3: 'Consejos para crecer' },
       { ul: [
         'Publica con regularidad.',
@@ -59,21 +93,18 @@ export const INFO_DOCS = {
         'Aporta análisis cuando sea relevante.',
         'Interactúa con tu comunidad.',
         'Prioriza siempre la transparencia frente a los resultados a corto plazo.',
-      ]},
+      ] },
       { p: 'La confianza se construye con el tiempo, y las estadísticas ayudan a demostrarla.' },
     ],
   },
 
   'ranking': {
-    slug: 'ranking',
-    short: 'Ranking',
-    title: 'El sistema de ranking',
+    slug: 'ranking', short: 'Ranking', title: 'El sistema de ranking',
     desc: 'Cómo se calcula el ranking de tipsters y qué significa cada posición.',
     blocks: [
       { h3: 'Cómo se calcula el ranking de tipsters' },
       { p: 'El ranking de FindYourBet está diseñado para reflejar de la forma más objetiva posible el rendimiento de los tipsters de la plataforma.' },
       { p: 'Las posiciones se calculan automáticamente a partir de los picks registrados en FYB y no pueden verse alteradas mediante publicidad, acuerdos comerciales, número de seguidores o cualquier otro factor externo.' },
-
       { h3: 'Criterios de clasificación' },
       { p: 'La métrica principal utilizada para ordenar el ranking es el yield, que representa el rendimiento obtenido en relación con el stake total invertido.' },
       { p: 'Además, el sistema puede tener en cuenta otros factores relevantes para valorar la consistencia y fiabilidad del rendimiento:' },
@@ -83,10 +114,9 @@ export const INFO_DOCS = {
         'Volumen de picks registrados.',
         'Cuota media.',
         'Consistencia a lo largo del tiempo.',
-      ]},
+      ] },
       { p: 'Para aparecer en determinadas clasificaciones puede exigirse un número mínimo de picks resueltos, evitando así que resultados aislados distorsionen el ranking.' },
       { p: 'Las apuestas anuladas no afectan a ninguna estadística ni posición.' },
-
       { h3: 'Transparencia ante todo' },
       { p: 'La confianza en un ranking depende de la calidad de los datos que lo componen.' },
       { p: 'Por ello, en FindYourBet:' },
@@ -96,74 +126,315 @@ export const INFO_DOCS = {
         'No pueden eliminarse para alterar estadísticas.',
         'Las cuotas y stakes quedan registrados desde el momento de la publicación.',
         'El historial permanece accesible para su consulta.',
-      ]},
+      ] },
       { p: 'Esto permite que las estadísticas reflejen el rendimiento real de cada tipster de forma transparente y verificable.' },
-
       { h3: 'Verificación de tipsters' },
       { p: 'Algunos perfiles pueden mostrar una insignia de verificación (✓).' },
       { p: 'Esta insignia indica que la cuenta ha sido revisada manualmente por el equipo de FindYourBet y cumple determinados criterios de actividad, comportamiento y trayectoria dentro de la plataforma.' },
       { p: 'La verificación no influye en la posición del ranking ni modifica las estadísticas mostradas.' },
-
       { h3: 'Nuestro objetivo' },
       { p: 'El propósito del ranking es facilitar a los usuarios una herramienta transparente para comparar trayectorias, analizar resultados y descubrir tipsters de forma informada.' },
       { p: 'Ninguna posición, estadística o rendimiento pasado garantiza resultados futuros, por lo que cada usuario debe valorar la información disponible de forma responsable.' },
     ],
   },
 
+  'precios': {
+    slug: 'precios', short: 'Precios', title: 'Precios', comingSoon: true,
+  },
+}
+
+// ─── ENGLISH ─────────────────────────────────────────────────────────────────
+const INFO_DOCS_EN = {
   'como-funciona': {
-    slug: 'como-funciona',
-    short: 'Cómo funciona',
-    title: 'Cómo funciona FindYourBet',
-    desc: 'Todo lo que necesitas saber para empezar en la red social de pronósticos deportivos.',
+    slug: 'como-funciona', short: 'How it works', title: 'How FindYourBet works',
+    desc: 'Everything you need to know to get started on the sports forecasting social network.',
     blocks: [
-      { h3: '¿Qué es FindYourBet?' },
-      { p: 'FindYourBet (FYB) es una red social de pronósticos deportivos. No es una casa de apuestas: es el lugar donde apostadores y tipsters registran sus picks, construyen su historial y conectan con otros apasionados del deporte.' },
-      { p: 'En FYB los picks se publican antes del partido y no se pueden editar ni borrar. Lo que ves es real.' },
-      { note: 'FYB no organiza ni acepta apuestas. Solo registra pronósticos. Apostar es responsabilidad exclusiva del usuario en su casa de apuestas.' },
-
-      { h3: 'Registro y acceso' },
-      { p: 'FYB está en beta pública. Cualquiera puede registrarse de forma gratuita.' },
+      { h3: 'What is FindYourBet?' },
+      { p: 'FindYourBet (FYB) is a sports forecasting social network. It is not a bookmaker: it is the place where bettors and tipsters log their picks, build their track records and connect with fellow sports enthusiasts.' },
+      { p: 'On FYB, picks are published before the match and cannot be edited or deleted. What you see is real.' },
+      { note: 'FYB does not organise or accept bets. It only records forecasts. Betting is entirely the user\'s responsibility at their own bookmaker.' },
+      { h3: 'Registration and access' },
+      { p: 'FYB is in public beta. Anyone can sign up for free.' },
       { ul: [
-        'Puedes registrarte con email y contraseña, o directamente con Google.',
-        'Confirmas que tienes 18 años o más.',
-        'Eliges un nombre de usuario único.',
-        'Completas tu perfil con foto y bio cuando quieras.',
-      ]},
-
-      { h3: 'Tu perfil' },
-      { p: 'Tu perfil es tu carta de presentación. Muestra tu foto, bio, seguidores, estadísticas de rendimiento y el historial de picks. Cualquiera puede visitar el perfil público de otro usuario y ver su trayectoria completa.' },
-
-      { h3: 'Los canales' },
-      { p: 'Cada tipster puede crear sus propios canales donde publica sus picks. Hay canales públicos (abiertos a todos) y canales privados (solo con código de invitación).' },
-      { p: 'Dentro de un canal puedes publicar picks, mensajes, imágenes y GIFs.' },
-
-      { h3: 'Los picks' },
-      { p: 'Publicar un pick es rápido: evento, selección, cuota, stake (del 1 al 10 según tu confianza), deporte y un análisis opcional. Cuando el partido termina, marcas el resultado: Ganada, Perdida o Nula.' },
-      { p: 'Las apuestas nulas (anuladas por el organizador) se guardan en el historial pero no afectan a las estadísticas.' },
-
-      { h3: 'Comunidad' },
+        'Register with email and password, or directly with Google.',
+        'Confirm that you are 18 or older.',
+        'Choose a unique username.',
+        'Complete your profile with a photo and bio whenever you like.',
+      ] },
+      { h3: 'Your profile' },
+      { p: 'Your profile is your calling card. It shows your photo, bio, followers, performance stats and pick history. Anyone can visit another user\'s public profile and see their full track record.' },
+      { h3: 'Channels' },
+      { p: 'Every tipster can create their own channels where they publish picks. There are public channels (open to all) and private channels (invite code only).' },
+      { p: 'Inside a channel you can publish picks, messages, images and GIFs.' },
+      { h3: 'Picks' },
+      { p: 'Publishing a pick is quick: event, selection, odds, stake (1–10 based on your confidence), sport and an optional analysis. When the match ends, you mark the result: Won, Lost or Void.' },
+      { p: 'Void bets (cancelled by the organiser) are saved in the history but do not affect statistics.' },
+      { h3: 'Community' },
       { ul: [
-        'Sigue a otros usuarios para ver sus picks en tu feed.',
-        'Da like y comenta en los picks que más te gusten.',
-        'Envía mensajes directos a cualquier usuario.',
-        'Organiza tus conversaciones en carpetas personalizadas.',
-      ]},
+        'Follow other users to see their picks in your feed.',
+        'Like and comment on the picks you enjoy most.',
+        'Send direct messages to any user.',
+        'Organise your conversations in custom folders.',
+      ] },
+      { h3: 'The feed' },
+      { p: 'The feed has two tabs: Following (picks from tipsters you follow, in chronological order) and For you (picks from tipsters you may not have discovered yet).' },
+      { p: 'From the feed you can like, comment and follow any tipster directly.' },
+      { h3: 'Notifications' },
+      { p: 'FYB notifies you when someone interacts with your picks, starts following you, joins your channel or sends you a message.' },
+    ],
+  },
 
-      { h3: 'El feed' },
-      { p: 'El feed tiene dos pestañas: Siguiendo (los picks de los tipsters que sigues, en orden cronológico) y Para ti (picks de tipsters que quizás no conoces todavía).' },
-      { p: 'Desde el feed puedes dar like, comentar y seguir a cualquier tipster directamente.' },
+  'tipsters': {
+    slug: 'tipsters', short: 'Tipsters', title: 'Tipsters on FindYourBet',
+    desc: 'Everything you need to know to become a tipster and grow your community.',
+    blocks: [
+      { h3: 'What is a tipster on FYB?' },
+      { p: 'On FindYourBet, any user who publishes sports forecasts is considered a tipster.' },
+      { p: 'There are no special categories or requirements to get started. What sets tipsters apart is their results, their consistency and the trust they earn within the community.' },
+      { note: 'To ensure transparency, all picks are logged before the event starts and cannot be edited or deleted once published.' },
+      { h3: 'Getting started' },
+      { p: 'Becoming a tipster is straightforward:' },
+      { ul: [
+        'Create a free account.',
+        'Go to the Channels section.',
+        'Create your first channel.',
+        'Publish your first pick.',
+      ] },
+      { p: 'From that moment, your statistics will start being calculated automatically.' },
+      { h3: 'What you can do as a tipster' },
+      { p: 'As a tipster you can:' },
+      { ul: [
+        'Create your own channels.',
+        'Publish picks with odds, stake and analysis.',
+        'View your complete pick history.',
+        'Analyse your performance with detailed statistics.',
+        'Gain followers and build a community.',
+        'Receive interactions from other users.',
+        'Appear in the platform rankings.',
+        'Communicate with other community members.',
+      ] },
+      { h3: 'Transparent statistics' },
+      { p: 'FindYourBet automatically calculates statistics for all tipsters based on picks logged on the platform.' },
+      { p: 'Among other metrics, users can check:' },
+      { ul: [
+        'Win rate.',
+        'Yield.',
+        'Average odds.',
+        'Average stake.',
+        'Cumulative profit.',
+        'Pick history.',
+      ] },
+      { p: 'Void bets remain in the history but do not affect statistics.' },
+      { h3: 'Tipster verification' },
+      { p: 'The verified tipster badge may be awarded by the FindYourBet team to accounts that demonstrate activity, consistency and appropriate behaviour within the community.' },
+      { p: 'Verification is visible on the profile, channels and platform rankings.' },
+      { h3: 'Tips for growing' },
+      { ul: [
+        'Publish regularly.',
+        'Maintain consistent stake management.',
+        'Add analysis when it adds value.',
+        'Engage with your community.',
+        'Always prioritise transparency over short-term results.',
+      ] },
+      { p: 'Trust is built over time, and statistics help prove it.' },
+    ],
+  },
 
-      { h3: 'Notificaciones' },
-      { p: 'FYB te avisa cuando alguien interactúa con tus picks, empieza a seguirte, se une a tu canal o te manda un mensaje.' },
+  'ranking': {
+    slug: 'ranking', short: 'Ranking', title: 'The ranking system',
+    desc: 'How the tipster ranking is calculated and what each position means.',
+    blocks: [
+      { h3: 'How the tipster ranking is calculated' },
+      { p: 'The FindYourBet ranking is designed to reflect tipster performance as objectively as possible.' },
+      { p: 'Positions are calculated automatically from picks logged on FYB and cannot be influenced by advertising, commercial agreements, follower counts or any other external factor.' },
+      { h3: 'Ranking criteria' },
+      { p: 'The primary metric used to order the ranking is yield, which represents the return achieved relative to total stake invested.' },
+      { p: 'In addition, the system may take other relevant factors into account to assess consistency and reliability of performance:' },
+      { ul: [
+        'Yield.',
+        'Win rate.',
+        'Volume of picks logged.',
+        'Average odds.',
+        'Consistency over time.',
+      ] },
+      { p: 'A minimum number of settled picks may be required to appear in certain rankings, preventing isolated results from distorting the table.' },
+      { p: 'Void bets do not affect any statistic or position.' },
+      { h3: 'Transparency above all' },
+      { p: 'Trust in a ranking depends on the quality of the data behind it.' },
+      { p: 'That is why on FindYourBet:' },
+      { ul: [
+        'Picks are logged before the event starts.',
+        'They cannot be edited once published.',
+        'They cannot be deleted to alter statistics.',
+        'Odds and stakes are recorded at the time of publication.',
+        'The history remains accessible for review.',
+      ] },
+      { p: 'This means statistics reflect each tipster\'s real performance in a transparent, verifiable way.' },
+      { h3: 'Tipster verification' },
+      { p: 'Some profiles may display a verification badge (✓).' },
+      { p: 'This badge indicates the account has been manually reviewed by the FindYourBet team and meets certain criteria for activity, behaviour and track record on the platform.' },
+      { p: 'Verification does not influence ranking position or alter the displayed statistics.' },
+      { h3: 'Our goal' },
+      { p: 'The purpose of the ranking is to give users a transparent tool for comparing track records, analysing results and discovering tipsters in an informed way.' },
+      { p: 'No position, statistic or past performance guarantees future results, so each user must assess the available information responsibly.' },
     ],
   },
 
   'precios': {
-    slug: 'precios',
-    short: 'Precios',
-    title: 'Precios',
-    desc: '',
-    blocks: [],
-    comingSoon: true,
+    slug: 'precios', short: 'Pricing', title: 'Pricing', comingSoon: true,
   },
 }
+
+// ─── FRANÇAIS ────────────────────────────────────────────────────────────────
+const INFO_DOCS_FR = {
+  'como-funciona': {
+    slug: 'como-funciona', short: 'Comment ça marche ?', title: 'Comment fonctionne FindYourBet ?',
+    desc: 'Tout ce qu\'il faut savoir pour commencer sur le réseau social de pronostics sportifs.',
+    blocks: [
+      { h3: 'Qu\'est-ce que FindYourBet ?' },
+      { p: 'FindYourBet (FYB) est un réseau social de pronostics sportifs. Ce n\'est pas un bookmaker : c\'est l\'endroit où les parieurs et les tipsters enregistrent leurs picks, construisent leur historique et se connectent avec d\'autres passionnés de sport.' },
+      { p: 'Sur FYB, les picks sont publiés avant le match et ne peuvent pas être modifiés ni supprimés. Ce que vous voyez est réel.' },
+      { note: 'FYB n\'organise pas de paris et n\'en accepte pas. Il enregistre uniquement des pronostics. Parier est de l\'entière responsabilité de l\'utilisateur auprès de son propre bookmaker.' },
+      { h3: 'Inscription et accès' },
+      { p: 'FYB est en bêta publique. N\'importe qui peut s\'inscrire gratuitement.' },
+      { ul: [
+        'Inscrivez-vous avec un e-mail et un mot de passe, ou directement avec Google.',
+        'Confirmez que vous avez 18 ans ou plus.',
+        'Choisissez un nom d\'utilisateur unique.',
+        'Complétez votre profil avec une photo et une bio quand vous le souhaitez.',
+      ] },
+      { h3: 'Votre profil' },
+      { p: 'Votre profil est votre carte de visite. Il affiche votre photo, votre bio, vos abonnés, vos statistiques de performance et votre historique de picks. Tout le monde peut visiter le profil public d\'un autre utilisateur et consulter son parcours complet.' },
+      { h3: 'Les chaînes' },
+      { p: 'Chaque tipster peut créer ses propres chaînes où il publie ses picks. Il existe des chaînes publiques (ouvertes à tous) et des chaînes privées (sur invitation uniquement).' },
+      { p: 'Au sein d\'une chaîne, vous pouvez publier des picks, des messages, des images et des GIFs.' },
+      { h3: 'Les picks' },
+      { p: 'Publier un pick est rapide : événement, sélection, cote, mise (de 1 à 10 selon votre confiance), sport et une analyse optionnelle. Lorsque le match se termine, vous indiquez le résultat : Gagné, Perdu ou Nul.' },
+      { p: 'Les paris nuls (annulés par l\'organisateur) sont conservés dans l\'historique mais n\'affectent pas les statistiques.' },
+      { h3: 'Communauté' },
+      { ul: [
+        'Suivez d\'autres utilisateurs pour voir leurs picks dans votre fil d\'actualité.',
+        'Likez et commentez les picks qui vous plaisent le plus.',
+        'Envoyez des messages directs à n\'importe quel utilisateur.',
+        'Organisez vos conversations dans des dossiers personnalisés.',
+      ] },
+      { h3: 'Le fil d\'actualité' },
+      { p: 'Le fil a deux onglets : Abonnements (les picks des tipsters que vous suivez, par ordre chronologique) et Pour vous (des picks de tipsters que vous ne connaissez peut-être pas encore).' },
+      { p: 'Depuis le fil, vous pouvez liker, commenter et suivre n\'importe quel tipster directement.' },
+      { h3: 'Notifications' },
+      { p: 'FYB vous avertit quand quelqu\'un interagit avec vos picks, commence à vous suivre, rejoint votre chaîne ou vous envoie un message.' },
+    ],
+  },
+
+  'tipsters': {
+    slug: 'tipsters', short: 'Tipsters', title: 'Tipsters sur FindYourBet',
+    desc: 'Tout ce qu\'il faut savoir pour devenir tipster et développer votre communauté.',
+    blocks: [
+      { h3: 'Qu\'est-ce qu\'un tipster sur FYB ?' },
+      { p: 'Sur FindYourBet, tout utilisateur qui publie des pronostics sportifs est considéré comme un tipster.' },
+      { p: 'Il n\'existe pas de catégories spéciales ni de prérequis pour commencer. Ce qui distingue les tipsters, c\'est leurs résultats, leur régularité et la confiance qu\'ils inspirent au sein de la communauté.' },
+      { note: 'Pour garantir la transparence, tous les picks sont enregistrés avant le début de l\'événement et ne peuvent pas être modifiés ni supprimés une fois publiés.' },
+      { h3: 'Pour commencer' },
+      { p: 'Devenir tipster est très simple :' },
+      { ul: [
+        'Créez un compte gratuit.',
+        'Accédez à la section Chaînes.',
+        'Créez votre première chaîne.',
+        'Publiez votre premier pick.',
+      ] },
+      { p: 'À partir de ce moment, vos statistiques commenceront à être calculées automatiquement.' },
+      { h3: 'Ce que vous pouvez faire en tant que tipster' },
+      { p: 'En tant que tipster, vous pourrez :' },
+      { ul: [
+        'Créer vos propres chaînes.',
+        'Publier des picks avec cote, mise et analyse.',
+        'Consulter votre historique complet.',
+        'Analyser vos performances grâce à des statistiques détaillées.',
+        'Gagner des abonnés et construire une communauté.',
+        'Recevoir des interactions d\'autres utilisateurs.',
+        'Apparaître dans les classements de la plateforme.',
+        'Communiquer avec les autres membres de la communauté.',
+      ] },
+      { h3: 'Statistiques transparentes' },
+      { p: 'FindYourBet calcule automatiquement les statistiques de tous les tipsters à partir des picks enregistrés sur la plateforme.' },
+      { p: 'Parmi d\'autres métriques, les utilisateurs pourront consulter :' },
+      { ul: [
+        'Taux de réussite.',
+        'Rendement (yield).',
+        'Cote moyenne.',
+        'Mise moyenne.',
+        'Bénéfice cumulé.',
+        'Historique des picks.',
+      ] },
+      { p: 'Les paris nuls restent dans l\'historique mais n\'affectent pas les statistiques.' },
+      { h3: 'Vérification de tipster' },
+      { p: 'Le badge de tipster vérifié peut être attribué par l\'équipe FindYourBet aux comptes qui font preuve d\'activité, de régularité et d\'un comportement adéquat au sein de la communauté.' },
+      { p: 'La vérification est visible sur le profil, les chaînes et les classements de la plateforme.' },
+      { h3: 'Conseils pour progresser' },
+      { ul: [
+        'Publiez régulièrement.',
+        'Maintenez une gestion de mise cohérente.',
+        'Apportez de l\'analyse quand cela est pertinent.',
+        'Interagissez avec votre communauté.',
+        'Privilégiez toujours la transparence aux résultats à court terme.',
+      ] },
+      { p: 'La confiance se construit avec le temps, et les statistiques aident à la prouver.' },
+    ],
+  },
+
+  'ranking': {
+    slug: 'ranking', short: 'Classement', title: 'Le système de classement',
+    desc: 'Comment le classement des tipsters est calculé et ce que signifie chaque position.',
+    blocks: [
+      { h3: 'Comment le classement des tipsters est calculé' },
+      { p: 'Le classement FindYourBet est conçu pour refléter aussi objectivement que possible les performances des tipsters de la plateforme.' },
+      { p: 'Les positions sont calculées automatiquement à partir des picks enregistrés sur FYB et ne peuvent pas être influencées par de la publicité, des accords commerciaux, le nombre d\'abonnés ou tout autre facteur externe.' },
+      { h3: 'Critères de classement' },
+      { p: 'La métrique principale utilisée pour ordonner le classement est le rendement (yield), qui représente le retour obtenu par rapport à la mise totale investie.' },
+      { p: 'Le système peut également prendre en compte d\'autres facteurs pour évaluer la cohérence et la fiabilité des performances :' },
+      { ul: [
+        'Rendement (yield).',
+        'Taux de réussite.',
+        'Volume de picks enregistrés.',
+        'Cote moyenne.',
+        'Régularité dans le temps.',
+      ] },
+      { p: 'Un nombre minimum de picks résolus peut être requis pour figurer dans certains classements, évitant ainsi que des résultats isolés ne les faussent.' },
+      { p: 'Les paris nuls n\'affectent aucune statistique ni position.' },
+      { h3: 'La transparence avant tout' },
+      { p: 'La confiance dans un classement dépend de la qualité des données qui le composent.' },
+      { p: 'C\'est pourquoi, sur FindYourBet :' },
+      { ul: [
+        'Les picks sont enregistrés avant le début de l\'événement.',
+        'Ils ne peuvent pas être modifiés une fois publiés.',
+        'Ils ne peuvent pas être supprimés pour altérer les statistiques.',
+        'Les cotes et mises sont enregistrées au moment de la publication.',
+        'L\'historique reste accessible pour consultation.',
+      ] },
+      { p: 'Cela permet aux statistiques de refléter les performances réelles de chaque tipster de façon transparente et vérifiable.' },
+      { h3: 'Vérification des tipsters' },
+      { p: 'Certains profils peuvent afficher un badge de vérification (✓).' },
+      { p: 'Ce badge indique que le compte a été examiné manuellement par l\'équipe FindYourBet et satisfait à certains critères d\'activité, de comportement et de parcours sur la plateforme.' },
+      { p: 'La vérification n\'influe pas sur la position dans le classement ni ne modifie les statistiques affichées.' },
+      { h3: 'Notre objectif' },
+      { p: 'Le but du classement est d\'offrir aux utilisateurs un outil transparent pour comparer des parcours, analyser des résultats et découvrir des tipsters de manière éclairée.' },
+      { p: 'Aucune position, statistique ou performance passée ne garantit les résultats futurs : chaque utilisateur doit donc évaluer les informations disponibles de manière responsable.' },
+    ],
+  },
+
+  'precios': {
+    slug: 'precios', short: 'Tarifs', title: 'Tarifs', comingSoon: true,
+  },
+}
+
+// ─── Selector per idioma ─────────────────────────────────────────────────────
+export const INFO_ORDER = ['como-funciona', 'tipsters', 'ranking', 'precios']
+
+export function getInfoDocs(lang) {
+  if (lang === 'en') return INFO_DOCS_EN
+  if (lang === 'fr') return INFO_DOCS_FR
+  return INFO_DOCS_ES
+}
+
+// Export backward-compatible
+export const INFO_DOCS = INFO_DOCS_ES

@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
 import AppIcon from '../../../components/ui/AppIcon'
 
 const REPORT_REASONS = [
-  'Spam o publicidad no deseada',
-  'Contenido sexual o inapropiado',
-  'Nombre o foto de perfil inapropiada',
-  'Acoso o comportamiento abusivo',
-  'Cuenta falsa o suplantación de identidad',
-  'Lenguaje ofensivo u odio',
-  'Otro',
+  { value: 'Spam o publicidad no deseada',             labelKey: 'reportUser.spam' },
+  { value: 'Contenido sexual o inapropiado',           labelKey: 'reportUser.sexual' },
+  { value: 'Nombre o foto de perfil inapropiada',      labelKey: 'reportUser.inappropriateProfile' },
+  { value: 'Acoso o comportamiento abusivo',           labelKey: 'reportUser.harassment' },
+  { value: 'Cuenta falsa o suplantación de identidad', labelKey: 'reportUser.fakeAccount' },
+  { value: 'Lenguaje ofensivo u odio',                 labelKey: 'reportUser.hate' },
+  { value: 'Otro',                                     labelKey: 'reportUser.other' },
 ]
 
 export default function ReportUserModal({ reportedId, reportedUsername, reporterId, onClose }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
   const [sent, setSent] = useState(false)
@@ -32,7 +34,7 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
     const last = parseInt(localStorage.getItem('fyb_last_report_at') || '0', 10)
     if (Date.now() - last < REPORT_COOLDOWN_MS) {
       const wait = Math.ceil((REPORT_COOLDOWN_MS - (Date.now() - last)) / 1000)
-      setError(`Espera ${wait}s antes de enviar otro reporte.`)
+      setError(t('reportUser.cooldown', { s: wait }))
       return
     }
 
@@ -60,7 +62,7 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
       localStorage.setItem('fyb_last_report_at', String(Date.now()))
       setSent(true)
     } catch {
-      setError('No se pudo enviar el reporte. Inténtalo de nuevo.')
+      setError(t('reportUser.errorSend'))
     } finally {
       setSending(false)
     }
@@ -79,22 +81,22 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
           {sent ? (
             <div style={{ textAlign: 'center', padding: '12px 0' }}>
               <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px' }}>Reporte enviado</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px' }}>{t('reportUser.sent')}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                Revisaremos el perfil de <strong>{reportedUsername}</strong> lo antes posible.
+                {t('reportUser.sentDesc', { username: reportedUsername })}
               </div>
               <button onClick={onClose}
                 style={{ padding: '10px 24px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: '#010906', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                Cerrar
+                {t('common.close')}
               </button>
             </div>
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={17} /> Reportar usuario</div>
+                  <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={17} /> {t('reportUser.title')}</div>
                   <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                    ¿Quieres reportar a <strong style={{ color: 'var(--color-text)' }}>{reportedUsername}</strong>?
+                    {t('reportUser.subtitle', { username: reportedUsername })}
                   </div>
                 </div>
                 <button onClick={onClose}
@@ -104,17 +106,17 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
               </div>
 
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
-                Motivo del reporte
+                {t('reportUser.reasonLabel')}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '16px' }}>
                 {REPORT_REASONS.map(r => (
-                  <label key={r} onClick={() => setReason(r)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${reason === r ? 'var(--color-primary)' : 'var(--color-border)'}`, background: reason === r ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.12s' }}>
-                    <div style={{ width: '15px', height: '15px', borderRadius: '50%', border: `2px solid ${reason === r ? 'var(--color-primary)' : 'var(--color-text-muted)'}`, background: reason === r ? 'var(--color-primary)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {reason === r && <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#010906' }} />}
+                  <label key={r.value} onClick={() => setReason(r.value)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${reason === r.value ? 'var(--color-primary)' : 'var(--color-border)'}`, background: reason === r.value ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.12s' }}>
+                    <div style={{ width: '15px', height: '15px', borderRadius: '50%', border: `2px solid ${reason === r.value ? 'var(--color-primary)' : 'var(--color-text-muted)'}`, background: reason === r.value ? 'var(--color-primary)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {reason === r.value && <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#010906' }} />}
                     </div>
-                    <span style={{ fontSize: '13px', color: reason === r ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: reason === r ? 600 : 400 }}>{r}</span>
+                    <span style={{ fontSize: '13px', color: reason === r.value ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: reason === r.value ? 600 : 400 }}>{t(r.labelKey)}</span>
                   </label>
                 ))}
               </div>
@@ -123,7 +125,7 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
                 <textarea
                   value={details}
                   onChange={e => setDetails(clampLines(stripEmojis(e.target.value), LINE_LIMIT.FORM))}
-                  placeholder="Describe el problema..."
+                  placeholder={t('reportUser.detailsPlaceholder')}
                   maxLength={500}
                   rows={3}
                   style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'none', boxSizing: 'border-box', marginBottom: '16px' }}
@@ -138,11 +140,11 @@ export default function ReportUserModal({ reportedId, reportedUsername, reporter
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: reason === 'Otro' ? 0 : '4px' }}>
                 <button onClick={onClose}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button onClick={handleSubmit} disabled={!reason || sending}
                   style={{ padding: '9px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: reason ? 'var(--color-error)' : 'var(--color-bg-soft)', color: reason ? '#fff' : 'var(--color-text-muted)', cursor: reason ? 'pointer' : 'default', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: sending ? 0.7 : 1, transition: 'all 0.15s' }}>
-                  {sending ? 'Enviando...' : 'Reportar'}
+                  {sending ? t('reportUser.sending') : t('reportUser.submit')}
                 </button>
               </div>
             </>

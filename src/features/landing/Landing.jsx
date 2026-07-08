@@ -1,16 +1,18 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { fadeUp, stagger } from '../../lib/animations'
 import { Button } from '../../components/ui/Button'
 import AppIcon from '../../components/ui/AppIcon'
+import LanguageSwitcher from '../../components/ui/LanguageSwitcher'
 import './landing.css'
 
 const HERO_PILLARS = [
-  { icon: 'lock',       text: 'Registrado antes del partido' },
-  { icon: 'ban',        text: 'Sin ediciones retroactivas' },
-  { icon: 'globe',      text: 'Historial 100% público' },
-  { icon: 'trendingUp', text: 'Estadísticas automáticas' },
+  { icon: 'lock',       textKey: 'landing.pillars.registered' },
+  { icon: 'ban',        textKey: 'landing.pillars.noEdits' },
+  { icon: 'globe',      textKey: 'landing.pillars.publicHistory' },
+  { icon: 'trendingUp', textKey: 'landing.pillars.autoStats' },
 ]
 
 const RAIN_ITEMS = (() => {
@@ -49,6 +51,7 @@ function TipsterRain() {
 }
 
 export default function Landing({ navigate, user }) {
+  const { t } = useTranslation()
   const heroRef    = useRef(null)
   const rrNavigate = useNavigate()
   const goLegal    = (slug) => rrNavigate(`/legal/${slug}`)
@@ -86,16 +89,17 @@ export default function Landing({ navigate, user }) {
         </div>
 
         <nav className="nav-links">
-          <a className="nav-link" onClick={() => rrNavigate('/info/como-funciona')} style={{ cursor: 'pointer' }}>Cómo funciona</a>
-          <a className="nav-link" onClick={() => rrNavigate('/info/tipsters')}      style={{ cursor: 'pointer' }}>Tipsters</a>
-          <a className="nav-link" onClick={() => rrNavigate('/info/ranking')}       style={{ cursor: 'pointer' }}>Ranking</a>
-          <a className="nav-link" onClick={() => rrNavigate('/info/precios')}       style={{ cursor: 'pointer' }}>Precios</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/como-funciona')} style={{ cursor: 'pointer' }}>{t('landing.nav.howItWorks')}</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/tipsters')}      style={{ cursor: 'pointer' }}>{t('landing.nav.tipsters')}</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/ranking')}       style={{ cursor: 'pointer' }}>{t('landing.nav.ranking')}</a>
+          <a className="nav-link" onClick={() => rrNavigate('/info/precios')}       style={{ cursor: 'pointer' }}>{t('landing.nav.pricing')}</a>
         </nav>
 
         <div className="nav-btns">
           {user ? (
             <>
-              <Button variant="ghost" size="sm" onClick={() => navigate('dashboard')}>Ir al Dashboard</Button>
+              <LanguageSwitcher compact />
+              <Button variant="ghost" size="sm" onClick={() => navigate('dashboard')}>{t('landing.nav.goToDashboard')}</Button>
               <div className="nav-user-chip" style={{ cursor: 'pointer' }} onClick={() => navigate('dashboard')}>
                 <span className="nav-user-dot" />
                 <span className="nav-user-name">{user.username || user.email}</span>
@@ -103,8 +107,9 @@ export default function Landing({ navigate, user }) {
             </>
           ) : (
             <>
-              <Button variant="ghost" size="sm" onClick={() => navigate('login')}>Iniciar sesión</Button>
-              <Button size="sm" onClick={() => navigate('register')}>Registrarse</Button>
+              <LanguageSwitcher compact />
+              <Button variant="ghost" size="sm" onClick={() => navigate('login')}>{t('landing.nav.signIn')}</Button>
+              <Button size="sm" onClick={() => navigate('register')}>{t('landing.nav.signUp')}</Button>
             </>
           )}
         </div>
@@ -115,24 +120,21 @@ export default function Landing({ navigate, user }) {
         <TipsterRain />
 
         <motion.div className="hero-center" initial="hidden" animate="visible" variants={stagger}>
-          <motion.h1 className="hero-h1" variants={fadeUp} custom={0}>
-            La primera red social<br />
-            de pronósticos donde<br />
-            <em>los resultados no<br className="hero-br" />se pueden maquillar</em>
-          </motion.h1>
+          <motion.h1 className="hero-h1" variants={fadeUp} custom={0}
+            dangerouslySetInnerHTML={{ __html: t('landing.hero.title') }}
+          />
 
           <motion.p className="hero-sub" variants={fadeUp} custom={1}>
-            Picks registrados antes del partido. Historial inmutable y público.
-            Estadísticas que no se inventan.
+            {t('landing.hero.subtitle')}
           </motion.p>
 
           <motion.div className="hero-btns" variants={fadeUp} custom={2}>
             {user ? (
-              <Button onClick={() => navigate('dashboard')}>Ir al Dashboard</Button>
+              <Button onClick={() => navigate('dashboard')}>{t('landing.hero.goToDashboard')}</Button>
             ) : (
               <>
-                <Button onClick={() => navigate('register')}>Empezar gratis</Button>
-                <Button variant="ghost" onClick={() => navigate('login')}>Ya tengo cuenta</Button>
+                <Button onClick={() => navigate('register')}>{t('landing.hero.startFree')}</Button>
+                <Button variant="ghost" onClick={() => navigate('login')}>{t('landing.hero.alreadyHaveAccount')}</Button>
               </>
             )}
           </motion.div>
@@ -141,7 +143,7 @@ export default function Landing({ navigate, user }) {
             {HERO_PILLARS.map((p, i) => (
               <div key={i} className="hero-pill">
                 <AppIcon name={p.icon} size={12} color="rgba(0,255,138,0.6)" />
-                <span>{p.text}</span>
+                <span>{t(p.textKey)}</span>
               </div>
             ))}
           </motion.div>
@@ -152,20 +154,20 @@ export default function Landing({ navigate, user }) {
       {/* FOOTER COMPACTE */}
       <footer className="footer-compact">
         <div className="footer-legal-links">
-          <a onClick={() => goLegal('aviso-legal')}       style={{ cursor: 'pointer' }}>Aviso legal</a>
+          <a onClick={() => goLegal('aviso-legal')}       style={{ cursor: 'pointer' }}>{t('landing.footer.legalNotice')}</a>
           <span className="footer-dot" />
-          <a onClick={() => goLegal('terminos')}          style={{ cursor: 'pointer' }}>Términos</a>
+          <a onClick={() => goLegal('terminos')}          style={{ cursor: 'pointer' }}>{t('landing.footer.terms')}</a>
           <span className="footer-dot" />
-          <a onClick={() => goLegal('privacidad')}        style={{ cursor: 'pointer' }}>Privacidad</a>
+          <a onClick={() => goLegal('privacidad')}        style={{ cursor: 'pointer' }}>{t('landing.footer.privacy')}</a>
           <span className="footer-dot" />
-          <a onClick={() => goLegal('cookies')}           style={{ cursor: 'pointer' }}>Cookies</a>
+          <a onClick={() => goLegal('cookies')}           style={{ cursor: 'pointer' }}>{t('landing.footer.cookies')}</a>
           <span className="footer-dot" />
-          <a onClick={() => goLegal('juego-responsable')} style={{ cursor: 'pointer' }}>Juego responsable</a>
+          <a onClick={() => goLegal('juego-responsable')} style={{ cursor: 'pointer' }}>{t('landing.footer.responsibleGambling')}</a>
           <span className="footer-dot" />
-          <a onClick={() => rrNavigate('/contacto')}      style={{ cursor: 'pointer' }}>Contacto</a>
+          <a onClick={() => rrNavigate('/contacto')}      style={{ cursor: 'pointer' }}>{t('landing.footer.contact')}</a>
         </div>
         <div className="footer-compact-bottom">
-          <span>© {new Date().getFullYear()} FindYourBet · Juega con responsabilidad</span>
+          <span>© {new Date().getFullYear()} FindYourBet · {t('landing.footer.tagline')}</span>
           <span className="footer-bottom-tag">+18</span>
         </div>
       </footer>

@@ -1,31 +1,33 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import ForwardModal from '../social/ForwardModal'
 import PostModal from './PostModal'
 import { useProfileNav } from '../../../contexts/ProfileNavContext'
 import Username from '../../../components/ui/Username'
 import AppIcon from '../../../components/ui/AppIcon'
 
-function timeAgo(ts) {
+function timeAgo(ts, t) {
   if (!ts) return ''
   const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (m < 1) return 'ahora'
+  if (m < 1) return t('canales.now')
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d`
-  return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+  return new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
 }
 
 const STATUS_CFG = {
-  won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
-  lost:    { label: 'Perdida',   color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
-  void:    { label: 'Nula',      color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
-  pending: { label: 'Pendiente', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
+  won:     { color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
+  lost:    { color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
+  void:    { color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
+  pending: { color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
 }
 
 export default function FeedCard({ post, currentUser, onLike, onNavigateToChannel, onReport }) {
+  const { t } = useTranslation()
   const [showModal, setShowModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showForward, setShowForward] = useState(false)
@@ -60,10 +62,10 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
           <div style={{ flex: 1, minWidth: 0 }}>
             <div onClick={() => openProfile(post.user_id)}
               style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.2, cursor: 'pointer', display: 'inline-block' }}>
-              <Username username={profile?.username || 'usuario'} isVerified={profile?.is_verified} size="sm" />
+              <Username username={profile?.username || t('postModal.defaultUser')} isVerified={profile?.is_verified} size="sm" />
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span>{timeAgo(created_at)}</span>
+              <span>{timeAgo(created_at, t)}</span>
               {channel && (
                 <>
                   <span>·</span>
@@ -87,7 +89,7 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
                   style={{ position: 'absolute', top: '30px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '160px', overflow: 'hidden' }}>
                   <button onClick={() => { onReport?.(post.id); setShowMenu(false) }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-error)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                    <AppIcon name="flag" size={13} /><span>Reportar</span>
+                    <AppIcon name="flag" size={13} /><span>{t('social.report')}</span>
                   </button>
                 </motion.div>
               </>
@@ -105,7 +107,7 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '10px' }}>
               <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.3, flex: 1 }}>{bet?.event}</div>
               <span style={{ flexShrink: 0, padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '11px', fontWeight: 700, background: cfg.bg, color: cfg.color, border: `0.5px solid ${cfg.border}` }}>
-                {cfg.label}
+                {t('historial.status.' + (bet?.status ?? 'pending'))}
               </span>
             </div>
             {!bet?.imageUrl && (
@@ -120,24 +122,24 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
             )}
             <div style={{ display: 'flex', gap: '20px' }}>
               <div>
-                <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Cuota</div>
+                <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{t('historial.cardOdds')}</div>
                 <div style={{ fontWeight: 700, fontSize: '15px' }}>{parseFloat(bet?.odds || 0).toFixed(2)}</div>
               </div>
               <div>
-                <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Stake</div>
+                <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{t('historial.cardStake')}</div>
                 <div style={{ fontWeight: 700, fontSize: '15px' }}>{bet?.stake}</div>
               </div>
               {!bet?.imageUrl && (
                 <div>
-                  <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Fecha</div>
+                  <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{t('historial.cardDate')}</div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    {bet?.date ? new Date(bet.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {bet?.date ? new Date(bet.date).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                   </div>
                 </div>
               )}
               {bet?.bookie && (
                 <div>
-                  <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Bookie</div>
+                  <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{t('bets.bookieLabel')}</div>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text)', marginTop: '2px' }}>{bet.bookie}</div>
                 </div>
               )}
@@ -160,12 +162,12 @@ export default function FeedCard({ post, currentUser, onLike, onNavigateToChanne
           <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowForward(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
             <AppIcon name="arrowOut" size={15} />
-            <span>Reenviar</span>
+            <span>{t('dmview.forward')}</span>
           </motion.button>
           {channel && (
             <button onClick={() => onNavigateToChannel?.(channel)}
               style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-sans)' }}>
-              Ver canal →
+              {t('feed.viewChannel')}
             </button>
           )}
         </div>

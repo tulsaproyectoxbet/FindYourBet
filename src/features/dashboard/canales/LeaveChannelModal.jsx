@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import AppIcon from '../../../components/ui/AppIcon'
 
 // Confirmació de sortida d'un canal amb opció de no tornar a preguntar.
 // Si l'usuari marca la casella, el pare desa la preferència i les pròximes
 // sortides s'executen directament sense aquest modal.
 export default function LeaveChannelModal({ channelName, onConfirm, onClose }) {
+  const { t } = useTranslation()
   const [dontAsk, setDontAsk] = useState(false)
 
   return (
@@ -20,10 +22,10 @@ export default function LeaveChannelModal({ channelName, onConfirm, onClose }) {
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: '28px', maxWidth: '420px', width: '100%', pointerEvents: 'auto', textAlign: 'center' }}>
           <div style={{ marginBottom: '12px' }}><AppIcon name="door" size={40} /></div>
           <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>
-            ¿Salir del canal?
+            {t('leaveChannel.title')}
           </div>
           <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '20px' }}>
-            Dejarás de ver los mensajes y picks de <strong style={{ color: 'var(--color-text)' }}>{channelName}</strong>. Podrás volver a unirte si es público o tienes el código de invitación.
+            {t('leaveChannel.desc', { channelName })}
           </div>
 
           {/* Casella "no volver a preguntar" */}
@@ -32,17 +34,17 @@ export default function LeaveChannelModal({ channelName, onConfirm, onClose }) {
               {dontAsk && <AppIcon name="check" size={12} color="#010906" />}
             </div>
             <input type="checkbox" checked={dontAsk} onChange={e => setDontAsk(e.target.checked)} style={{ display: 'none' }} />
-            <span style={{ fontSize: '13px', color: dontAsk ? 'var(--color-text)' : 'var(--color-text-muted)' }}>No volver a preguntar</span>
+            <span style={{ fontSize: '13px', color: dontAsk ? 'var(--color-text)' : 'var(--color-text-muted)' }}>{t('leaveChannel.dontAsk')}</span>
           </label>
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
             <button onClick={onClose}
               style={{ flex: 1, padding: '10px 20px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button onClick={() => onConfirm(dontAsk)}
               style={{ flex: 1, padding: '10px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-              Salir del canal
+              {t('leaveChannel.confirm')}
             </button>
           </div>
         </div>

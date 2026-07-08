@@ -1,14 +1,15 @@
 import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp, stagger } from '../../lib/animations'
 import AppIcon from '../../components/ui/AppIcon'
 
 const PERIODS = [
-  { id: 'setmanal', label: 'Semanal' },
-  { id: 'mensual', label: 'Mensual' },
-  { id: 'anual', label: 'Anual' },
-  { id: 'total', label: 'Total' },
-  { id: 'trimestral', label: 'Ranking' },
+  { id: 'setmanal', labelKey: 'historial.periods.setmanal' },
+  { id: 'mensual',  labelKey: 'historial.periods.mensual' },
+  { id: 'anual',    labelKey: 'historial.periods.anual' },
+  { id: 'total',    labelKey: 'historial.periods.total' },
+  { id: 'trimestral', labelKey: 'historial.periods.trimestral' },
 ]
 
 const INITIAL_BANK = 1000
@@ -38,7 +39,7 @@ function getPeriodRange(period) {
   return null
 }
 
-function buildBankData(allBets, period) {
+function buildBankData(allBets, period, chartStart) {
   const sorted = [...allBets]
     // Només won/lost. 'void' (nul, diners retornats) no compta a estadístiques.
     .filter(b => b.status === 'won' || b.status === 'lost')
@@ -73,7 +74,7 @@ function buildBankData(allBets, period) {
     }
   }
 
-  const points = [{ label: 'Inicio', bank: startBank, event: null, status: null }]
+  const points = [{ label: chartStart, bank: startBank, event: null, status: null }]
   let bank = startBank
   for (const b of periodBets) {
     const stake = parseFloat((bank * 0.01).toFixed(2))
@@ -91,7 +92,7 @@ function fmtEur(val) {
   return val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€'
 }
 
-function BankLineChart({ points }) {
+function BankLineChart({ points, emptyLabel }) {
   const w = 600
   const h = 200
   const pad = { top: 20, right: 16, bottom: 28, left: 60 }
@@ -101,7 +102,7 @@ function BankLineChart({ points }) {
   if (points.length < 2) return (
     <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
       <div style={{ marginBottom: '8px' }}><AppIcon name="trendingUp" size={28} /></div>
-      <div>Sin picks resueltos en este período</div>
+      <div>{emptyLabel}</div>
     </div>
   )
 
@@ -175,16 +176,10 @@ function BankLineChart({ points }) {
   )
 }
 
-const PERIOD_CHART_LABEL = {
-  setmanal: 'Beneficio semanal',
-  mensual: 'Beneficio mensual',
-  anual: 'Beneficio anual',
-  total: 'Beneficio total',
-  trimestral: 'Beneficio en Ranking',
-}
-
 export default function Estadisticas({ bets, allBets = [], loadingBets, won, lost, yieldVal, avgOdds, onNewBet, period, onPeriodChange, onNavigateToHistorial }) {
-  const { points: bankPoints, finalBank } = useMemo(() => buildBankData(allBets, period), [allBets, period])
+  const { t } = useTranslation()
+  const chartStart = t('historial.chartStart')
+  const { points: bankPoints, finalBank } = useMemo(() => buildBankData(allBets, period, chartStart), [allBets, period, chartStart])
 
   const totalBenefit = parseFloat((finalBank - INITIAL_BANK).toFixed(2))
 
@@ -192,12 +187,12 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
   const totalCounted = won.length + lost.length
 
   const KPIs = [
-    { label: 'Yield', value: `${yieldVal.toFixed(2)}%`, colorClass: yieldVal >= 0 ? 'green' : 'red' },
-    { label: 'W / L', value: `${won.length} / ${lost.length}`, colorClass: '' },
-    { label: 'Total Apuestas', value: totalCounted, colorClass: '' },
-    { label: 'Cuota Media', value: avgOdds, colorClass: 'yellow' },
-    { label: 'BANK', value: fmtEur(finalBank), colorClass: finalBank >= INITIAL_BANK ? 'green' : 'red' },
-    { label: 'BENEFICIO', value: `${totalBenefit >= 0 ? '+' : ''}${fmtEur(totalBenefit)}`, colorClass: totalBenefit >= 0 ? 'green' : 'red' },
+    { label: t('stats.kpi.yield'),   value: `${yieldVal.toFixed(2)}%`, colorClass: yieldVal >= 0 ? 'green' : 'red' },
+    { label: t('stats.kpi.wl'),      value: `${won.length} / ${lost.length}`, colorClass: '' },
+    { label: t('stats.kpi.total'),   value: totalCounted, colorClass: '' },
+    { label: t('stats.kpi.avgOdds'), value: avgOdds, colorClass: 'yellow' },
+    { label: t('stats.kpi.bank'),    value: fmtEur(finalBank), colorClass: finalBank >= INITIAL_BANK ? 'green' : 'red' },
+    { label: t('stats.kpi.benefit'), value: `${totalBenefit >= 0 ? '+' : ''}${fmtEur(totalBenefit)}`, colorClass: totalBenefit >= 0 ? 'green' : 'red' },
   ]
 
   return (
@@ -205,25 +200,26 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2>Estadísticas personales</h2>
-          <p>Tu rendimiento como tipster en el período seleccionado.</p>
+          <h2>{t('stats.title')}</h2>
+          <p>{t('stats.subtitle')}</p>
         </div>
         <button onClick={onNewBet}
           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '10px 18px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-          + Nueva Apuesta
+          {t('stats.newBet')}
         </button>
       </div>
 
       <div style={{ marginBottom: '24px' }}>
         <select value={period} onChange={e => onPeriodChange(e.target.value)}
           style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 600, padding: '10px 14px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer', width: 'fit-content' }}>
-          {PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          {PERIODS.map(p => <option key={p.id} value={p.id}>{t(p.labelKey)}</option>)}
         </select>
         <AnimatePresence>
           {period === 'trimestral' && (
             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
               style={{ marginTop: '10px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', fontSize: '13px', color: 'var(--color-text-muted)', maxWidth: '420px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="sugerencias" size={13} /> El modo <strong style={{ color: 'var(--color-text)' }}>Ranking</strong> refleja tu rendimiento de los últimos 3 meses.</span>
+              <AppIcon name="sugerencias" size={13} />
+              <span dangerouslySetInnerHTML={{ __html: t('stats.rankingNote') }} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -241,17 +237,17 @@ export default function Estadisticas({ bets, allBets = [], loadingBets, won, los
       {/* EVOLUCIÓ DEL BANK */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ fontSize: '15px', fontWeight: 600 }}>{PERIOD_CHART_LABEL[period] ?? 'Beneficio total'}</div>
+          <div style={{ fontSize: '15px', fontWeight: 600 }}>{t(`stats.benefit.${period}`)}</div>
           <button onClick={onNavigateToHistorial}
             style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, padding: '7px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
-            Ver historial →
+            {t('stats.viewHistorial')}
           </button>
         </div>
 
         {loadingBets ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> {t('stats.loading')}</div>
         ) : (
-          <BankLineChart points={bankPoints} />
+          <BankLineChart points={bankPoints} emptyLabel={t('historial.emptyPeriod')} />
         )}
       </div>
 

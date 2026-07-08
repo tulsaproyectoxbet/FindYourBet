@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { INFO_DOCS, INFO_ORDER } from './infoDocs'
+import { useTranslation } from 'react-i18next'
+import { getInfoDocs, INFO_ORDER } from './infoDocs'
 import ComingSoon from '../../components/ui/ComingSoon'
 import '../legal/legal.css'
 
@@ -19,6 +20,8 @@ function Block({ block }) {
 export default function InfoPage() {
   const { doc } = useParams()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const INFO_DOCS = getInfoDocs(i18n.language)
   const data = INFO_DOCS[doc]
 
   useEffect(() => { window.scrollTo(0, 0) }, [doc])
@@ -33,14 +36,14 @@ export default function InfoPage() {
           FindYour<span>Bet</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="legal-back" onClick={() => navigate(-1)}>← Atrás</button>
-          <button className="legal-back" onClick={() => navigate('/')}>Salir</button>
+          <button className="legal-back" onClick={() => navigate(-1)}>{t('common.back')}</button>
+          <button className="legal-back" onClick={() => navigate('/')}>{t('legal.exit')}</button>
         </div>
       </div>
 
       <div className="legal-shell">
         <aside className="legal-nav">
-          <div className="legal-nav-title">Producto</div>
+          <div className="legal-nav-title">{t('infoPage.sidebarTitle')}</div>
           {INFO_ORDER.map(slug => (
             <button key={slug} className={`legal-nav-link${slug === doc ? ' active' : ''}`}
               onClick={() => navigate(`/info/${slug}`)}>
@@ -55,12 +58,12 @@ export default function InfoPage() {
 
           {data.comingSoon ? (
             <ComingSoon
-              subtitle={"Los planes de precios estarán disponibles cuando lancemos las funciones de pago.\nMuy pronto podrás acceder a canales VIP y suscripciones de tipsters."}
-              note="¡Se viene algo grande!"
+              subtitle={t('infoPage.comingSoonSubtitle')}
+              note={t('infoPage.comingSoonNote')}
             />
           ) : (
             <>
-              <div className="legal-eyebrow">FindYourBet · Producto</div>
+              <div className="legal-eyebrow">{t('infoPage.eyebrow')}</div>
               <h1>{data.title}</h1>
               {data.desc && <div className="legal-updated">{data.desc}</div>}
               {data.blocks.map((block, i) => <Block key={i} block={block} />)}
@@ -71,7 +74,7 @@ export default function InfoPage() {
                   </a>
                 ))}
                 <div className="legal-copy">
-                  © {new Date().getFullYear()} FindYourBet · Juega con responsabilidad · +18
+                  © {new Date().getFullYear()} FindYourBet · {t('landing.footer.tagline')} · +18
                 </div>
               </div>
             </>

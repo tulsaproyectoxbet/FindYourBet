@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { fadeUp } from '../../lib/animations'
 import { Button } from '../../components/ui/Button'
@@ -11,6 +12,7 @@ import './auth.css'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   // 'loading' → esperant event de Supabase | 'ready' → mostra formulari | 'invalid' → link caducat | 'success' → contrasenya canviada
   const [status, setStatus] = useState('loading')
   const [newPass, setNewPass] = useState('')
@@ -39,12 +41,12 @@ export default function ResetPasswordPage() {
   }, [])
 
   const handleSubmit = async () => {
-    if (!newPass || !confirmPass) { setError('Rellena los dos campos'); return }
-    if (newPass !== confirmPass) { setError('Las contraseñas no coinciden'); return }
-    if (newPass.length < 8) { setError('Mínimo 8 caracteres'); return }
-    if (!/[A-Z]/.test(newPass)) { setError('Debe contener al menos una mayúscula'); return }
+    if (!newPass || !confirmPass) { setError(t('resetPassword.errorFillBoth')); return }
+    if (newPass !== confirmPass) { setError(t('auth.register.errorPasswordMatch')); return }
+    if (newPass.length < 8) { setError(t('auth.register.errorMin8')); return }
+    if (!/[A-Z]/.test(newPass)) { setError(t('resetPassword.errorUppercase')); return }
     if (!/[!@#$%^&*(),.?":{}|<>_\-+=/\\[\]~`]/.test(newPass)) {
-      setError('Debe contener al menos un carácter especial'); return
+      setError(t('resetPassword.errorSpecial')); return
     }
 
     setError('')
@@ -53,7 +55,7 @@ export default function ResetPasswordPage() {
     setLoading(false)
 
     if (updateError) {
-      setError(updateError.message || 'Error al cambiar la contraseña. Inténtalo de nuevo.')
+      setError(updateError.message || t('resetPassword.errorChange'))
       return
     }
 
@@ -76,7 +78,7 @@ export default function ResetPasswordPage() {
           {status === 'loading' && (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <AppIcon name="loading" size={32} color="var(--color-primary)" />
-              <div style={{ marginTop: 16, fontSize: 14, color: 'var(--color-text-muted)' }}>Verificando enlace…</div>
+              <div style={{ marginTop: 16, fontSize: 14, color: 'var(--color-text-muted)' }}>{t('resetPassword.verifying')}</div>
             </div>
           )}
 
@@ -85,19 +87,19 @@ export default function ResetPasswordPage() {
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-error-light, rgba(239,68,68,0.08))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <AppIcon name="ban" size={26} color="var(--color-error)" />
               </div>
-              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>Enlace inválido o caducado</div>
+              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>{t('resetPassword.invalidLink')}</div>
               <div style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
-                Este enlace ya ha sido usado o ha caducado.<br />
-                Solicita uno nuevo desde la pantalla de inicio de sesión.
+                {t('resetPassword.invalidDesc')}<br />
+                {t('resetPassword.requestNew')}
               </div>
-              <Button onClick={() => navigate('/login')}>Volver al login</Button>
+              <Button onClick={() => navigate('/login')}>{t('resetPassword.backToLogin')}</Button>
             </div>
           )}
 
           {status === 'ready' && (
             <>
               <div className="auth-card-logo">FindYour<span>Bet</span></div>
-              <div className="auth-subtitle">Elige una nueva contraseña para tu cuenta.</div>
+              <div className="auth-subtitle">{t('resetPassword.subtitle')}</div>
 
               {error && (
                 <motion.div className="auth-error" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -106,9 +108,9 @@ export default function ResetPasswordPage() {
               )}
 
               <div className="form-group">
-                <FormLabel>Nueva contraseña</FormLabel>
+                <FormLabel>{t('resetPassword.newPassword')}</FormLabel>
                 <div className="input-with-icon">
-                  <Input type={showPass ? 'text' : 'password'} placeholder="Mínimo 8 caracteres"
+                  <Input type={showPass ? 'text' : 'password'} placeholder={t('auth.register.errorMin8')}
                     value={newPass} onChange={e => setNewPass(e.target.value)} />
                   <button className="toggle-pass" onClick={() => setShowPass(v => !v)}>
                     <AppIcon name={showPass ? 'eyeOff' : 'eye'} size={16} />
@@ -117,13 +119,13 @@ export default function ResetPasswordPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 24 }}>
-                <FormLabel>Repetir contraseña</FormLabel>
-                <Input type={showPass ? 'text' : 'password'} placeholder="Repite la contraseña"
+                <FormLabel>{t('resetPassword.confirmPassword')}</FormLabel>
+                <Input type={showPass ? 'text' : 'password'} placeholder={t('resetPassword.confirmPasswordPlaceholder')}
                   value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
               </div>
 
               <Button full onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Guardando…' : 'Cambiar contraseña'}
+                {loading ? t('resetPassword.saving') : t('resetPassword.submit')}
               </Button>
             </>
           )}
@@ -133,8 +135,8 @@ export default function ResetPasswordPage() {
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-primary-light)', border: '1.5px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <AppIcon name="check" size={26} color="var(--color-primary)" />
               </div>
-              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>¡Contraseña actualizada!</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Redirigiendo al dashboard…</div>
+              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>{t('resetPassword.success')}</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{t('resetPassword.redirecting')}</div>
             </div>
           )}
 

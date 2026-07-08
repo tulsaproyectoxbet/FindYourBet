@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { insertNotification } from '../notifications/useNotifications'
 import Username from '../../../components/ui/Username'
@@ -7,6 +8,7 @@ import { useProfileNav } from '../../../contexts/ProfileNavContext'
 import AppIcon from '../../../components/ui/AppIcon'
 
 export default function FollowListModal({ type, profileUserId, currentUser, onClose, onViewProfile, onStartDM }) {
+  const { t } = useTranslation()
   // Obre el perfil emergent PER SOBRE de la llista (sense tancar-la), perquè en tornar
   // enrere reaparegui la llista on estaves. Cau a onViewProfile si no hi ha context.
   const openProfileNav = useProfileNav()
@@ -59,7 +61,7 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
     }
   }
 
-  const title = type === 'followers' ? 'Seguidores' : 'Siguiendo'
+  const title = type === 'followers' ? t('profile.followers') : t('profile.following')
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -76,9 +78,9 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> {t('contact.loading')}</div>
           ) : users.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Sin {title.toLowerCase()} todavía</div>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>{t('followList.empty', { type: title.toLowerCase() })}</div>
           ) : users.map((u, i) => {
             const isFollowingUser = followingSet.has(u.id)
             const isOwn = u.id === currentUser?.id
@@ -101,7 +103,7 @@ export default function FollowListModal({ type, profileUserId, currentUser, onCl
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                     <button onClick={() => toggleFollow(u.id, u.username)}
                       style={{ padding: '5px 12px', borderRadius: 'var(--radius-md)', border: isFollowingUser ? '0.5px solid var(--color-border)' : 'none', background: isFollowingUser ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: isFollowingUser ? 'var(--color-text-muted)' : '#010906', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                      {isFollowingUser ? 'Siguiendo' : '+ Seguir'}
+                      {isFollowingUser ? t('tipsters.following') : t('social.follow')}
                     </button>
                     {onStartDM && (
                       <button onClick={() => { onStartDM(u.id); onClose() }}

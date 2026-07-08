@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import AppIcon from '../../../components/ui/AppIcon'
 
@@ -111,12 +112,12 @@ export default function PollCard({ messageId, poll, currentUser, timeStr, viewCo
         {/* Footer */}
         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-            {totalVoters === 0 ? 'Sin votos aún' : `${totalVoters} ${totalVoters === 1 ? 'participante' : 'participantes'}`}
+            {totalVoters === 0 ? t('poll.noVotes') : t('poll.participantCount', { count: totalVoters })}
           </span>
           {isCreator && !isClosed && (
             <button onClick={handleFinalize} disabled={finalizing}
               style={{ background: 'none', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '3px 9px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-              {finalizing ? '...' : <><AppIcon name="lock" size={11} /> Finalizar</>}
+              {finalizing ? '...' : <><AppIcon name="lock" size={11} /> {t('poll.finalize')}</>}
             </button>
           )}
           <span style={{ flex: 1 }} />

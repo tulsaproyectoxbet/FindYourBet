@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { Button } from '../../../components/ui/Button'
 import AppIcon from '../../../components/ui/AppIcon'
 import { useMessages } from './hooks/useMessages'
@@ -10,6 +11,7 @@ import {
 } from './messageRenderer'
 
 export default function PreviewView({ channel, user, onBack, onJoin, joining, memberCount, compact = false }) {
+  const { t } = useTranslation()
   const { messages, loading, recordView } = useMessages(channel.id, user?.id)
   const bottomRef = useRef(null)
   const scrollRef = useRef(null)
@@ -45,19 +47,19 @@ export default function PreviewView({ channel, user, onBack, onJoin, joining, me
           <div style={{ fontWeight: 700, fontSize: '18px' }}>{channel.name}</div>
           {channel.description && <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{channel.description}</div>}
         </div>
-        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="users" size={13} /> {memberCount} participantes</span>
+        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="users" size={13} /> {memberCount} {t('chatView.participants')}</span>
         <span style={{ fontSize: '11px', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', fontWeight: 600 }}>
-          Vista previa
+          {t('canales.previewBadge')}
         </span>
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando mensajes...</div>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> {t('chatView.loadingMessages')}</div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
             <div style={{ marginBottom: '8px' }}><AppIcon name="message" size={32} /></div>
-            <div>Sin mensajes todavía en este canal.</div>
+            <div>{t('chatView.noMessages')}</div>
           </div>
         ) : messages.map((m, i) => {
           const isOwn = false // mai propi: usuari encara no és al canal
@@ -112,7 +114,7 @@ export default function PreviewView({ channel, user, onBack, onJoin, joining, me
 
       <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '16px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)' }}>
         <Button onClick={onJoin} disabled={joining}>
-          {joining ? 'Uniéndose...' : `Unirse a ${channel.name}`}
+          {joining ? t('canales.joining') : t('canales.join', { name: channel.name })}
         </Button>
       </div>
     </motion.div>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import AppIcon from '../../../components/ui/AppIcon'
 
 // S'auto-navega si el canal és accessible. Només mostra UI per als casos d'error.
 export default function ForwardedChannelModal({ channelName, currentUser, onNavigateToChannel, onClose }) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState('loading') // 'loading' | 'private' | 'notfound'
 
   useEffect(() => {
@@ -53,20 +55,20 @@ export default function ForwardedChannelModal({ channelName, currentUser, onNavi
           {status === 'notfound' && (
             <>
               <div style={{ marginBottom: '10px' }}><AppIcon name="mail" size={30} /></div>
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>Canal no disponible</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>Este canal ya no existe o fue eliminado.</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>{t('fwdChannel.notAvailable')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>{t('fwdChannel.deleted')}</div>
             </>
           )}
           {status === 'private' && (
             <>
               <div style={{ marginBottom: '10px' }}><AppIcon name="lock" size={30} /></div>
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>Canal privado</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>No puedes acceder. El canal es privado.</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>{t('tipsters.chanType.free_private')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>{t('fwdChannel.noAccess')}</div>
             </>
           )}
           <button onClick={onClose}
             style={{ padding: '8px 22px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-            Cerrar
+            {t('common.close')}
           </button>
         </div>
       </motion.div>

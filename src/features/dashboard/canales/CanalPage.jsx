@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import AppIcon from '../../../components/ui/AppIcon'
 
 export default function CanalPage() {
+  const { t } = useTranslation()
   const { code } = useParams()
   const navigate = useNavigate()
   const [channel, setChannel] = useState(null)
@@ -57,7 +59,7 @@ export default function CanalPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ marginBottom: '12px' }}><AppIcon name="loading" size={32} /></div>
-        <div>Cargando canal...</div>
+        <div>{t('canalPage.loading')}</div>
       </div>
     </div>
   )
@@ -66,11 +68,11 @@ export default function CanalPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ marginBottom: '16px' }}><AppIcon name="lock" size={48} /></div>
-        <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Canal no encontrado</div>
-        <div style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>El enlace de invitación no es válido.</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>{t('canalPage.notFound')}</div>
+        <div style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>{t('canalPage.invalidLink')}</div>
         <button onClick={() => navigate('/')}
           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700 }}>
-          Volver al inicio
+          {t('canalPage.backHome')}
         </button>
       </div>
     </div>
@@ -82,18 +84,18 @@ export default function CanalPage() {
         <div style={{ marginBottom: '16px' }}><AppIcon name="canales" size={48} /></div>
         <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>#{channel.name}</div>
         {channel.description && <div style={{ color: 'var(--color-text-muted)', marginBottom: '8px' }}>{channel.description}</div>}
-        {channel.is_private && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AppIcon name="lock" size={12} /> Canal privado</div>}
+        {channel.is_private && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}><AppIcon name="lock" size={12} /> {t('canalPage.private')}</div>}
         <div style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
-          Inicia sesión para unirte a este canal
+          {t('canalPage.joinPrompt')}
         </div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
           <button onClick={() => navigate(`/login?redirect=/canal/${code}`)}
             style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700 }}>
-            Iniciar sesión
+            {t('canalPage.login')}
           </button>
           <button onClick={() => navigate(`/register?redirect=/canal/${code}`)}
             style={{ background: 'transparent', color: 'var(--color-text)', border: '0.5px solid var(--color-border)', padding: '12px 24px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600 }}>
-            Registrarse
+            {t('canalPage.register')}
           </button>
         </div>
       </div>

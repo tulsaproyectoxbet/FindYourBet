@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp } from '../../lib/animations'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
@@ -15,6 +16,7 @@ const maxBirthdate = new Date(new Date().setFullYear(new Date().getFullYear() - 
   .toISOString().split('T')[0]
 
 export default function GoogleOnboarding({ user, onComplete }) {
+  const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [birthdate, setBirthdate] = useState('')
   const [nationality, setNationality] = useState('')
@@ -80,9 +82,9 @@ export default function GoogleOnboarding({ user, onComplete }) {
                 <img src={user.avatar_url} alt="" style={{ width: '64px', height: '64px', borderRadius: '50%', border: '3px solid var(--color-primary-light)', objectFit: 'cover' }} />
               </div>
             )}
-            <div className="auth-card-logo">Casi listo</div>
+            <div className="auth-card-logo">{t('auth.onboarding.almostDone')}</div>
             <div className="auth-subtitle">
-              Solo necesitamos un par de datos más para completar tu cuenta.
+              {t('auth.onboarding.subtitle')}
             </div>
           </motion.div>
 
@@ -93,7 +95,7 @@ export default function GoogleOnboarding({ user, onComplete }) {
           )}
 
           <motion.div className="form-group" variants={fadeUp} custom={2}>
-            <FormLabel>Nombre de usuario *</FormLabel>
+            <FormLabel>{t('auth.onboarding.username')}</FormLabel>
             <div className="input-with-icon">
               <span className="input-prefix">@</span>
               <Input
@@ -105,12 +107,12 @@ export default function GoogleOnboarding({ user, onComplete }) {
               />
             </div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Solo letras, números y _ · 3-20 caracteres
+              {t('auth.onboarding.usernameHint')}
             </div>
           </motion.div>
 
           <motion.div className="form-group" variants={fadeUp} custom={3}>
-            <FormLabel>Fecha de nacimiento *</FormLabel>
+            <FormLabel>{t('auth.onboarding.birthdate')}</FormLabel>
             <Input
               type="date"
               value={birthdate}
@@ -120,9 +122,9 @@ export default function GoogleOnboarding({ user, onComplete }) {
           </motion.div>
 
           <motion.div className="form-group" variants={fadeUp} custom={4}>
-            <FormLabel>Nacionalidad</FormLabel>
+            <FormLabel>{t('auth.onboarding.nationality')}</FormLabel>
             <select className="input" value={nationality} onChange={e => setNationality(e.target.value)}>
-              <option value="">Seleccionar...</option>
+              <option value="">{t('auth.register.selectNationality')}</option>
               {NATIONALITIES.map(n => <option key={n}>{n}</option>)}
             </select>
           </motion.div>
@@ -130,27 +132,28 @@ export default function GoogleOnboarding({ user, onComplete }) {
           <motion.div className="auth-checkboxes" variants={fadeUp} custom={5}>
             <label className="auth-checkbox-label">
               <input type="checkbox" className="auth-checkbox" checked={age} onChange={e => setAge(e.target.checked)} />
-              <span>Confirmo que tengo <strong>18 años o más</strong> y que los pronósticos deportivos están permitidos en mi país de residencia.</span>
+              <span dangerouslySetInnerHTML={{ __html: t('auth.onboarding.age18confirm') }} />
             </label>
             <label className="auth-checkbox-label">
               <input type="checkbox" className="auth-checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} />
               <span>
-                He leído y acepto los{' '}
-                <a href="#" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>Términos y Condiciones</a>
-                {' '}y la{' '}
-                <a href="#" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>Política de Privacidad</a>.
+                {t('auth.onboarding.termsConfirm')
+                  .replace('<termsLink>', '')
+                  .replace('</termsLink>', '')
+                  .replace('<privacyLink>', '')
+                  .replace('</privacyLink>', '')}
               </span>
             </label>
           </motion.div>
 
           <motion.div variants={fadeUp} custom={6}>
             <Button full onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Guardando...' : 'Completar registro'}
+              {loading ? t('auth.onboarding.saving') : t('auth.onboarding.completeRegistration')}
             </Button>
           </motion.div>
 
           <motion.div className="auth-privacy-note" variants={fadeUp} custom={7}>
-            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Tus datos están protegidos y nunca serán compartidos con terceros.
+            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />{t('auth.onboarding.dataProtected')}
           </motion.div>
 
         </motion.div>

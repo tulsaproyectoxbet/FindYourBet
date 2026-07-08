@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { stagger } from '../../../lib/animations'
 import { supabase } from '../../../lib/supabase'
@@ -17,16 +18,16 @@ import { useMutes, MUTE_DURATIONS } from '../../../hooks/useMutes'
 import { useResizablePanel } from '../../../hooks/useResizablePanel'
 import '../dashboard.css'
 
-function miniTimeAgo(ts) {
+function miniTimeAgo(ts, t) {
   if (!ts) return ''
   const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (m < 1) return 'ahora'
+  if (m < 1) return t('canales.now')
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d`
-  return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+  return new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
 }
 
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
@@ -51,6 +52,7 @@ function resolveChannelType(f) {
 }
 
 export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initialAction, onActionUsed, onAddBet, unreadChannelCounts = new Map(), onActiveUnreadChange, onActiveChannelChange, onRefreshUnread }) {
+  const { t } = useTranslation()
   const { adminMode } = useAdminMode()
   const { myChannels, joinedChannels, memberCounts, lastMessages, loading, createChannel, deleteChannel, updateChannel, searchChannels, findChannelByCode, joinChannel, leaveChannel, refetch, MAX_OWN_CHANNELS, MAX_JOINED_CHANNELS } = useChannels(user)
   const { pin, unpin, isPinned } = usePinnedChannels('fyb_pinned_channels')
@@ -163,7 +165,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
   const handleCreate = async () => {
     setCreateError('')
     const channelType = resolveChannelType(createForm)
-    if (!channelType) { setCreateError('Selecciona el tipo de canal'); return }
+    if (!channelType) { setCreateError(t('canales.selectType')); return }
     const result = await createChannel(createForm.name, createForm.description, channelType)
     if (result?.error) { setCreateError(result.error); return }
     setCreateForm({ name: '', description: '', privacy: '' })
@@ -232,7 +234,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
     // Codi d'invitació de 8 caràcters
     const channel = await findChannelByCode(input)
     if (!channel) {
-      setInviteError('Código de invitación no válido')
+      setInviteError(t('canales.invalidCode'))
       setInviteLoading(false)
       return
     }
@@ -281,7 +283,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
   if (initialCanalCode && !activeChannel && !previewChannel) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-        Abriendo canal...
+        {t('canales.opening')}
       </div>
     )
   }
@@ -316,8 +318,8 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
         : showCreate ? (
           <div style={{ height: '100%', overflowY: 'auto', padding: '32px 36px', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Crear canal</h2>
-              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Cerrar</Button>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{t('canales.createTitle')}</h2>
+              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t('common.close')}</Button>
             </div>
             {createError && (
               <div style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', color: 'var(--color-error)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', marginBottom: '14px' }}>
@@ -325,32 +327,32 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               </div>
             )}
             <div style={{ marginBottom: '14px' }}>
-              <label style={labelStyle}>Nombre *</label>
-              <input type="text" placeholder="ej. MarcGol Tips" value={createForm.name}
+              <label style={labelStyle}>{t('betModal.nameLabel')}</label>
+              <input type="text" placeholder={t('betModal.namePlaceholder')} value={createForm.name}
                 onChange={e => setCreateForm({ ...createForm, name: e.target.value })}
                 maxLength={30} style={inputStyle} />
               <div style={{ fontSize: '11px', color: createForm.name.length > 25 ? 'var(--color-warning)' : 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>{createForm.name.length}/30</div>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Descripción (opcional)</label>
-              <input type="text" placeholder="De qué va tu canal..." value={createForm.description}
+              <label style={labelStyle}>{t('betModal.descLabel')}</label>
+              <input type="text" placeholder={t('betModal.descPlaceholder')} value={createForm.description}
                 onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
                 maxLength={200} style={inputStyle} />
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Tipo de canal *</label>
+              <label style={labelStyle}>{t('canales.channelType')}</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
-                  { id: 'public',  iconName: 'globe', label: 'Público',  desc: 'Visible en búsqueda y ranking' },
-                  { id: 'private', iconName: 'lock',  label: 'Privado', desc: 'Solo por enlace de invitación' },
+                  { id: 'public',  iconName: 'globe', labelKey: 'canales.typePublic',  descKey: 'canales.typePublicDesc' },
+                  { id: 'private', iconName: 'lock',  labelKey: 'canales.typePrivate', descKey: 'canales.typePrivateDesc' },
                 ].map(o => {
                   const active = createForm.privacy === o.id
                   return (
                     <div key={o.id} onClick={() => setCreateForm({ ...createForm, privacy: o.id })}
                       style={{ ...selectableRow(active), flex: 1, flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}><AppIcon name={o.iconName} size={22} /></div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{o.label}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{o.desc}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: active ? 'var(--color-primary)' : 'var(--color-text)' }}>{t(o.labelKey)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t(o.descKey)}</div>
                     </div>
                   )
                 })}
@@ -358,7 +360,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
             </div>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '16px', fontSize: '12px', color: 'var(--color-warning)', fontWeight: 600 }}>
               <AppIcon name="warning" size={13} />
-              <span>El tipo de canal no se puede cambiar una vez creado.</span>
+              <span>{t('canales.typeWarning')}</span>
             </div>
             <label onClick={() => setConfirmCreate(v => !v)}
               style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 14px', background: confirmCreate ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', border: `0.5px solid ${confirmCreate ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', marginBottom: '14px', cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none' }}>
@@ -366,32 +368,32 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                 {confirmCreate && <AppIcon name="check" size={12} color="#010906" />}
               </div>
               <span style={{ fontSize: '12px', color: confirmCreate ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                He revisado los datos introducidos y son correctos. Entiendo que como tipster <strong>soy responsable del contenido que publique</strong> y del impacto que tiene en los miembros de mi canal.
+                {t('canales.confirmPre')} <strong>{t('canales.confirmBold')}</strong> {t('canales.confirmPost')}
               </span>
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button onClick={handleCreate}
                 disabled={!createForm.name.trim() || !resolveChannelType(createForm) || !confirmCreate}>
-                Crear canal
+                {t('canales.createBtn')}
               </Button>
-              <Button variant="ghost" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => { setShowCreate(false); setCreateError(''); setConfirmCreate(false) }}>{t('common.cancel')}</Button>
             </div>
           </div>
 
         ) : showSearch ? (
           <div style={{ height: '100%', overflowY: 'auto', padding: '32px 36px', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Buscar canales</h2>
-              <Button variant="ghost" size="sm" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Cerrar</Button>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{t('canales.searchTitle')}</h2>
+              <Button variant="ghost" size="sm" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t('common.close')}</Button>
             </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', position: 'relative' }}>
-              <input type="text" placeholder="Busca por nombre del canal..."
+              <input type="text" placeholder={t('canales.searchPlaceholder')}
                 value={searchQuery} onChange={e => handleSearch(e.target.value)}
                 maxLength={50} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <button onClick={() => setShowFilters(v => !v)}
                   style={{ height: '100%', padding: '0 14px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${(filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary)' : 'var(--color-border)'}`, background: (filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: (filterSport || filterLanguage || sortBy !== 'score') ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
-                  <AppIcon name="sliders" size={14} /> Filtros
+                  <AppIcon name="sliders" size={14} /> {t('canales.filters')}
                 </button>
                 <AnimatePresence>
                   {showFilters && (
@@ -400,18 +402,18 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                       <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }}
                         style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 10, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', padding: '16px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <div>
-                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Deporte</div>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('canales.sportFilter')}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {['', 'Fútbol', 'Baloncesto', 'Tenis', 'eSports', 'MMA', 'Otros'].map(s => (
                               <button key={s} onClick={() => handleFilterSport(s)}
                                 style={{ padding: '4px 12px', borderRadius: 'var(--radius-full)', border: `0.5px solid ${filterSport === s ? 'var(--color-primary)' : 'var(--color-border)'}`, background: filterSport === s ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: filterSport === s ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '12px', fontWeight: filterSport === s ? 700 : 400, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                                {s || 'Todos'}
+                                {s || t('canales.all')}
                               </button>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Idioma</div>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('canales.languageFilter')}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {[['', 'Todos'], ['Español', 'ES'], ['Català', 'CAT'], ['English', 'EN'], ['Português', 'PT'], ['Français', 'FR'], ['Deutsch', 'DE']].map(([val, label]) => (
                               <button key={val} onClick={() => handleFilterLanguage(val)}
@@ -422,12 +424,12 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                           </div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Ordenar</div>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('canales.sortFilter')}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {[['score', 'Relevancia'], ['yield', 'Mejor yield'], ['members', 'Más miembros'], ['winRate', '% acierto']].map(([val, label]) => (
+                            {[['score', 'canales.sortRelevance'], ['yield', 'canales.sortYield'], ['members', 'canales.sortMembers'], ['winRate', 'canales.sortAccuracy']].map(([val, labelKey]) => (
                               <button key={val} onClick={() => handleSortBy(val)}
                                 style={{ padding: '4px 12px', borderRadius: 'var(--radius-full)', border: `0.5px solid ${sortBy === val ? 'var(--color-primary)' : 'var(--color-border)'}`, background: sortBy === val ? 'var(--color-primary-light)' : 'var(--color-bg-soft)', color: sortBy === val ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '12px', fontWeight: sortBy === val ? 700 : 400, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                                {label}
+                                {t(labelKey)}
                               </button>
                             ))}
                           </div>
@@ -439,13 +441,13 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
               </div>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Código de invitación (canal privado)</label>
+              <label style={labelStyle}>{t('canales.inviteLabel')}</label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" placeholder="Código de 8 caracteres" value={inviteCode}
+                <input type="text" placeholder={t('canales.invitePlaceholder')} value={inviteCode}
                   onChange={e => { setInviteCode(e.target.value); setInviteError('') }}
                   maxLength={200} style={{ ...inputStyle, width: 'auto', flex: 1 }} />
                 <Button size="sm" disabled={!inviteCode.trim() || inviteLoading} onClick={handleJoinByCode}>
-                  {inviteLoading ? '...' : 'Acceder'}
+                  {inviteLoading ? '...' : t('canales.access')}
                 </Button>
               </div>
               {inviteError && <div style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '6px' }}>{inviteError}</div>}
@@ -455,18 +457,18 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                 {joinError}
               </div>
             )}
-            {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '12px 0' }}>Buscando...</div>}
+            {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '12px 0' }}>{t('canales.searching')}</div>}
             {!searching && (() => {
               const hasActiveFilter = searchQuery.trim() || filterSport || filterLanguage
               const list = hasActiveFilter ? searchResults : suggestedChannels
               if (list.length === 0 && hasActiveFilter) return (
-                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', paddingTop: '8px' }}>No se encontraron canales con estos filtros</div>
+                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', paddingTop: '8px' }}>{t('canales.noResults')}</div>
               )
               if (list.length === 0) return null
               return (
                 <>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-                    {hasActiveFilter ? `${list.length} resultado${list.length !== 1 ? 's' : ''}` : 'Canales sugeridos'}
+                    {hasActiveFilter ? t('canales.results', { count: list.length }) : t('canales.suggested')}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {list.map((c, idx) => {
@@ -506,8 +508,8 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                               </>
                             )}
                             {alreadyJoined || isOwn
-                              ? <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>Unido <AppIcon name="check" size={11} /></span>
-                              : <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>Ver →</span>}
+                              ? <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>{t('canales.alreadyJoined')} <AppIcon name="check" size={11} /></span>
+                              : <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>{t('canales.viewArrow')}</span>}
                           </div>
                         </div>
                       )
@@ -522,15 +524,13 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
           // Placeholder quan no hi ha cap canal obert ni acció activa
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', gap: '12px', textAlign: 'center', padding: '40px' }}>
             <div style={{ opacity: 0.25 }}><AppIcon name="canales" size={52} /></div>
-            <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', opacity: 0.7 }}>Selecciona un canal</div>
+            <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', opacity: 0.7 }}>{t('canales.selectTitle')}</div>
             <div style={{ fontSize: '13px', maxWidth: '240px' }}>
-              {myChannels.length + joinedChannels.length > 0
-                ? 'Elige un canal de la lista para abrirlo.'
-                : 'Crea tu primer canal o únete a uno existente.'}
+              {t(myChannels.length + joinedChannels.length > 0 ? 'canales.selectDescExisting' : 'canales.selectDescNew')}
             </div>
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <Button variant="ghost" size="sm" onClick={handleOpenSearch}><AppIcon name="search" size={14} /> Buscar canal</Button>
-              {canCreateMore && <Button size="sm" onClick={() => { setShowCreate(true); setShowSearch(false) }}>+ Crear canal</Button>}
+              <Button variant="ghost" size="sm" onClick={handleOpenSearch}><AppIcon name="search" size={14} /> {t('canales.searchBtn')}</Button>
+              {canCreateMore && <Button size="sm" onClick={() => { setShowCreate(true); setShowSearch(false) }}>{t('canales.createBtn')}</Button>}
             </div>
           </div>
         )}
@@ -544,17 +544,17 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
 
         {/* Llista de canals */}
         {[
-          { label: 'Mis canales', channels: ownedSorted },
-          { label: 'Unidos', channels: joinedSorted },
-        ].map(({ label, channels }) => channels.length === 0 ? null : (
-          <div key={label}>
-            <div className="canales-mini-section">{label}</div>
+          { labelKey: 'canales.myChannels', channels: ownedSorted },
+          { labelKey: 'canales.unitedChannels', channels: joinedSorted },
+        ].map(({ labelKey, channels }) => channels.length === 0 ? null : (
+          <div key={labelKey}>
+            <div className="canales-mini-section">{t(labelKey)}</div>
             {channels.map(ch => {
               const unread = unreadChannelCounts?.get?.(ch.id) || 0
               const isActive = ch.id === focusedId
               const lastMsg = lastMessages[ch.id] || null
               const preview = lastMsg ? formatMsgPreview(lastMsg.content) : (ch.description || '')
-              const timeStr = miniTimeAgo(lastMsg?.created_at || ch.created_at)
+              const timeStr = miniTimeAgo(lastMsg?.created_at || ch.created_at, t)
               const chMuteKey = `channel_${ch.id}`
               const chMuted = isMuted(chMuteKey)
               const chPinned = isPinned(ch.id)
@@ -585,7 +585,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                       </div>
                       <div className="canales-mini-preview">
                         {chMuted && <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '4px' }}><AppIcon name="bellOff" size={12} /></span>}
-                        {preview || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Sin mensajes</span>}
+                        {preview || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>{t('canales.noMessages')}</span>}
                       </div>
                     </div>
                   </div>
@@ -603,17 +603,17 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                             style={{ position: 'absolute', top: '26px', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '175px', overflow: 'hidden' }}>
                             <button onClick={() => { chPinned ? unpin(ch.id) : pin(ch.id); setMiniMenuId(null) }}
                               style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                              {chPinned ? <><AppIcon name="pin" size={13} /> Desanclar</> : <><AppIcon name="pin" size={13} /> Anclar</>}
+                              {chPinned ? <><AppIcon name="pin" size={13} /> {t('social.unpin')}</> : <><AppIcon name="pin" size={13} /> {t('social.pin')}</>}
                             </button>
                             <button onClick={() => {
                               if (chMuted) { unmute(chMuteKey); setMiniMenuId(null) }
                               else { setMiniMuteId(ch.id); setMiniMenuId(null) }
                             }} style={{ ...miniMenuBtnStyle, borderBottom: '0.5px solid var(--color-border)' }}>
-                              {chMuted ? <><AppIcon name="bell" size={13} /> Activar notificaciones</> : <><AppIcon name="bellOff" size={13} /> Silenciar</>}
+                              {chMuted ? <><AppIcon name="bell" size={13} /> {t('social.unmuteNotifs')}</> : <><AppIcon name="bellOff" size={13} /> {t('social.muteNotifs')}</>}
                             </button>
                             <button onClick={() => {
                               if (ch._isOwner) {
-                                if (window.confirm(`¿Eliminar el canal "${ch.name}"? Esta acción es irreversible y eliminará todos los mensajes.`)) {
+                                if (window.confirm(t('canales.deleteConfirm', { name: ch.name }))) {
                                   deleteChannel(ch.id)
                                   if (activeChannel?.id === ch.id) setActiveChannel(null)
                                 }
@@ -622,7 +622,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                               }
                               setMiniMenuId(null)
                             }} style={{ ...miniMenuBtnStyle, color: 'var(--color-error)' }}>
-                              {ch._isOwner ? <><AppIcon name="delete" size={13} /> Eliminar canal</> : <><AppIcon name="leave" size={13} /> Salir del canal</>}
+                              {ch._isOwner ? <><AppIcon name="delete" size={13} /> {t('canales.deleteChannel')}</> : <><AppIcon name="leave" size={13} /> {t('leaveChannel.confirm')}</>}
                             </button>
                           </motion.div>
                         </>
@@ -635,7 +635,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
                             {MUTE_DURATIONS.map((d, i) => (
                               <button key={i} onClick={() => { mute(chMuteKey, d.ms); setMiniMuteId(null) }}
                                 style={{ ...miniMenuBtnStyle, borderBottom: i < MUTE_DURATIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none' }}>
-                                {d.label}
+                                {t(d.labelKey)}
                               </button>
                             ))}
                           </motion.div>
@@ -651,7 +651,7 @@ export default function Canales({ user, initialCanalCode, onCanalCodeUsed, initi
 
         {!loading && ownedSorted.length === 0 && joinedSorted.length === 0 && (
           <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-            Sin canales todavía
+            {t('canales.noChannels')}
           </div>
         )}
       </div>

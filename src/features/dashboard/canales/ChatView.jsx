@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import AppIcon from '../../../components/ui/AppIcon'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,9 +23,10 @@ import {
   formatMsgTime, getDayLabel, DaySeparator,
 } from './messageRenderer'
 
-function readableContent(content) {
+function readableContent(content, t) {
   if (content?.startsWith('[IMG_MSG]:')) {
-    try { return parseImgTextMessage(content)?.text || 'Imagen' } catch { return 'Imagen' }
+    const label = t ? t('chatView.image') : 'Imagen'
+    try { return parseImgTextMessage(content)?.text || label } catch { return label }
   }
   return content ?? ''
 }
@@ -72,15 +74,16 @@ function calcChannelStats(messages, liveStatuses = {}, liveReviewStatuses = {}) 
 }
 
 const FILTER_OPTIONS = [
-  { key: 'week',    label: '7 días' },
-  { key: 'month',   label: '1 mes' },
-  { key: '3months', label: '3 meses' },
-  { key: 'all',     label: 'Todo' },
+  { key: 'week',    labelKey: 'chatView.stats.week' },
+  { key: 'month',   labelKey: 'chatView.stats.month' },
+  { key: '3months', labelKey: 'chatView.stats.threeMonths' },
+  { key: 'all',     labelKey: 'chatView.stats.all' },
 ]
 const FILTER_DAYS = { week: 7, month: 30, '3months': 90, all: Infinity }
 const START_BANK = 1000
 
 function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName, onClose }) {
+  const { t } = useTranslation()
   const [filter, setFilter] = useState('month')
 
   const days = FILTER_DAYS[filter]
@@ -132,12 +135,12 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
   const yieldVal   = stakeSum > 0 ? (totalProfit / stakeSum) * 100 : 0
   const pctAcierto = resolved.length > 0 ? (won / resolved.length) * 100 : 0
   const SUMMARY = [
-    { label: 'Yield',     value: `${yieldVal >= 0 ? '+' : ''}${yieldVal.toFixed(1)}%`, color: yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
-    { label: 'Ganadas',   value: won,                                                    color: 'var(--color-primary)' },
-    { label: 'Perdidas',  value: lost,                                                   color: 'var(--color-error)' },
-    { label: 'Nulas',     value: voided,                                                 color: 'var(--color-info)' },
-    { label: 'Total',     value: allRows.length,                                         color: 'var(--color-text)' },
-    { label: '% Acierto', value: `${pctAcierto.toFixed(0)}%`,                           color: 'var(--color-text)' },
+    { label: 'Yield',                    value: `${yieldVal >= 0 ? '+' : ''}${yieldVal.toFixed(1)}%`, color: yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
+    { label: t('chatView.stats.won'),    value: won,                                                    color: 'var(--color-primary)' },
+    { label: t('chatView.stats.lost'),   value: lost,                                                   color: 'var(--color-error)' },
+    { label: t('chatView.stats.void'),   value: voided,                                                 color: 'var(--color-info)' },
+    { label: t('chatView.stats.total'),  value: allRows.length,                                         color: 'var(--color-text)' },
+    { label: t('chatView.stats.winPct'), value: `${pctAcierto.toFixed(0)}%`,                           color: 'var(--color-text)' },
   ]
 
   return createPortal(
@@ -155,7 +158,7 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
         {/* HEADER */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', background: 'var(--color-bg)' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text)' }}>Tabla estadística</div>
+            <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text)' }}>{t('chatView.stats.title')}</div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
               {channelName} · @{ownerUsername}
             </div>
@@ -165,7 +168,7 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
             {FILTER_OPTIONS.map(opt => (
               <button key={opt.key} onClick={() => setFilter(opt.key)}
                 style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: filter === opt.key ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: filter === opt.key ? '#010906' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.12s', whiteSpace: 'nowrap' }}>
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
@@ -188,7 +191,7 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
         {/* TAULA */}
         {allRows.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '14px' }}>
-            Sin picks en este periodo
+            {t('chatView.stats.noPicks')}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -196,13 +199,13 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
               <thead>
                 <tr style={{ background: 'var(--color-bg-soft)', position: 'sticky', top: 0 }}>
                   {[
-                    { h: '#',     align: 'center' },
-                    { h: 'Fecha', align: 'left'   },
-                    { h: 'Pick',  align: 'left'   },
-                    { h: 'Stake', align: 'right'  },
-                    { h: 'Cuota', align: 'right'  },
-                    { h: 'Res.',  align: 'center' },
-                    { h: '+/-',   align: 'right'  },
+                    { h: '#',                              align: 'center' },
+                    { h: t('chatView.stats.dateHeader'),   align: 'left'   },
+                    { h: t('chatView.stats.pickHeader'),   align: 'left'   },
+                    { h: t('historial.cardStake'),         align: 'right'  },
+                    { h: t('chatView.stats.oddsHeader'),   align: 'right'  },
+                    { h: t('chatView.stats.resultHeader'), align: 'center' },
+                    { h: '+/-',                            align: 'right'  },
                   ].map(({ h, align }) => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: align, fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap', borderBottom: '0.5px solid var(--color-border)' }}>{h}</th>
                   ))}
@@ -219,7 +222,7 @@ function EstadisticasModal({ messages, liveStatuses, ownerUsername, channelName,
                   const profitStr   = r.profit === null ? '—' : r.profit > 0 ? `+${r.profit.toFixed(2)}u` : `${r.profit.toFixed(2)}u`
                   const profitColor = r.profit === null ? 'var(--color-text-muted)' : r.profit > 0 ? 'var(--color-primary)' : r.profit < 0 ? 'var(--color-error)' : 'var(--color-info)'
                   const num = rows.length - i
-                  const dateStr = r.date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                  const dateStr = r.date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' })
                   const event = r.event || '—'
                   const pick  = r.pick  || ''
                   return (
@@ -282,6 +285,7 @@ function InfoToggle({ label, desc, active, onChange }) {
 }
 
 function MemberRow({ profile, userId, isChannelOwner, isMemberAdmin, canKick, onKick, canPromote, onPromote, canDemote, onDemote, canBan, onBanClick, onViewProfile }) {
+  const { t } = useTranslation()
   const initial = (profile?.username || userId?.slice(0, 2) || '?')[0].toUpperCase()
   const [showMenu, setShowMenu] = useState(false)
   return (
@@ -296,7 +300,7 @@ function MemberRow({ profile, userId, isChannelOwner, isMemberAdmin, canKick, on
       <div onClick={() => onViewProfile?.(userId)} style={{ flex: 1, minWidth: 0, cursor: onViewProfile ? 'pointer' : 'default' }}>
         <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <Username username={profile?.username || userId?.slice(0, 8) || '?'} isVerified={profile?.is_verified} size="sm" />
-          {isChannelOwner && <span style={{ fontSize: '10px', background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', padding: '1px 7px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '0.5px solid rgba(245,158,11,0.3)' }}>Creador</span>}
+          {isChannelOwner && <span style={{ fontSize: '10px', background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', padding: '1px 7px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '0.5px solid rgba(245,158,11,0.3)' }}>{t('chatView.member.creator')}</span>}
           {isMemberAdmin && !isChannelOwner && <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 7px', borderRadius: 'var(--radius-full)', fontWeight: 700, border: '0.5px solid var(--color-primary-border)' }}>Admin</span>}
         </div>
       </div>
@@ -310,10 +314,10 @@ function MemberRow({ profile, userId, isChannelOwner, isMemberAdmin, canKick, on
             <>
               <div onClick={() => setShowMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
               <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: '4px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 20, minWidth: '140px', overflow: 'hidden' }}>
-                {canPromote && <button onClick={() => { onPromote(); setShowMenu(false) }} style={{ display: 'flex', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>⬆ Hacer admin</button>}
-                {canDemote && <button onClick={() => { onDemote(); setShowMenu(false) }} style={{ display: 'flex', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>⬇ Quitar admin</button>}
-                {canKick && <button onClick={() => { onKick(); setShowMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: canBan ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-error)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}><AppIcon name="leave" size={13} /> Expulsar</button>}
-                {canBan && <button onClick={() => { onBanClick({ userId, username: profile?.username || userId?.slice(0, 8) }); setShowMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-error)', fontWeight: 700, textAlign: 'left', fontFamily: 'var(--font-sans)' }}><AppIcon name="ban" size={13} /> Vetar</button>}
+                {canPromote && <button onClick={() => { onPromote(); setShowMenu(false) }} style={{ display: 'flex', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>⬆ {t('chatView.member.makeAdmin')}</button>}
+                {canDemote && <button onClick={() => { onDemote(); setShowMenu(false) }} style={{ display: 'flex', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>⬇ {t('chatView.member.removeAdmin')}</button>}
+                {canKick && <button onClick={() => { onKick(); setShowMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: canBan ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-error)', fontWeight: 600, textAlign: 'left', fontFamily: 'var(--font-sans)' }}><AppIcon name="leave" size={13} /> {t('chatView.member.kick')}</button>}
+                {canBan && <button onClick={() => { onBanClick({ userId, username: profile?.username || userId?.slice(0, 8) }); setShowMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-error)', fontWeight: 700, textAlign: 'left', fontFamily: 'var(--font-sans)' }}><AppIcon name="ban" size={13} /> {t('chatView.member.ban')}</button>}
               </div>
             </>
           )}
@@ -324,6 +328,7 @@ function MemberRow({ profile, userId, isChannelOwner, isMemberAdmin, canKick, on
 }
 
 function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, onUpdateChannel, onDeleteChannel, currentUser }) {
+  const { t } = useTranslation()
   const { adminMode } = useAdminMode()
   const [showEstadisticas, setShowEstadisticas] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -409,7 +414,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
         return false
       })
       if (blocking) {
-        setAvatarError('Ese nombre de canal ya está en uso')
+        setAvatarError(t('chatView.info.nameTaken'))
         setSaving(false)
         return
       }
@@ -496,11 +501,11 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderBottom: '0.5px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 1, flexShrink: 0 }}>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
-        <div style={{ flex: 1, fontWeight: 700, fontSize: '15px' }}>Info del canal</div>
+        <div style={{ flex: 1, fontWeight: 700, fontSize: '15px' }}>{t('chatView.info.title')}</div>
         {isOwner && (
           <button onClick={() => { setEditing(v => !v); setAvatarFile(null); setAvatarPreview(null) }}
             style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: editing ? 'var(--color-error-light)' : 'var(--color-bg-soft)', color: editing ? 'var(--color-error)' : 'var(--color-text)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-            {editing ? <><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Cancelar</> : <><AppIcon name="edit" size={12} /> Editar</>}
+            {editing ? <><AppIcon name="close" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t('common.cancel')}</> : <><AppIcon name="edit" size={12} /> {t('chatView.info.edit')}</>}
           </button>
         )}
       </div>
@@ -527,14 +532,14 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
           {editing ? (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="Nombre del canal" maxLength={30} style={{ ...inputSt, textAlign: 'center', fontWeight: 700, fontSize: '16px' }} />
+                placeholder={t('chatView.info.namePlaceholder')} maxLength={30} style={{ ...inputSt, textAlign: 'center', fontWeight: 700, fontSize: '16px' }} />
               <textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: clampLines(e.target.value, LINE_LIMIT.FORM) }))}
-                rows={2} maxLength={200} placeholder="Descripción del canal..."
+                rows={2} maxLength={200} placeholder={t('chatView.info.descPlaceholder')}
                 style={{ ...inputSt, resize: 'none', textAlign: 'center' }} />
               {avatarError && <div style={{ fontSize: '12px', color: 'var(--color-error)', background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', padding: '8px 12px' }}>{avatarError}</div>}
               <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={saving || !editForm.name.trim()}
                 style={{ background: editForm.name.trim() ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: editForm.name.trim() ? '#010906' : 'var(--color-text-muted)', border: 'none', padding: '10px', borderRadius: 'var(--radius-md)', cursor: editForm.name.trim() ? 'pointer' : 'default', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                {saving ? 'Guardando...' : <><AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Guardar cambios</>}
+                {saving ? t('chatView.info.saving') : <><AppIcon name="check" size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t('chatView.info.saveChanges')}</>}
               </motion.button>
             </div>
           ) : (
@@ -543,12 +548,12 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
               {/* Finestra de durada del canal — es manté visible encara que ja hagi caducat */}
               {channel.duration_start && channel.duration_end && (
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                  ({new Date(channel.duration_start).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })} - {new Date(channel.duration_end).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })})
+                  ({new Date(channel.duration_start).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - {new Date(channel.duration_end).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })})
                 </div>
               )}
               {channel.description && <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{channel.description}</div>}
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                {channel.is_private ? <><AppIcon name="lock" size={12} /> Canal privado</> : <><AppIcon name="globe" size={12} /> Canal público</>}
+                {channel.is_private ? <><AppIcon name="lock" size={12} /> {t('chatView.info.privateChannel')}</> : <><AppIcon name="globe" size={12} /> {t('chatView.info.publicChannel')}</>}
               </div>
             </>
           )}
@@ -556,13 +561,13 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
 
         {/* ESTADÍSTICAS */}
         {stats.total > 0 && (
-          <InfoSection title="Estadísticas">
+          <InfoSection title={t('chatView.info.statsSection')}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
               {[
                 { label: 'Yield', value: `${stats.yieldVal >= 0 ? '+' : ''}${stats.yieldVal.toFixed(1)}%`, color: stats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
                 { label: 'W / L', value: `${stats.won} / ${stats.lost}`, color: 'var(--color-text)' },
-                { label: 'Total picks', value: stats.total, color: 'var(--color-text)' },
-                { label: 'Cuota media', value: stats.avgOdds, color: 'var(--color-warning)' },
+                { label: t('chatView.info.totalPicks'), value: stats.total, color: 'var(--color-text)' },
+                { label: t('chatView.info.avgOdds'), value: stats.avgOdds, color: 'var(--color-warning)' },
               ].map((s, i) => (
                 <div key={i} style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
                   <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>{s.label}</div>
@@ -574,7 +579,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'background 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--color-bg-soft)'}>
-              <AppIcon name="barChart" size={14} /> Extraer tabla estadística
+              <AppIcon name="barChart" size={14} /> {t('chatView.info.extractStats')}
             </button>
           </InfoSection>
         )}
@@ -593,38 +598,38 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
 
         {/* CONFIGURACIÓ — only owner */}
         {isOwner && (
-          <InfoSection title="Configuración">
+          <InfoSection title={t('chatView.info.configSection')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '0.5px solid var(--color-border)' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{channel.is_private ? <><AppIcon name="lock" size={13} /> Canal privado</> : <><AppIcon name="globe" size={13} /> Canal público</>}</div>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', fontWeight: 600 }}>Acción irreversible</span>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{channel.is_private ? <><AppIcon name="lock" size={13} /> {t('chatView.info.privateChannel')}</> : <><AppIcon name="globe" size={13} /> {t('chatView.info.publicChannel')}</>}</div>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', fontWeight: 600 }}>{t('chatView.info.irreversible')}</span>
             </div>
-            <InfoToggle label="Enlace visible públicamente" desc="Cualquiera puede compartir y ver el link" active={!!channel.link_public} onChange={() => handleToggle('link_public')} />
+            <InfoToggle label={t('chatView.info.publicLink')} desc={t('chatView.info.publicLinkDesc')} active={!!channel.link_public} onChange={() => handleToggle('link_public')} />
             {!channel.is_private && (
-              <InfoToggle label="Reenviar mensajes" desc="Los miembros pueden reenviar mensajes de este canal" active={channel.allow_forward !== false} onChange={() => handleToggle('allow_forward')} />
+              <InfoToggle label={t('chatView.info.allowForward')} desc={t('chatView.info.allowForwardDesc')} active={channel.allow_forward !== false} onChange={() => handleToggle('allow_forward')} />
             )}
 
             {/* Deporte e idioma — permiten que el canal aparezca en filtros de búsqueda */}
             <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>Deporte principal</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>{t('chatView.info.mainSport')}</div>
                 <select value={channel.sport || ''} onChange={e => handleField('sport', e.target.value)}
                   style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: channel.sport ? 'var(--color-text)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '9px 12px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer' }}>
-                  <option value=''>Sin especificar</option>
+                  <option value=''>{t('chatView.info.notSpecified')}</option>
                   {['Fútbol','Baloncesto','Tenis','eSports','MMA','Béisbol','Fútbol Americano','Otros'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>Idioma del canal</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>{t('chatView.info.channelLanguage')}</div>
                 <select value={channel.language || ''} onChange={e => handleField('language', e.target.value)}
                   style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: channel.language ? 'var(--color-text)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '9px 12px', borderRadius: 'var(--radius-md)', outline: 'none', cursor: 'pointer' }}>
-                  <option value=''>Sin especificar</option>
+                  <option value=''>{t('chatView.info.notSpecified')}</option>
                   {['Español','Català','English','Português','Français','Deutsch'].map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
             </div>
 
             <div style={{ marginTop: '14px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>Código de invitación</div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>{t('chatView.info.inviteCode')}</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
                 <div style={{ flex: 1, background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   fyourbet.com/canal/{channel.invite_code}
@@ -636,21 +641,21 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
               </div>
               <button onClick={handleRegenerateCode} disabled={regenerating}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <AppIcon name="refresh" size={11} /> {regenerating ? 'Generando...' : 'Regenerar código (invalida el anterior)'}
+                <AppIcon name="refresh" size={11} /> {regenerating ? t('chatView.info.generating') : t('chatView.info.regenerate')}
               </button>
             </div>
           </InfoSection>
         )}
 
         {/* MEMBRES */}
-        <InfoSection title={`Miembros (${members.length + 1})`}>
+        <InfoSection title={`${t('chatView.info.membersTitle')} (${members.length + 1})`}>
           {loadingMembers ? (
-            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Cargando...</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{t('common.loading')}</div>
           ) : (isOwner || isAdmin) ? (
             <>
               <input
                 type="text"
-                placeholder="Buscar por @usuario..."
+                placeholder={t('chatView.info.memberSearch')}
                 value={memberSearch}
                 onChange={e => setMemberSearch(e.target.value)}
                 style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', padding: '7px 10px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }}
@@ -680,7 +685,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
                     />
                   ))}
                 {memberSearch && members.filter(m => (m.profile?.username || '').toLowerCase().includes(memberSearch.toLowerCase())).length === 0 && (
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', padding: '8px 0', textAlign: 'center' }}>Sin resultados</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', padding: '8px 0', textAlign: 'center' }}>{t('chatView.info.noResults')}</div>
                 )}
               </div>
             </>
@@ -688,7 +693,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
             /* Vista llegida per a membres normals: creador + admins */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               {[
-                { profile: ownerProfile, userId: channel.owner_id, badge: 'Creador', badgeIcon: 'crown' },
+                { profile: ownerProfile, userId: channel.owner_id, badge: t('chatView.member.creator'), badgeIcon: 'crown' },
                 ...members.filter(m => m.role === 'admin').map(m => ({ profile: m.profile, userId: m.user_id, badge: 'Admin', badgeIcon: 'shield' })),
               ].map(({ profile, userId, badge, badgeIcon }) => {
                 const initial = (profile?.username || userId?.slice(0, 2) || '?')[0].toUpperCase()
@@ -725,15 +730,15 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-lg)', padding: '24px', width: '100%', maxWidth: '300px' }}>
-              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="ban" size={14} color="var(--color-error)" /> Vetar a {banModal.username}</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>Selecciona la duración del veto</div>
+              <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="ban" size={14} color="var(--color-error)" /> {t('chatView.info.banTitle')} {banModal.username}</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>{t('chatView.info.banDuration')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
-                  [60 * 60 * 1000,          '1 hora'],
-                  [6 * 60 * 60 * 1000,      '6 horas'],
-                  [24 * 60 * 60 * 1000,     '24 horas'],
-                  [7 * 24 * 60 * 60 * 1000, '7 días'],
-                  [30 * 24 * 60 * 60 * 1000,'30 días'],
+                  [60 * 60 * 1000,          t('chatView.info.ban1h')],
+                  [6 * 60 * 60 * 1000,      t('chatView.info.ban6h')],
+                  [24 * 60 * 60 * 1000,     t('chatView.info.ban24h')],
+                  [7 * 24 * 60 * 60 * 1000, t('chatView.info.ban7d')],
+                  [30 * 24 * 60 * 60 * 1000,t('chatView.info.ban30d')],
                 ].map(([ms, label]) => (
                   <button key={ms} onClick={() => handleBan(banModal.userId, new Date(Date.now() + ms).toISOString())}
                     style={{ padding: '9px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
@@ -742,11 +747,11 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
                 ))}
                 <button onClick={() => handleBan(banModal.userId, null)}
                   style={{ padding: '9px 14px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                  <AppIcon name="ban" size={13} /> Permanente
+                  <AppIcon name="ban" size={13} /> {t('chatView.info.banPermanent')}
                 </button>
                 <button onClick={() => setBanModal(null)}
                   style={{ padding: '9px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
               </div>
             </motion.div>
@@ -755,7 +760,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
 
         {/* ENLACE per a membres normals */}
         {!isOwner && channel.link_public && (
-          <InfoSection title="Enlace de invitación">
+          <InfoSection title={t('chatView.info.inviteLinkSection')}>
             <div style={{ display: 'flex', gap: '6px' }}>
               <div style={{ flex: 1, background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '8px 12px', fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 fyourbet.com/canal/{channel.invite_code}
@@ -795,22 +800,22 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
 
         {/* ZONA DE PERILL */}
         {isOwner && (
-          <InfoSection title="Zona de peligro">
+          <InfoSection title={t('chatView.info.dangerZone')}>
             {!showDeleteConfirm ? (
               <button onClick={() => { setShowDeleteConfirm(true); setDeleteInput('') }}
                 style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <AppIcon name="delete" size={13} /> Eliminar canal
+                <AppIcon name="delete" size={13} /> {t('chatView.info.deleteChannel')}
               </button>
             ) : (
               <div style={{ background: 'var(--color-error-light)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ fontSize: '13px', color: 'var(--color-error)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AppIcon name="warning" size={13} /> Esta acción es irreversible
+                  <AppIcon name="warning" size={13} /> {t('chatView.info.irreversible')}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-error)', lineHeight: 1.5 }}>
-                  Se eliminarán permanentemente todos los mensajes, picks e historial del canal. No se puede deshacer.
+                  {t('chatView.info.deleteDesc')}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  Escribe <strong style={{ color: 'var(--color-error)', letterSpacing: '0.5px' }}>ELIMINAR</strong> para confirmar:
+                  {t('chatView.info.typeConfirmPre')} <strong style={{ color: 'var(--color-error)', letterSpacing: '0.5px' }}>ELIMINAR</strong>{t('chatView.info.typeConfirmPost')}
                 </div>
                 <input
                   autoFocus
@@ -823,13 +828,13 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => { setShowDeleteConfirm(false); setDeleteInput('') }}
                     style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-                    Cancelar
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={() => onDeleteChannel?.(channel.id)}
                     disabled={deleteInput !== 'ELIMINAR'}
                     style={{ flex: 1, padding: '9px', borderRadius: 'var(--radius-md)', border: 'none', background: deleteInput === 'ELIMINAR' ? 'var(--color-error)' : 'var(--color-bg-soft)', color: deleteInput === 'ELIMINAR' ? '#fff' : 'var(--color-text-muted)', cursor: deleteInput === 'ELIMINAR' ? 'pointer' : 'default', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                    Eliminar canal
+                    {t('chatView.info.deleteChannel')}
                   </button>
                 </div>
               </div>
@@ -842,7 +847,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
           <InfoSection title="Acciones admin">
             <button onClick={() => { setAdminDeleteOpen(true); setAdminDeleteReason('') }}
               style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-error-border)', background: 'var(--color-error-light)', color: 'var(--color-error)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <AppIcon name="delete" size={13} /> Eliminar canal (admin)
+              <AppIcon name="delete" size={13} /> {t('canales.deleteChannel')}
             </button>
           </InfoSection>
         )}
@@ -857,7 +862,7 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
             <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }}
               onClick={e => e.stopPropagation()}
               style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-error-border)', borderRadius: 'var(--radius-xl)', padding: '24px', maxWidth: '460px', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="shield" size={16} /> Eliminar canal como admin</div>
+              <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '6px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="shield" size={16} /> {t('canales.deleteChannel')}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
                 Canal: <strong style={{ color: 'var(--color-text)' }}>{channel.name}</strong>
               </div>
@@ -868,11 +873,11 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setAdminDeleteOpen(false)}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button onClick={handleAdminDeleteChannel} disabled={adminDeleting || !adminDeleteReason.trim()}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: adminDeleting || !adminDeleteReason.trim() ? 0.5 : 1 }}>
-                  {adminDeleting ? 'Eliminando...' : 'Eliminar canal'}
+                  {adminDeleting ? t('configuracion.deleting') : t('canales.deleteChannel')}
                 </button>
               </div>
             </motion.div>
@@ -887,10 +892,11 @@ function InfoView({ channel, messages, liveStatuses, isOwner, isAdmin, onClose, 
 // Divisor "Nuevos mensajes": línia central semi-transparent que marca el primer
 // missatge no llegit en obrir el xat (id fix per poder-hi fer scroll directe).
 function NewMessagesDivider() {
+  const { t } = useTranslation()
   return (
     <div id="nuevos-mensajes-divider" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0', opacity: 0.75 }}>
       <div style={{ flex: 1, height: '0.5px', background: 'var(--color-primary)' }} />
-      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>Nuevos mensajes</span>
+      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>{t('chatView.newMessages')}</span>
       <div style={{ flex: 1, height: '0.5px', background: 'var(--color-primary)' }} />
     </div>
   )
@@ -898,6 +904,7 @@ function NewMessagesDivider() {
 
 // compact: true when rendered inside the split layout (smaller top-bottom margins)
 export default function ChatView({ channel: initialChannel, user, onBack, memberCount, onLeave, onDeleteChannel, onOpenCanal, onAddBet, onChannelUpdated, onUnreadChange, compact = false }) {
+  const { t } = useTranslation()
   const { adminMode } = useAdminMode()
   const { messages, loading, sendMessage, recordView, deleteMessage } = useMessages(initialChannel.id, user?.id)
   const [channel, setChannel] = useState(initialChannel)
@@ -1119,7 +1126,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
       try {
         imageUrl = await uploadToStorage(pastedImage.file)
       } catch (err) {
-        setUploadError(`Error al subir: ${err.message || 'Error inesperado.'}`)
+        setUploadError(t('chatView.uploadError', { msg: err.message || t('chatView.unexpectedError') }))
         setUploading(false)
         return
       } finally {
@@ -1156,7 +1163,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
     const stripped = content.replace(/^\[FWD[^\]]*\]:/, '').replace(/^\[REPLY:[^\]]*\]:/, '')
     let preview
     if (stripped.startsWith('[IMG_MSG]:')) {
-      try { preview = (JSON.parse(stripped.replace('[IMG_MSG]:', '')).text || 'Imagen') } catch { preview = 'Imagen' }
+      try { preview = (JSON.parse(stripped.replace('[IMG_MSG]:', '')).text || t('chatView.image')) } catch { preview = t('chatView.image') }
     } else {
       preview = stripped.slice(0, 80)
     }
@@ -1205,7 +1212,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
       const content = isImg ? `[IMAGE]:${url}` : `[FILE:${file.name}]:${url}`
       await sendMessage(content, user.id)
     } catch (err) {
-      setUploadError(`Error al subir: ${err.message || 'Error inesperado.'}`)
+      setUploadError(t('chatView.uploadError', { msg: err.message || t('chatView.unexpectedError') }))
     } finally {
       setUploading(false)
     }
@@ -1221,11 +1228,11 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   const handleInternalLink = (code) => { onOpenCanal?.(code) }
 
   const menuItems = [
-    { iconName: 'messageCircle', label: 'Info del canal', action: () => { setShowInfo(true); setShowMenu(false) } },
-    { iconName: 'share', label: 'Compartir canal', action: () => { setShowShareChannel(true); setShowMenu(false) } },
-    { iconName: muted ? 'bell' : 'bellOff', label: muted ? 'Activar notificaciones' : 'Silenciar', action: () => { setMuted(!muted); setShowMenu(false) } },
-    { iconName: 'flag', label: 'Reportar canal', action: () => { alert('Canal reportado. Lo revisaremos pronto.'); setShowMenu(false) } },
-    ...(!isOwner ? [{ iconName: 'leave', label: 'Abandonar canal', action: () => { onLeave?.(); setShowMenu(false) }, danger: true }] : []),
+    { iconName: 'messageCircle', label: t('chatView.info.title'), action: () => { setShowInfo(true); setShowMenu(false) } },
+    { iconName: 'share', label: t('canales.shareChannel'), action: () => { setShowShareChannel(true); setShowMenu(false) } },
+    { iconName: muted ? 'bell' : 'bellOff', label: muted ? t('social.unmuteNotifs') : t('social.muteNotifs'), action: () => { setMuted(!muted); setShowMenu(false) } },
+    { iconName: 'flag', label: t('social.report'), action: () => { alert(t('canales.reported')); setShowMenu(false) } },
+    ...(!isOwner ? [{ iconName: 'leave', label: t('leaveChannel.confirm'), action: () => { onLeave?.(); setShowMenu(false) }, danger: true }] : []),
   ]
 
   return (
@@ -1241,8 +1248,8 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           <div style={{ fontWeight: 700, fontSize: '18px' }}>{channel.name}</div>
           {channel.description && <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{channel.description}</div>}
         </div>
-        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="users" size={13} /> {memberCount} participantes</span>
-        {isOwner && <span style={{ fontSize: '11px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>Tu canal</span>}
+        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="users" size={13} /> {memberCount} {t('chatView.participants')}</span>
+        {isOwner && <span style={{ fontSize: '11px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>{t('chatView.yourChannel')}</span>}
         {!isOwner && isAdmin && <span style={{ fontSize: '11px', background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '0.5px solid rgba(245,158,11,0.3)', fontWeight: 600 }}>Admin</span>}
         <div style={{ position: 'relative' }}>
           <button onClick={() => setShowMenu(!showMenu)}
@@ -1274,7 +1281,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           <div style={{ flexShrink: 0 }}><AppIcon name="warning" size={20} /></div>
           <div style={{ flex: 1, minWidth: '180px', fontSize: '13px', color: 'var(--color-error)', lineHeight: 1.4 }}>
             <div style={{ fontWeight: 700, marginBottom: '2px' }}>
-              {channel.deletion_reason ? 'Este canal ha sido eliminado por moderación.' : 'Este canal ha sido eliminado por el administrador.'}
+              {channel.deletion_reason ? t('chatView.deletedByMod') : t('chatView.deletedByAdmin')}
             </div>
             {channel.deletion_reason && (
               <div style={{ fontWeight: 500, fontSize: '12px', opacity: 0.85 }}>Motivo: {channel.deletion_reason}</div>
@@ -1309,11 +1316,11 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
       <div ref={scrollRef} onScroll={() => { wasAtBottomRef.current = isNearBottom() }}
         style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando mensajes...</div>
+          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> {t('chatView.loadingMessages')}</div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px' }}>
             <div style={{ marginBottom: '8px' }}><AppIcon name="message" size={32} /></div>
-            <div>Sin mensajes todavía.</div>
+            <div>{t('chatView.noMessages')}</div>
           </div>
         ) : messages.filter(m => !deletedMessageIds.has(m.id) && m.content !== '[DELETED]').map((m, i) => {
           const isOwn = m.user_id === user.id
@@ -1348,7 +1355,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
               {isDeletedMsg ? (
                 <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', margin: '2px 0' }}>
                   <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '7px 12px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="ban" size={12} /> Mensaje eliminado</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="ban" size={12} /> {t('chatView.msgDeleted')}</span>
                   </div>
                 </div>
               ) : (
@@ -1375,8 +1382,8 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                       {forwardedFrom && !isNobubble && !isImage && (
                         <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.6, marginBottom: '5px' }}>
                           {forwardedFrom === 'dm'
-                            ? 'Reenviado'
-                            : <span onClick={() => setFwdChannel(forwardedFrom)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>{`Reenviado de: ${forwardedFrom}`}</span>}
+                            ? t('dmview.forwarded')
+                            : <span onClick={() => setFwdChannel(forwardedFrom)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>{`${t('dmview.forwarded')}: ${forwardedFrom}`}</span>}
                         </div>
                       )}
                       {replyPreview && (
@@ -1423,7 +1430,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                           )
                         : renderMessage(displayContent, handleInternalLink, isOwn, openProfile, timeStr, m.view_count || 0, handleMention)}
                       {edited && !isNobubble && !isImage && (
-                        <span style={{ fontSize: '10px', opacity: 0.55, fontStyle: 'italic', marginLeft: '4px' }}>(editado)</span>
+                        <span style={{ fontSize: '10px', opacity: 0.55, fontStyle: 'italic', marginLeft: '4px' }}>{t('chatView.edited')}</span>
                       )}
                       {!isNobubble && !isImage && (
                         <span style={{ position: 'absolute', bottom: '5px', right: '10px', fontSize: '10px', fontWeight: 500, color: isOwn ? 'rgba(1,9,6,0.65)' : 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
@@ -1456,7 +1463,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
 
       {isDeleted ? (
         <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-muted)', padding: '12px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }}>
-          Este canal está eliminado. No se pueden enviar mensajes.
+          {t('chatView.deletedCannotSend')}
         </div>
       ) : (isOwner || isAdmin) ? (
         <div style={{ marginTop: '12px' }}>
@@ -1469,7 +1476,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           {(replyTo || editingMsg) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '8px' }}>
               <div style={{ flex: 1, minWidth: 0, borderLeft: `3px solid ${editingMsg ? 'var(--color-warning)' : 'var(--color-primary)'}`, paddingLeft: '8px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: editingMsg ? 'var(--color-warning)' : 'var(--color-primary)', marginBottom: '1px', display: 'flex', alignItems: 'center', gap: '4px' }}>{editingMsg ? <><AppIcon name="edit" size={11} /> Editando</> : '↩ Respondiendo'}</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: editingMsg ? 'var(--color-warning)' : 'var(--color-primary)', marginBottom: '1px', display: 'flex', alignItems: 'center', gap: '4px' }}>{editingMsg ? <><AppIcon name="edit" size={11} /> {t('chatView.editing')}</> : t('chatView.replying')}</div>
                 {replyTo && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{replyTo.preview}</div>}
               </div>
               <button onClick={() => { setReplyTo(null); setEditingMsg(null); setText('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, display: 'flex' }}><AppIcon name="close" size={16} /></button>
@@ -1505,16 +1512,16 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                       style={{ position: 'absolute', bottom: '48px', left: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: '180px', overflow: 'hidden' }}>
                       <button onClick={() => { fileInputRef.current?.click(); setShowExtras(false) }} disabled={uploading}
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                        {uploading ? <AppIcon name="loading" size={15} /> : <AppIcon name="paperclip" size={15} />}<span>Adjuntar archivo</span>
+                        {uploading ? <AppIcon name="loading" size={15} /> : <AppIcon name="paperclip" size={15} />}<span>{t('chatView.attachFile')}</span>
                       </button>
                       <button onClick={() => { onAddBet?.(channel.id); setShowExtras(false) }}
                         style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderBottom: (isOwner || isAdmin) ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-primary)', fontWeight: 700, fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                        <AppIcon name="stats" size={15} /><span>Añadir pick</span>
+                        <AppIcon name="stats" size={15} /><span>{t('chatView.addPick')}</span>
                       </button>
                       {(isOwner || isAdmin) && (
                         <button onClick={() => { setShowPollCreator(true); setShowExtras(false) }}
                           style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', textAlign: 'left' }}>
-                          <AppIcon name="vote" size={15} /><span>Crear encuesta</span>
+                          <AppIcon name="vote" size={15} /><span>{t('chatView.createPoll')}</span>
                         </button>
                       )}
                     </motion.div>
@@ -1528,7 +1535,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
             <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
               {mention.dropdown}
               <textarea ref={msgInputRef} value={text} onChange={e => mention.handleChange(clampLines(e.target.value, LINE_LIMIT.MESSAGE), e.target.selectionStart)} onKeyDown={handleKey}
-                placeholder="Envía un mensaje" rows={2} maxLength={2000}
+                placeholder={t('dmview.inputPlaceholder')} rows={2} maxLength={2000}
                 onPaste={e => {
                   const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'))
                   if (item) {
@@ -1550,12 +1557,12 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
               </AnimatePresence>
             </div>
 
-            <Button onClick={handleSend} disabled={!text.trim() && !pastedImage}>Enviar</Button>
+            <Button onClick={handleSend} disabled={!text.trim() && !pastedImage}>{t('chatView.send')}</Button>
           </div>
         </div>
       ) : (
         <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-muted)', padding: '12px', background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }}>
-          Solo el propietario y los administradores pueden enviar mensajes
+          {t('chatView.ownerOnly')}
         </div>
       )}
 
@@ -1589,15 +1596,15 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           const canEdit = isOwnMsg && !forwardedFrom && !isBetMsg && !isImgMsg && !isImgTextMsg && !isStkMsg && !isVoiceMsg && !isProfMsg && !isPollMsg
           const canDel = isOwnMsg || isOwner || isAdmin || adminMode
           const canPin = isOwner || isAdmin || adminMode
-          const readable = readableContent(displayContent)
+          const readable = readableContent(displayContent, t)
 
           const items = [
-            { icon: 'copy', label: 'Copiar', action: () => { navigator.clipboard.writeText(readable); setMsgMenu(null) } },
-            { icon: 'reply', label: 'Responder', action: () => { setReplyTo({ id: msg.id, preview: readable.slice(0, 80) }); setMsgMenu(null) } },
-            canFwd && { icon: 'arrowOut', label: 'Reenviar', action: () => { setForwardMsg({ content: displayContent, fromChannelName: channel.name }); setMsgMenu(null) } },
-            canPin && { icon: 'pin', label: pinnedMsg?.rawContent === rawContent ? 'Desfijar' : 'Fijar', action: () => { if (pinnedMsg?.rawContent === rawContent) { handlePin(rawContent, null) } else { setPinDurationFor(rawContent); setMsgMenu(null) } } },
-            canEdit && { icon: 'edit', label: 'Editar', action: () => { setEditingMsg({ id: msg.id }); setText(displayContent); setMsgMenu(null) } },
-            canDel && !isBetMsg && { icon: 'delete', label: 'Eliminar', action: () => handleDelete(msg.id), danger: true },
+            { icon: 'copy', label: t('dmview.copy'), action: () => { navigator.clipboard.writeText(readable); setMsgMenu(null) } },
+            { icon: 'reply', label: t('dmview.reply'), action: () => { setReplyTo({ id: msg.id, preview: readable.slice(0, 80) }); setMsgMenu(null) } },
+            canFwd && { icon: 'arrowOut', label: t('dmview.forward'), action: () => { setForwardMsg({ content: displayContent, fromChannelName: channel.name }); setMsgMenu(null) } },
+            canPin && { icon: 'pin', label: pinnedMsg?.rawContent === rawContent ? t('dmview.unpinMsg') : t('dmview.pinMsg'), action: () => { if (pinnedMsg?.rawContent === rawContent) { handlePin(rawContent, null) } else { setPinDurationFor(rawContent); setMsgMenu(null) } } },
+            canEdit && { icon: 'edit', label: t('dmview.edit'), action: () => { setEditingMsg({ id: msg.id }); setText(displayContent); setMsgMenu(null) } },
+            canDel && !isBetMsg && { icon: 'delete', label: t('chatView.delete'), action: () => handleDelete(msg.id), danger: true },
           ].filter(Boolean)
 
           const menuH = items.length * 44

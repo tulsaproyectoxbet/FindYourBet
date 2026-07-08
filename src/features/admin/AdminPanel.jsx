@@ -944,7 +944,7 @@ export default function AdminPanel({ user }) {
           { id: 'review',       icon: 'flag',        label: `Picks en revisión${reviewBets.length > 0 ? ` (${reviewBets.length})` : ''}` },
           { id: 'problemas',    icon: 'warning',     label: `Problemas${pendingTicketsCount > 0 ? ` (${pendingTicketsCount})` : ''}` },
           { id: 'sugerencias',  icon: 'message',     label: `Sugerencias${suggestionsCount > 0 ? ` (${suggestionsCount})` : ''}` },
-          { id: 'verificados',  icon: 'shieldCheck', label: 'Verificados' },
+          { id: 'verificados',  icon: 'shieldCheck', label: 'Usuarios' },
           { id: 'reportes',     icon: 'users',       label: `Reportes${userReportsCount > 0 ? ` (${userReportsCount})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { Button } from '../../components/ui/Button'
 import { hasMatchStarted } from './hooks/useBets'
 import PostModal from './feed/PostModal'
@@ -10,22 +11,22 @@ const SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'Béisbol', 'Fútbol Americano
 const MARKETS = ['1X2', 'Hándicap', 'Over/Under', 'Ambos marcan', 'Otro']
 
 const PERIODS = [
-  { id: 'activas',    label: 'Activas' },
-  { id: 'trimestral', label: 'Ranking' },
-  { id: 'total',      label: 'Total' },
-  { id: 'anual',      label: 'Anual' },
-  { id: 'mensual',    label: 'Mensual' },
-  { id: 'setmanal',   label: 'Semanal' },
+  { id: 'activas',    labelKey: 'historial.periods.activas' },
+  { id: 'trimestral', labelKey: 'historial.periods.ranking' },
+  { id: 'total',      labelKey: 'historial.periods.total' },
+  { id: 'anual',      labelKey: 'historial.periods.anual' },
+  { id: 'mensual',    labelKey: 'historial.periods.mensual' },
+  { id: 'setmanal',   labelKey: 'historial.periods.setmanal' },
 ]
 
 const NAVIGABLE = ['setmanal', 'mensual', 'anual']
 
 const STATUS_CONFIG = {
-  won:     { label: 'Ganada',    accent: 'var(--color-primary)',    bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
-  lost:    { label: 'Perdida',   accent: 'var(--color-error)',      bg: 'var(--color-error-light)',   border: 'var(--color-error-border)' },
+  won:     { labelKey: 'historial.status.won',     accent: 'var(--color-primary)',    bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
+  lost:    { labelKey: 'historial.status.lost',    accent: 'var(--color-error)',      bg: 'var(--color-error-light)',   border: 'var(--color-error-border)' },
   // void = pick nul (diners retornats) — no compta a estadístiques
-  void:    { label: 'Nula',      accent: 'var(--color-info)',       bg: 'var(--color-info-light)',    border: 'var(--color-info-border)' },
-  pending: { label: 'Pendiente', accent: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',       border: 'var(--color-border)' },
+  void:    { labelKey: 'historial.status.void',    accent: 'var(--color-info)',       bg: 'var(--color-info-light)',    border: 'var(--color-info-border)' },
+  pending: { labelKey: 'historial.status.pending', accent: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',       border: 'var(--color-border)' },
 }
 
 // ── Helpers de filtratge ──────────────────────────────────────────────────────
@@ -61,7 +62,7 @@ function getPeriodRange(period, offset) {
   return null
 }
 
-function getPeriodLabel(period, offset) {
+function getPeriodLabel(period, offset, t, locale) {
   if (!NAVIGABLE.includes(period)) return null
   const now = new Date()
   if (period === 'setmanal') {
@@ -71,13 +72,13 @@ function getPeriodLabel(period, offset) {
     monday.setHours(0, 0, 0, 0)
     const sunday = new Date(monday)
     sunday.setDate(monday.getDate() + 6)
-    const fmt = d => d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
-    const tag = offset === 0 ? 'Semana actual' : offset === 1 ? 'Semana pasada' : `Hace ${offset} semanas`
+    const fmt = d => d.toLocaleDateString(locale, { day: '2-digit', month: 'short' })
+    const tag = offset === 0 ? t('historial.weekCurrent') : offset === 1 ? t('historial.weekLast') : t('historial.weekAgo', { n: offset })
     return `${tag} · ${fmt(monday)} – ${fmt(sunday)}`
   }
   if (period === 'mensual') {
     const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-    const s = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+    const s = d.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
     return s.charAt(0).toUpperCase() + s.slice(1)
   }
   if (period === 'anual') return String(now.getFullYear() - offset)
@@ -195,6 +196,7 @@ function StatSection({ title, children }) {
 }
 
 function StatsPanel({ allBets }) {
+  const { t } = useTranslation()
   const resolved = allBets.filter(b => b.status === 'won' || b.status === 'lost')
   const { best, current, currentType } = useMemo(() => calcStreaks(allBets), [allBets])
   const topBets = useMemo(() => getTopBets(allBets), [allBets])
@@ -215,7 +217,7 @@ function StatsPanel({ allBets }) {
 
       {/* Forma recent */}
       {recentForm.length > 0 && (
-        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="zap" size={10} /> Forma reciente</span>}>
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="zap" size={10} /> {t('misApuestas.recentForm')}</span>}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))', gap: '6px' }}>
             {recentForm.map((b, i) => (
               <div key={i} title={b.event}
@@ -225,35 +227,35 @@ function StatsPanel({ allBets }) {
             ))}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '10px' }}>
-            Últimos {recentForm.length} picks · más antiguo → más reciente
+            {t('misApuestas.recentFormDesc', { count: recentForm.length })}
           </div>
         </StatSection>
       )}
 
       {/* Rachas */}
-      <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="flame" size={10} /> Rachas</span>}>
+      <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="flame" size={10} /> {t('misApuestas.streaks')}</span>}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '0.5px solid var(--color-border)' }}>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Mejor racha</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>{t('misApuestas.bestStreak')}</div>
             <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--color-primary)' }}>{best}</div>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>victorias seguidas</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('misApuestas.consecutiveWins')}</div>
           </div>
           <div style={{ background: 'var(--color-bg-soft)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: `0.5px solid ${currentType === 'won' ? 'var(--color-primary-border)' : currentType === 'lost' ? 'var(--color-error-border)' : 'var(--color-border)'}` }}>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Racha actual</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>{t('misApuestas.currentStreak')}</div>
             <div style={{ fontSize: '22px', fontWeight: 700, color: currentType === 'won' ? 'var(--color-primary)' : currentType === 'lost' ? 'var(--color-error)' : 'var(--color-text-muted)' }}>{current}</div>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{currentType === 'won' ? 'ganando' : currentType === 'lost' ? 'perdiendo' : '—'}</div>
+            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{currentType === 'won' ? t('misApuestas.winning') : currentType === 'lost' ? t('misApuestas.losing') : '—'}</div>
           </div>
         </div>
       </StatSection>
 
       {/* Hazañas */}
       {(maxOddsWon || longestOddsLost) && (
-        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="medal" size={10} /> Hazañas</span>}>
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="medal" size={10} /> {t('misApuestas.feats')}</span>}>
           {maxOddsWon && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: longestOddsLost ? '0.5px solid var(--color-border)' : 'none' }}>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{maxOddsWon.event}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Mayor cuota ganada</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('misApuestas.maxOddsWon')}</div>
               </div>
               <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0 }}>{parseFloat(maxOddsWon.odds).toFixed(2)}</div>
             </div>
@@ -262,7 +264,7 @@ function StatsPanel({ allBets }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{longestOddsLost.event}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Mayor stake arriesgado</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('misApuestas.maxStakeLost')}</div>
               </div>
               <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-error)', flexShrink: 0 }}>{longestOddsLost.stake}</div>
             </div>
@@ -272,7 +274,7 @@ function StatsPanel({ allBets }) {
 
       {/* Top apostes */}
       {topBets.length > 0 && (
-        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="gem" size={10} /> Mejores picks</span>}>
+        <StatSection title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="gem" size={10} /> {t('misApuestas.topPicks')}</span>}>
           {topBets.map((b, i) => (
             <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: i < topBets.length - 1 ? '0.5px solid var(--color-border)' : 'none' }}>
               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0 }}>{i + 1}</div>
@@ -288,7 +290,7 @@ function StatsPanel({ allBets }) {
 
       {/* Per sport */}
       {sportStats.length > 0 && (
-        <StatSection title="⚽ Por deporte">
+        <StatSection title={<span>⚽ {t('misApuestas.bySport')}</span>}>
           {sportStats.map(s => (
             <div key={s.sport} style={{ marginBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
@@ -315,11 +317,13 @@ function StatsPanel({ allBets }) {
 // ── Carta d'aposta ────────────────────────────────────────────────────────────
 
 function BetCard({ b, onResolveBet, onViewPost }) {
+  const { t, i18n } = useTranslation()
   const started = hasMatchStarted(b)
   const cfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.pending
   const isLive = b.status === 'pending' && started
 
-  const dateStr = new Date(b.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const locale = t('historial.dateLocale')
+  const dateStr = new Date(b.date).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 16 }}
@@ -331,7 +335,7 @@ function BetCard({ b, onResolveBet, onViewPost }) {
 
         {/* Badge */}
         <span style={{ alignSelf: 'flex-start', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 700, background: isLive ? 'rgba(245,158,11,0.12)' : cfg.bg, color: isLive ? 'var(--color-warning)' : cfg.accent, border: `0.5px solid ${isLive ? 'rgba(245,158,11,0.3)' : cfg.border}` }}>
-          {isLive ? <><span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--color-warning)', marginRight: '4px', verticalAlign: 'middle' }} />En curso</> : cfg.label}
+          {isLive ? <><span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--color-warning)', marginRight: '4px', verticalAlign: 'middle' }} />{t('historial.status.pending')}</> : t(cfg.labelKey)}
         </span>
 
         {/* Títol */}
@@ -347,7 +351,7 @@ function BetCard({ b, onResolveBet, onViewPost }) {
 
         {/* Métricas */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {[{ label: 'Cuota', value: parseFloat(b.odds).toFixed(2), big: true }, { label: 'Stake', value: `${b.stake}`, big: true }, { label: 'Fecha', value: dateStr, big: false }].map((s, i) => (
+          {[{ label: t('historial.cardOdds'), value: parseFloat(b.odds).toFixed(2), big: true }, { label: t('historial.cardStake'), value: `${b.stake}`, big: true }, { label: t('historial.cardDate'), value: dateStr, big: false }].map((s, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{s.label}</span>
               <span style={{ fontWeight: s.big ? 700 : 400, fontSize: s.big ? '13px' : '11px', color: s.big ? 'var(--color-text)' : 'var(--color-text-muted)' }}>{s.value}</span>
@@ -364,7 +368,7 @@ function BetCard({ b, onResolveBet, onViewPost }) {
                 <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'lost') }} style={{ flex: 1, background: 'var(--color-error)', color: '#fff', border: 'none', padding: '7px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><AppIcon name="close" size={12} /> Loss</motion.button>
               </div>
               {/* Nul: aposta anul·lada (diners retornats) — no afecta cap estadística */}
-              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'void') }} style={{ width: '100%', background: 'var(--color-info-light)', color: 'var(--color-info)', border: '0.5px solid var(--color-info-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>● Nula</motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onResolveBet(b.id, 'void') }} style={{ width: '100%', background: 'var(--color-info-light)', color: 'var(--color-info)', border: '0.5px solid var(--color-info-border)', padding: '6px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>● {t('historial.resolveVoid')}</motion.button>
             </div>
           )}
         </div>
@@ -377,6 +381,7 @@ function BetCard({ b, onResolveBet, onViewPost }) {
 // ── Component principal ───────────────────────────────────────────────────────
 
 export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onResolveBet, user }) {
+  const { t, i18n } = useTranslation()
   const [period, setPeriod] = useState('trimestral')
   const [offset, setOffset] = useState(0)
   const [postModalBetId, setPostModalBetId] = useState(null)
@@ -385,7 +390,7 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
 
   const bets = useMemo(() => filterBets(allBets, period, offset), [allBets, period, offset])
   const { won, lost, yieldVal, avgOdds } = useMemo(() => calcStats(bets), [bets])
-  const periodLabel = getPeriodLabel(period, offset)
+  const periodLabel = getPeriodLabel(period, offset, t, t('historial.dateLocale'))
   const isNavigable = NAVIGABLE.includes(period)
   const activeCount = useMemo(() => allBets.filter(b => b.status === 'pending').length, [allBets])
 
@@ -405,18 +410,18 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
         {/* Columna esquerra */}
         <div>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '2px' }}>Historial de Apuestas</h2>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>Los picks son permanentes una vez publicados.</p>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '2px' }}>{t('historial.title')}</h2>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>{t('historial.subtitle')}</p>
           </div>
 
           {/* KPI strip */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '14px' }}>
             {[
-              { label: 'Yield', value: `${yieldVal.toFixed(1)}%`, color: yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
-              { label: 'Ganadas', value: won.length, color: 'var(--color-primary)' },
-              { label: 'Perdidas', value: lost.length, color: 'var(--color-error)' },
-              { label: 'Total', value: bets.length, color: 'var(--color-text)' },
-              { label: 'Cuota med.', value: avgOdds, color: 'var(--color-warning)' },
+              { label: t('historial.kpi.yield'), value: `${yieldVal.toFixed(1)}%`, color: yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' },
+              { label: t('historial.kpi.won'), value: won.length, color: 'var(--color-primary)' },
+              { label: t('historial.kpi.lost'), value: lost.length, color: 'var(--color-error)' },
+              { label: t('historial.kpi.total'), value: bets.length, color: 'var(--color-text)' },
+              { label: t('historial.kpi.avgOdds'), value: avgOdds, color: 'var(--color-warning)' },
             ].map(k => (
               <div key={k.label} style={{ padding: '8px 10px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                 <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px', fontWeight: 600 }}>{k.label}</div>
@@ -430,7 +435,7 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
             {PERIODS.filter(p => p.id !== 'activas').map(p => (
               <button key={p.id} onClick={() => handlePeriodChange(p.id)}
                 style={{ flex: 1, padding: '4px 0', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: period === p.id ? 'var(--color-primary)' : 'transparent', color: period === p.id ? '#010906' : 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-                {p.label}
+                {t(p.labelKey)}
               </button>
             ))}
           </div>
@@ -448,24 +453,24 @@ export default function MisApuestas({ bets: allBets, loadingBets, onNewBet, onRe
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
             <button onClick={() => handlePeriodChange('activas')}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: 'var(--radius-lg)', border: period === 'activas' ? 'none' : '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', background: period === 'activas' ? 'var(--color-primary)' : 'var(--color-bg)', color: period === 'activas' ? '#010906' : 'var(--color-text-muted)', alignSelf: 'flex-start' }}>
-              Activas
+              {t('historial.periods.activas')}
               {activeCount > 0 && (
                 <span style={{ fontSize: '9px', background: period === 'activas' ? 'rgba(0,0,0,0.15)' : 'var(--color-primary-light)', color: period === 'activas' ? '#010906' : 'var(--color-primary)', borderRadius: 'var(--radius-full)', padding: '1px 5px', fontWeight: 700 }}>
                   {activeCount}
                 </span>
               )}
             </button>
-            <Button size="sm" onClick={onNewBet} style={{ alignSelf: 'flex-start' }}>+ Nuevo pick</Button>
+            <Button size="sm" onClick={onNewBet} style={{ alignSelf: 'flex-start' }}>{t('historial.newPick')}</Button>
           </div>
 
           {/* Cartes */}
           {loadingBets ? (
-            <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>Cargando picks...</div></div>
+            <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>{t('historial.loading')}</div></div>
           ) : bets.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon"><AppIcon name={period === 'activas' ? 'success' : 'historial'} size={48} /></div>
-              <div className="empty-title">{period === 'activas' ? 'Sin picks activos' : 'Sin picks en este período'}</div>
-              <div className="empty-sub">{period === 'activas' ? 'Todos tus picks ya han sido resueltos.' : 'No hay picks registrados para el período seleccionado.'}</div>
+              <div className="empty-title">{period === 'activas' ? t('historial.emptyActive') : t('historial.emptyPeriod')}</div>
+              <div className="empty-sub">{period === 'activas' ? t('historial.emptyActiveDesc') : t('historial.emptyPeriodDesc')}</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

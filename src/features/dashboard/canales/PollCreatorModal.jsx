@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, LINE_LIMIT } from '../../../lib/textLimits'
 import AppIcon from '../../../components/ui/AppIcon'
 
 export default function PollCreatorModal({ channelId, userId, onClose, onSent }) {
+  const { t } = useTranslation()
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState(['', ''])
   const [allowMultiple, setAllowMultiple] = useState(false)
@@ -28,8 +30,8 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
   const handleSend = async () => {
     const q = question.trim()
     const opts = options.map(o => o.trim()).filter(Boolean)
-    if (!q) { setError('Escribe una pregunta.'); return }
-    if (opts.length < 2) { setError('Añade al menos 2 opciones con texto.'); return }
+    if (!q) { setError(t('poll.errorQuestion')); return }
+    if (opts.length < 2) { setError(t('poll.errorOptions')); return }
     setSending(true)
     setError('')
     const content = `[POLL]:${JSON.stringify({ question: q, options: opts, allowMultiple })}`
@@ -39,7 +41,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
       content,
       created_at: new Date().toISOString(),
     })
-    if (err) { setError('Error al publicar la encuesta.'); setSending(false); return }
+    if (err) { setError(t('poll.errorPublish')); setSending(false); return }
     onSent?.()
     onClose()
   }
@@ -57,7 +59,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="vote" size={16} /> Crea una encuesta</div>
+          <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="vote" size={16} /> {t('poll.createTitle')}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '4px', lineHeight: 1 }}><AppIcon name="close" size={18} /></button>
         </div>
 
@@ -69,12 +71,12 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         {/* Pregunta */}
         <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Pregunta</div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>{t('poll.questionLabel')}</div>
           <textarea
             autoFocus
             value={question}
             onChange={e => setQuestion(clampLines(e.target.value, LINE_LIMIT.FORM))}
-            placeholder="¿Cuál es tu pregunta?"
+            placeholder={t('poll.questionPlaceholder')}
             rows={2}
             maxLength={200}
             style={{ ...inputSt, resize: 'vertical', fontSize: '14px', padding: '12px 14px' }}
@@ -83,7 +85,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         {/* Opcions */}
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>Opciones de respuesta</div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>{t('poll.optionsLabel')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {options.map((opt, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -94,7 +96,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
                   type="text"
                   value={opt}
                   onChange={e => updateOption(i, e.target.value)}
-                  placeholder={`Opción ${i + 1}`}
+                  placeholder={t('poll.optionPlaceholder', { n: i + 1 })}
                   maxLength={80}
                   style={{ ...inputSt, flex: 1, fontSize: '13px', padding: '9px 12px' }}
                 />
@@ -111,7 +113,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
             <button onClick={addOption}
               style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', background: 'transparent', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', width: '100%', boxSizing: 'border-box' }}>
               <span style={{ fontSize: '16px' }}>+</span>
-              <span>Añadir respuesta</span>
+              <span>{t('poll.addOption')}</span>
             </button>
           )}
         </div>
@@ -120,8 +122,8 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
         <div onClick={() => setAllowMultiple(v => !v)}
           style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '13px 14px', background: 'var(--color-bg-soft)', border: `0.5px solid ${allowMultiple ? 'var(--color-primary-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer', marginBottom: '22px', transition: 'border-color 0.15s' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Permitir varias respuestas</div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '3px' }}>Los participantes pueden elegir más de una opción</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>{t('poll.allowMultiple')}</div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '3px' }}>{t('poll.allowMultipleDesc')}</div>
           </div>
           <div style={{ width: '40px', height: '22px', borderRadius: '999px', background: allowMultiple ? 'var(--color-primary)' : 'var(--color-border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
             <div style={{ position: 'absolute', top: '3px', left: allowMultiple ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
@@ -130,7 +132,7 @@ export default function PollCreatorModal({ channelId, userId, onClose, onSent })
 
         <button onClick={handleSend} disabled={sending || !canSend}
           style={{ width: '100%', padding: '13px', background: canSend ? 'var(--color-primary)' : 'var(--color-bg-soft)', color: canSend ? '#010906' : 'var(--color-text-muted)', border: 'none', borderRadius: 'var(--radius-md)', cursor: canSend ? 'pointer' : 'default', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-          {sending ? 'Publicando...' : <><AppIcon name="send" size={14} style={{ marginRight: 6 }} /> Publicar encuesta</>}
+          {sending ? t('poll.publishing') : <><AppIcon name="send" size={14} style={{ marginRight: 6 }} /> {t('poll.publish')}</>}
         </button>
       </motion.div>
     </motion.div>

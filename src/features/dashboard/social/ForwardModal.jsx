@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import AppIcon from '../../../components/ui/AppIcon'
 
 // rawContent: when provided, sends this exact string (no FWD prefix) — used for sharing channels/profiles
 export default function ForwardModal({ content, fromChannelName, currentUser, onClose, rawContent = null }) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState('dm')
   const [conversations, setConversations] = useState([])
   const [channels, setChannels] = useState([])
@@ -87,7 +89,7 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>{rawContent ? <><AppIcon name="send" size={15} /> Compartir</> : <><AppIcon name="arrowOut" size={15} /> Reenviar mensaje</>}</div>
+          <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>{rawContent ? <><AppIcon name="send" size={15} /> {t('forwardModal.share')}</> : <><AppIcon name="arrowOut" size={15} /> {t('forwardModal.forward')}</>}</div>
           <button onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', lineHeight: 1, padding: '4px 6px' }}>
             <AppIcon name="close" size={18} />
@@ -96,9 +98,9 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
-          {[['dm', <><AppIcon name="social" size={13} /> Mensaje</>], ['canal', <><AppIcon name="canales" size={13} /> Mi canal</>]].map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: '13px', color: tab === t ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: `2px solid ${tab === t ? 'var(--color-primary)' : 'transparent'}`, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
+          {[['dm', <><AppIcon name="social" size={13} /> {t('forwardModal.tabDM')}</>], ['canal', <><AppIcon name="canales" size={13} /> {t('forwardModal.tabChannel')}</>]].map(([tabId, label]) => (
+            <button key={tabId} onClick={() => setTab(tabId)}
+              style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: tab === tabId ? 700 : 500, fontSize: '13px', color: tab === tabId ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: `2px solid ${tab === tabId ? 'var(--color-primary)' : 'transparent'}`, fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
               {label}
             </button>
           ))}
@@ -107,12 +109,12 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
         {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Cargando...</div>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>{t('contact.loading')}</div>
           ) : tab === 'dm' ? (
             conversations.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
                 <div style={{ marginBottom: '8px' }}><AppIcon name="social" size={28} /></div>
-                No tienes conversaciones abiertas
+                {t('forwardModal.noConversations')}
               </div>
             ) : conversations.map(conv => {
               const sent = sentSet.has(conv.id)
@@ -132,7 +134,7 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
                     <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{username}</div>
                   </div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: sent ? 'var(--color-primary)' : 'var(--color-text-muted)', flexShrink: 0 }}>
-                    {isSending ? <AppIcon name="loading" size={14} /> : sent ? <><AppIcon name="check" size={12} /> Enviado</> : 'Enviar →'}
+                    {isSending ? <AppIcon name="loading" size={14} /> : sent ? <><AppIcon name="check" size={12} /> {t('forwardModal.sent')}</> : t('forwardModal.sendArrow')}
                   </div>
                 </button>
               )
@@ -141,7 +143,7 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
             channels.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
                 <div style={{ marginBottom: '8px' }}><AppIcon name="canales" size={28} /></div>
-                No tienes canales propios
+                {t('forwardModal.noOwnChannels')}
               </div>
             ) : channels.map(ch => {
               const sent = sentSet.has(ch.id)
@@ -158,10 +160,10 @@ export default function ForwardModal({ content, fromChannelName, currentUser, on
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}><AppIcon name={ch.is_private ? 'lock' : 'globe'} size={10} />{ch.is_private ? 'Privado' : 'Público'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}><AppIcon name={ch.is_private ? 'lock' : 'globe'} size={10} />{ch.is_private ? t('tipsters.chanType.free_private') : t('tipsters.chanType.public')}</div>
                   </div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: sent ? 'var(--color-primary)' : 'var(--color-text-muted)', flexShrink: 0 }}>
-                    {isSending ? <AppIcon name="loading" size={14} /> : sent ? <><AppIcon name="check" size={12} /> Enviado</> : 'Enviar →'}
+                    {isSending ? <AppIcon name="loading" size={14} /> : sent ? <><AppIcon name="check" size={12} /> {t('forwardModal.sent')}</> : t('forwardModal.sendArrow')}
                   </div>
                 </button>
               )

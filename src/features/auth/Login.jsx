@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp } from '../../lib/animations'
 import { useSignIn } from './hooks/useSignIn'
 import { Button } from '../../components/ui/Button'
@@ -25,6 +26,7 @@ const handleGoogleLogin = () => {
 }
 
 export default function Login({ navigate, login }) {
+  const { t } = useTranslation()
   const {
     email, setEmail, pass, setPass, showPass, setShowPass,
     error, loading, resetSent, resetMode,
@@ -47,15 +49,15 @@ export default function Login({ navigate, login }) {
             <>
               <motion.div variants={fadeUp} custom={1}>
                 <div className="auth-card-logo">FindYour<span>Bet</span></div>
-                <div className="auth-subtitle">Bienvenido de nuevo</div>
+                <div className="auth-subtitle">{t('auth.login.welcome')}</div>
               </motion.div>
 
               <motion.div variants={fadeUp} custom={2}>
                 <button className="auth-google-btn" onClick={handleGoogleLogin}>
                   <GoogleIcon />
-                  Continuar con Google
+                  {t('auth.login.continueGoogle')}
                 </button>
-                <div className="auth-divider">o continúa con email</div>
+                <div className="auth-divider">{t('auth.login.orWithEmail')}</div>
               </motion.div>
 
               {error && (
@@ -65,12 +67,12 @@ export default function Login({ navigate, login }) {
               )}
 
               <motion.div className="form-group" variants={fadeUp} custom={3}>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{t('auth.login.email')}</FormLabel>
                 <Input type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
               </motion.div>
 
               <motion.div className="form-group" variants={fadeUp} custom={4}>
-                <FormLabel>Contraseña</FormLabel>
+                <FormLabel>{t('auth.login.password')}</FormLabel>
                 <div className="input-with-icon">
                   <Input type={showPass ? 'text' : 'password'} placeholder="••••••••"
                     value={pass} onChange={e => setPass(e.target.value)} />
@@ -81,18 +83,18 @@ export default function Login({ navigate, login }) {
               </motion.div>
 
               <motion.div variants={fadeUp} custom={5} style={{ textAlign: 'right', marginBottom: '20px' }}>
-                <button className="auth-link" onClick={enterReset}>¿Olvidaste tu contraseña?</button>
+                <button className="auth-link" onClick={enterReset}>{t('auth.login.forgotPassword')}</button>
               </motion.div>
 
               <motion.div variants={fadeUp} custom={6}>
                 <Button full onClick={handleLogin} disabled={loading || isLocked}>
-                  {loading ? 'Iniciando sesión...' : isLocked ? `Espera ${secondsLeft}s` : 'Iniciar sesión'}
+                  {loading ? t('auth.login.signingIn') : isLocked ? t('auth.login.waitSeconds', { n: secondsLeft }) : t('auth.login.signIn')}
                 </Button>
               </motion.div>
 
               <motion.div className="auth-switch" variants={fadeUp} custom={7}>
-                ¿No tienes cuenta?{' '}
-                <button className="auth-link" onClick={() => navigate('register')}>Regístrate gratis</button>
+                {t('auth.login.noAccount')}{' '}
+                <button className="auth-link" onClick={() => navigate('register')}>{t('auth.login.signUpFree')}</button>
               </motion.div>
             </>
           )}
@@ -100,23 +102,21 @@ export default function Login({ navigate, login }) {
           {resetMode && !resetSent && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div className="auth-card-logo">FindYour<span>Bet</span></div>
-              <div className="auth-subtitle">
-                Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.
-              </div>
+              <div className="auth-subtitle">{t('auth.login.resetTitle')}</div>
 
               {error && <div className="auth-error">{error}</div>}
 
               <div className="form-group">
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{t('auth.login.email')}</FormLabel>
                 <Input type="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
 
               <Button full onClick={handleResetPassword} disabled={loading} style={{ marginBottom: '16px' }}>
-                {loading ? 'Enviando...' : 'Enviar enlace'}
+                {loading ? t('auth.login.signingIn') : t('auth.login.sendLink')}
               </Button>
 
               <div className="auth-switch">
-                <button className="auth-link" onClick={exitReset}>← Volver al login</button>
+                <button className="auth-link" onClick={exitReset}>{t('auth.login.backToLogin')}</button>
               </div>
             </motion.div>
           )}
@@ -124,12 +124,11 @@ export default function Login({ navigate, login }) {
           {resetSent && (
             <motion.div className="reset-success" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div className="reset-success-icon"><AppIcon name="mail" size={32} /></div>
-              <div className="reset-success-title">Email enviado</div>
+              <div className="reset-success-title">{t('auth.login.emailSent')}</div>
               <div className="reset-success-text">
-                Hemos enviado un enlace a <strong>{email}</strong> para restablecer tu contraseña.
-                Revisa tu bandeja de entrada.
+                {t('auth.login.emailSentText', { email })}
               </div>
-              <button className="auth-link" onClick={exitResetSent}>← Volver al login</button>
+              <button className="auth-link" onClick={exitResetSent}>{t('auth.login.backToLogin')}</button>
             </motion.div>
           )}
 

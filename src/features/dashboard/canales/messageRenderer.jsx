@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { VoicePlayer } from '../VoiceMessage'
 import MentionText from '../../../components/ui/MentionText'
@@ -35,6 +36,7 @@ export function parseBetMessage(content) {
 }
 
 export function BetCard({ bet, timeStr }) {
+  const { t } = useTranslation()
   const [liveStatus, setLiveStatus] = useState(bet.status)
 
   useEffect(() => {
@@ -50,10 +52,10 @@ export function BetCard({ bet, timeStr }) {
     : liveStatus === 'void' ? 'var(--color-info)'
     : 'var(--color-text-muted)'
   const statusLabel =
-    liveStatus === 'won'  ? <><AppIcon name="check" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Ganada</>
-    : liveStatus === 'lost' ? <><AppIcon name="close" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Perdida</>
-    : liveStatus === 'void' ? '● Nula'
-    : <><AppIcon name="loading" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Pendiente</>
+    liveStatus === 'won'  ? <><AppIcon name="check" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> {t('historial.status.won')}</>
+    : liveStatus === 'lost' ? <><AppIcon name="close" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> {t('historial.status.lost')}</>
+    : liveStatus === 'void' ? `● ${t('historial.status.void')}`
+    : <><AppIcon name="loading" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> {t('historial.status.pending')}</>
   const statusBg =
     liveStatus === 'won'  ? 'var(--color-primary-light)'
     : liveStatus === 'lost' ? 'var(--color-error-light)'
@@ -66,7 +68,7 @@ export function BetCard({ bet, timeStr }) {
     !isPhoto && bet.pick && bet.pick !== '-' ? { label: 'Pick', value: bet.pick } : null,
     { label: 'Cuota', value: parseFloat(bet.odds).toFixed(2) },
     { label: 'Stake', value: `${bet.stake}` },
-    !isPhoto ? { label: 'Fecha', value: new Date(bet.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } : null,
+    !isPhoto ? { label: 'Fecha', value: new Date(bet.date).toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) } : null,
     bet.bookie ? { label: 'Bookie', value: bet.bookie } : null,
   ].filter(Boolean)
 
@@ -120,6 +122,7 @@ export function isSingleEmoji(content) {
 }
 
 export function ChannelCard({ inviteCode, channelName, onOpenCanal, timeStr, viewCount = 0, isOwn = false }) {
+  const { t } = useTranslation()
   const hasMeta = timeStr || viewCount > 0
   return (
     <div style={{ background: isOwn ? 'rgba(255,255,255,0.08)' : 'var(--color-bg)', border: `0.5px solid ${isOwn ? 'rgba(255,255,255,0.15)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)', padding: '12px 14px', minWidth: '220px' }}>
@@ -129,11 +132,11 @@ export function ChannelCard({ inviteCode, channelName, onOpenCanal, timeStr, vie
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: isOwn ? '#fff' : 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{channelName}</div>
-          <div style={{ fontSize: '11px', color: isOwn ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }}>Canal compartido</div>
+          <div style={{ fontSize: '11px', color: isOwn ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }}>{t('dmview.sharedChannel')}</div>
         </div>
         <button onClick={() => onOpenCanal?.(inviteCode)}
           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '5px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, whiteSpace: 'nowrap' }}>
-          Entrar →
+          {t('messageRenderer.enter')}
         </button>
       </div>
       {hasMeta && (
@@ -146,6 +149,7 @@ export function ChannelCard({ inviteCode, channelName, onOpenCanal, timeStr, vie
 }
 
 export function ProfileCard({ profileId, profileUsername, onViewProfile, timeStr, viewCount = 0 }) {
+  const { t } = useTranslation()
   const hasMeta = timeStr || viewCount > 0
   return (
     <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '12px 14px', minWidth: '220px' }}>
@@ -155,11 +159,11 @@ export function ProfileCard({ profileId, profileUsername, onViewProfile, timeStr
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text)' }}>{profileUsername}</div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Tipster · FYB</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('dmview.tipsterFYB')}</div>
         </div>
         <button onClick={() => onViewProfile?.(profileId)}
           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '5px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-          Ver →
+          {t('dmview.viewArrow')}
         </button>
       </div>
       {hasMeta && (

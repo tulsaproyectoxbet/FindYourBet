@@ -3,14 +3,14 @@ import { useState, useCallback } from 'react'
 const KEY = 'fyb_mutes'
 
 export const MUTE_DURATIONS = [
-  { label: 'Silenciar', ms: null },
-  { label: '1 hora', ms: 3_600_000 },
-  { label: '3 horas', ms: 10_800_000 },
-  { label: '8 horas', ms: 28_800_000 },
-  { label: '1 día', ms: 86_400_000 },
-  { label: '2 días', ms: 172_800_000 },
-  { label: '7 días', ms: 604_800_000 },
-  { label: '30 días', ms: 2_592_000_000 },
+  { labelKey: 'mutes.permanent', ms: null },
+  { labelKey: 'mutes.1h', ms: 3_600_000 },
+  { labelKey: 'mutes.3h', ms: 10_800_000 },
+  { labelKey: 'mutes.8h', ms: 28_800_000 },
+  { labelKey: 'mutes.1d', ms: 86_400_000 },
+  { labelKey: 'mutes.2d', ms: 172_800_000 },
+  { labelKey: 'mutes.7d', ms: 604_800_000 },
+  { labelKey: 'mutes.30d', ms: 2_592_000_000 },
 ]
 
 function read() {

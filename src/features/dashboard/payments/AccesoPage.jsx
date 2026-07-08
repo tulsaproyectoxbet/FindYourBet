@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import AppIcon from '../../../components/ui/AppIcon'
 
 export default function AccesoPage({ user }) {
   const { token } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [state, setState] = useState('loading') // loading | valid | invalid
   const [data, setData] = useState(null)
 
@@ -43,13 +45,13 @@ export default function AccesoPage({ user }) {
   if (state === 'invalid') return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-bg)', fontFamily: 'var(--font-sans)', padding: '24px' }}>
       <AppIcon name="lock" size={48} />
-      <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--color-text)', textAlign: 'center' }}>Enlace no válido</div>
+      <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--color-text)', textAlign: 'center' }}>{t('acceso.invalidLink')}</div>
       <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: '320px', lineHeight: 1.6 }}>
-        Este enlace no es válido para tu cuenta{user?.email ? ` (${user.email})` : ''}. Si compraste con otro email, inicia sesión con ese email o contacta con <strong>fyourbet@gmail.com</strong>.
+        {t('acceso.invalidDescPre')}{user?.email ? ` (${user.email})` : ''}{t('acceso.invalidDescPost')} <strong>fyourbet@gmail.com</strong>.
       </div>
       <button onClick={() => navigate('/dashboard')}
         style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '12px 28px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)', marginTop: '8px' }}>
-        Ir al dashboard
+        {t('acceso.goDashboard')}
       </button>
     </div>
   )
@@ -74,17 +76,17 @@ export default function AccesoPage({ user }) {
 
           <div>
             <div style={{ fontWeight: 800, fontSize: '22px', color: 'var(--color-text)', marginBottom: '6px' }}>
-              Acceso al canal
+              {t('acceso.title')}
             </div>
             <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-              {offer?.name && <span>Compraste <strong style={{ color: 'var(--color-text)' }}>{offer.name}</strong><br /></span>}
-              Canal de <strong style={{ color: 'var(--color-text)' }}>@{tipster?.username}</strong>
+              {offer?.name && <span>{t('acceso.bought')} <strong style={{ color: 'var(--color-text)' }}>{offer.name}</strong><br /></span>}
+              {t('acceso.channelOf')} <strong style={{ color: 'var(--color-text)' }}>@{tipster?.username}</strong>
             </div>
           </div>
 
           {/* Info canal */}
           <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', width: '100%', textAlign: 'left' }}>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Canal</div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>{t('acceso.channelLabel')}</div>
             <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--color-text)', marginBottom: channel.description ? '6px' : 0 }}>
               {channel.name}
             </div>
@@ -97,18 +99,18 @@ export default function AccesoPage({ user }) {
             style={{ width: '100%', background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '16px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '15px', fontFamily: 'var(--font-sans)', transition: 'opacity 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-            Entrar al canal →
+            {t('acceso.enterChannel')}
           </button>
         </div>
 
         {/* Codi alternatiu */}
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Código de acceso alternativo</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{t('acceso.altCode')}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '20px', fontWeight: 800, letterSpacing: '4px', color: 'var(--color-text)' }}>
             {channel.invite_code.toUpperCase()}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-            Canales → busca por código en FindYourBet
+            {t('acceso.altCodeHint')}
           </div>
         </div>
 

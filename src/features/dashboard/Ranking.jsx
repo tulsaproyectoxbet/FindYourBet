@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp, stagger } from '../../lib/animations'
 import { supabase } from '../../lib/supabase'
 import { useProfileNav } from '../../contexts/ProfileNavContext'
@@ -13,11 +14,11 @@ export const MAIN_SPORTS = ['Fútbol', 'Baloncesto', 'Tenis', 'eSports']
 export const SPORTS_LIST = [...MAIN_SPORTS, 'Otros']
 export const SPORT_ICONS = { 'Fútbol': '⚽', 'Baloncesto': '🏀', 'Tenis': '🎾', 'eSports': '🎮', 'Otros': '🏅' }
 export const PERIODS = [
-  { id: 'trimestral', label: 'Global' },
-  { id: 'setmanal',   label: 'Semanal' },
-  { id: 'mensual',    label: 'Mensual' },
-  { id: 'anual',      label: 'Anual' },
-  { id: 'total',      label: 'Total' },
+  { id: 'trimestral', labelKey: 'ranking.periods.global' },
+  { id: 'setmanal',   labelKey: 'ranking.periods.weekly' },
+  { id: 'mensual',    labelKey: 'ranking.periods.monthly' },
+  { id: 'anual',      labelKey: 'ranking.periods.annual' },
+  { id: 'total',      labelKey: 'ranking.periods.total' },
 ]
 
 function getPeriodRange(period) {
@@ -212,6 +213,7 @@ export function useRanking(period, selectedSports, scope = 'public', filterUserI
 }
 
 export function PeriodDropdown({ period, setPeriod }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const selected = PERIODS.find(p => p.id === period)
   const isGlobal = period === 'trimestral'
@@ -229,7 +231,7 @@ export function PeriodDropdown({ period, setPeriod }) {
         }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isGlobal && <AppIcon name="trophy" size={14} />}
-          {selected?.label}
+          {selected ? t(selected.labelKey) : ''}
         </span>
         <span style={{ fontSize: '10px', opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
       </button>
@@ -246,17 +248,17 @@ export function PeriodDropdown({ period, setPeriod }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AppIcon name="trophy" size={14} />
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>Global</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>Últimos 3 meses · Principal</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>{t('ranking.periods.global')}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>{t('ranking.globalDesc')}</div>
                   </div>
                   {period === 'trimestral' && <span style={{ marginLeft: 'auto', display: 'flex' }}><AppIcon name="check" size={12} color="var(--color-primary)" /></span>}
                 </div>
               </div>
-              <div style={{ padding: '6px 16px 2px', fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Por período</div>
+              <div style={{ padding: '6px 16px 2px', fontSize: '10px', fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('ranking.byPeriod')}</div>
               {PERIODS.slice(1).map(p => (
                 <div key={p.id} onClick={() => { setPeriod(p.id); setOpen(false) }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', cursor: 'pointer', background: period === p.id ? 'rgba(255,255,255,0.04)' : 'transparent' }}>
-                  <span style={{ fontSize: '13px', color: period === p.id ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: period === p.id ? 600 : 400 }}>{p.label}</span>
+                  <span style={{ fontSize: '13px', color: period === p.id ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: period === p.id ? 600 : 400 }}>{t(p.labelKey)}</span>
                   {period === p.id && <span style={{ display: 'flex' }}><AppIcon name="check" size={12} color="var(--color-text-muted)" /></span>}
                 </div>
               ))}
@@ -269,8 +271,9 @@ export function PeriodDropdown({ period, setPeriod }) {
 }
 
 export function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodos }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const label = isTodos ? 'Todos los deportes' : selectedSports.length === 1 ? selectedSports[0] : `${selectedSports.length} deportes`
+  const label = isTodos ? t('ranking.allSports') : selectedSports.length === 1 ? selectedSports[0] : `${selectedSports.length} ${t('ranking.sports_count')}`
 
   return (
     <div style={{ position: 'relative', width: 'fit-content' }}>
@@ -291,7 +294,7 @@ export function SportDropdown({ selectedSports, toggleSport, onSelectAll, isTodo
                 <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${isTodos ? 'var(--color-primary)' : 'var(--color-border)'}`, background: isTodos ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {isTodos && <AppIcon name="check" size={10} color="#010906" />}
                 </div>
-                <span style={{ fontSize: '14px', fontWeight: isTodos ? 700 : 400, color: isTodos ? 'var(--color-primary)' : 'var(--color-text)' }}>Todos</span>
+                <span style={{ fontSize: '14px', fontWeight: isTodos ? 700 : 400, color: isTodos ? 'var(--color-primary)' : 'var(--color-text)' }}>{t('ranking.allSportsShort')}</span>
               </div>
               {SPORTS_LIST.map(sport => {
                 const active = selectedSports.includes(sport)
@@ -466,13 +469,14 @@ const TD = { padding: '14px 10px', verticalAlign: 'middle' }
 
 // ── Taula unificada (totes les posicions) ─────────────────────────────────
 function RankingTable({ entries, user, onNavigateToChannel }) {
+  const { t } = useTranslation()
   const openProfile = useProfileNav()
 
   if (!entries.length) return (
     <div className="empty-state">
       <div className="empty-icon"><AppIcon name="barChart" size={48} /></div>
-      <div className="empty-title">Sin canales aún</div>
-      <div className="empty-sub">No hay canales con suficientes picks resueltos para mostrar.</div>
+      <div className="empty-title">{t('ranking.noChannels')}</div>
+      <div className="empty-sub">{t('ranking.noChannelsSub')}</div>
     </div>
   )
 
@@ -493,14 +497,14 @@ function RankingTable({ entries, user, onNavigateToChannel }) {
         </colgroup>
         <thead>
           <tr>
-            <th style={{ ...TH, textAlign: 'center' }}>POS</th>
-            <th style={{ ...TH, textAlign: 'left' }}>CANAL</th>
-            <th style={{ ...TH, textAlign: 'center' }}>YIELD</th>
-            <th style={{ ...TH, textAlign: 'center' }}>% ACIERTO</th>
-            <th style={{ ...TH, textAlign: 'center' }}>W/L</th>
-            <th style={{ ...TH, textAlign: 'center' }}>CUOTA MEDIA</th>
-            <th style={{ ...TH, textAlign: 'center' }}>PICKS</th>
-            <th style={{ ...TH, textAlign: 'center' }}>MIEMBROS</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.pos')}</th>
+            <th style={{ ...TH, textAlign: 'left' }}>{t('ranking.col.channel')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.yield')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.winRate')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.wl')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.avgOdds')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.picks')}</th>
+            <th style={{ ...TH, textAlign: 'center' }}>{t('ranking.col.members')}</th>
           </tr>
         </thead>
         <tbody>
@@ -535,7 +539,7 @@ function RankingTable({ entries, user, onNavigateToChannel }) {
                         <Username username={e.ownerUsername} isVerified={e.isVerified} size="xs" />
                       </div>
                       {user?.id === e.ownerId && (
-                        <span style={{ fontSize: '9px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 5px', borderRadius: 'var(--radius-full)', fontWeight: 700, flexShrink: 0, border: '0.5px solid var(--color-primary-border)' }}>Tú</span>
+                        <span style={{ fontSize: '9px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 5px', borderRadius: 'var(--radius-full)', fontWeight: 700, flexShrink: 0, border: '0.5px solid var(--color-primary-border)' }}>{t('tipsters.you')}</span>
                       )}
                     </div>
                   </div>
@@ -591,29 +595,30 @@ function PillSelect({ value, onChange, options }) {
 
 // ── Sidebar filtres ────────────────────────────────────────────────────────
 function FiltersSidebar({ search, setSearch, sport, setSport, minYield, setMinYield, minPicks, setMinPicks, onlyVerified, setOnlyVerified, sortBy, setSortBy, lastUpdated, onClearFilters }) {
+  const { t } = useTranslation()
   const SPORT_OPTS = [
-    { value: 'all', label: 'Todos los deportes' },
+    { value: 'all', label: t('ranking.allSports') },
     ...SPORTS_LIST.map(s => ({ value: s, label: `${SPORT_ICONS[s]} ${s}` })),
   ]
   const YIELD_OPTS = [
-    { value: '0',  label: 'Cualquier yield' },
+    { value: '0',  label: t('ranking.filter.anyYield') },
     { value: '1',  label: 'Yield > 0%' },
     { value: '5',  label: 'Yield > 5%' },
     { value: '10', label: 'Yield > 10%' },
     { value: '20', label: 'Yield > 20%' },
   ]
   const PICKS_OPTS = [
-    { value: '0',  label: 'Mín. apuestas' },
-    { value: '5',  label: '≥ 5 apuestas' },
-    { value: '10', label: '≥ 10 apuestas' },
-    { value: '20', label: '≥ 20 apuestas' },
-    { value: '50', label: '≥ 50 apuestas' },
+    { value: '0',  label: t('ranking.filter.minPicks') },
+    { value: '5',  label: `≥ 5 ${t('ranking.filter.picks')}` },
+    { value: '10', label: `≥ 10 ${t('ranking.filter.picks')}` },
+    { value: '20', label: `≥ 20 ${t('ranking.filter.picks')}` },
+    { value: '50', label: `≥ 50 ${t('ranking.filter.picks')}` },
   ]
   const SORT_OPTS = [
-    { value: 'reliability', label: 'Fiabilidad' },
+    { value: 'reliability', label: t('ranking.filter.reliability') },
     { value: 'yield',       label: 'Yield' },
     { value: 'picks',       label: 'Picks' },
-    { value: 'members',     label: 'Miembros' },
+    { value: 'members',     label: t('ranking.filter.members') },
   ]
   const hasFilters = !!(search || sport !== 'all' || minYield !== '0' || minPicks !== '0' || onlyVerified || sortBy !== 'reliability')
   const lbl = { fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }
@@ -622,47 +627,47 @@ function FiltersSidebar({ search, setSearch, sport, setSport, minYield, setMinYi
     <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', position: 'sticky', top: '16px' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '13px', fontWeight: 700 }}>Filtros</span>
+        <span style={{ fontSize: '13px', fontWeight: 700 }}>{t('ranking.filter.title')}</span>
         {hasFilters && (
           <button onClick={onClearFilters} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-            Limpiar
+            {t('ranking.filter.clear')}
           </button>
         )}
       </div>
 
       <div>
-        <div style={lbl}>Buscar</div>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Canal o tipster..."
+        <div style={lbl}>{t('ranking.filter.search')}</div>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('ranking.filter.searchPlaceholder')}
           style={{ width: '100%', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '12px', padding: '7px 10px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }} />
       </div>
 
       <div>
-        <div style={lbl}>Deporte</div>
+        <div style={lbl}>{t('ranking.filter.sport')}</div>
         <PillSelect value={sport} onChange={setSport} options={SPORT_OPTS} />
       </div>
 
       <div>
-        <div style={lbl}>Yield mínimo</div>
+        <div style={lbl}>{t('ranking.filter.minYield')}</div>
         <PillSelect value={minYield} onChange={setMinYield} options={YIELD_OPTS} />
       </div>
 
       <div>
-        <div style={lbl}>Apuestas mínimas</div>
+        <div style={lbl}>{t('ranking.filter.minPicksLabel')}</div>
         <PillSelect value={minPicks} onChange={setMinPicks} options={PICKS_OPTS} />
       </div>
 
       <div>
-        <div style={lbl}>Ordenar por</div>
+        <div style={lbl}>{t('tipsters.sortBy')}</div>
         <PillSelect value={sortBy} onChange={setSortBy} options={SORT_OPTS} />
         {sortBy === 'yield' && (
           <p style={{ margin: '6px 0 0', fontSize: '10px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-            Combina con «Apuestas mínimas» para filtrar muestras pequeñas.
+            {t('ranking.filter.yieldTip')}
           </p>
         )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{ fontSize: '12px', fontWeight: 600 }}>Solo verificados</span>
+        <span style={{ fontSize: '12px', fontWeight: 600 }}>{t('tipsters.onlyVerified')}</span>
         <button onClick={() => setOnlyVerified(v => !v)}
           style={{ width: '36px', height: '20px', borderRadius: 'var(--radius-full)', flexShrink: 0, background: onlyVerified ? 'var(--color-primary)' : 'var(--color-border)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', padding: 0 }}>
           <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: 'white', position: 'absolute', top: '3px', left: onlyVerified ? '19px' : '3px', transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }} />
@@ -672,22 +677,15 @@ function FiltersSidebar({ search, setSearch, sport, setSport, minYield, setMinYi
       <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: lastUpdated ? 'var(--color-success)' : 'var(--color-border)', flexShrink: 0 }} />
-          {lastUpdated ? `Act. ${lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : 'Actualizando...'}
+          {lastUpdated ? `${t('ranking.filter.updated')} ${lastUpdated.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : t('ranking.filter.updating')}
         </div>
       </div>
     </div>
   )
 }
 
-// ── Component principal ────────────────────────────────────────────────────
-const SORT_LABELS = {
-  reliability: 'Ordenado por fiabilidad (yield + muestra)',
-  yield:       'Ordenado por yield',
-  picks:       'Ordenado por picks resueltos',
-  members:     'Ordenado por miembros',
-}
-
 export default function Ranking({ user, onNavigateToChannel }) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('all')
   const [minYield, setMinYield] = useState('0')
@@ -721,15 +719,15 @@ export default function Ranking({ user, onNavigateToChannel }) {
       {/* Capçalera */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 800 }}>Ranking de canales</h2>
+          <h2 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 800 }}>{t('ranking.channelsTitle')}</h2>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-muted)' }}>
-            {SORT_LABELS[sortBy]} · Mín. {MIN_CH_BETS} picks resueltos
+            {t(`ranking.sortedBy.${sortBy}`)} · {t('ranking.minPicks', { n: MIN_CH_BETS })}
           </p>
         </div>
         {!loading && entries !== null && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 12px', flexShrink: 0 }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: lastUpdated ? 'var(--color-success)' : 'var(--color-border)' }} />
-            {filtered.length} canal{filtered.length !== 1 ? 'es' : ''} clasificado{filtered.length !== 1 ? 's' : ''}
+            {t('ranking.channelCount', { count: filtered.length })}
           </div>
         )}
       </div>
@@ -740,7 +738,7 @@ export default function Ranking({ user, onNavigateToChannel }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
             {loading
-              ? <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>Cargando ranking...</div></div>
+              ? <div className="empty-state"><div className="empty-icon"><AppIcon name="loading" size={48} /></div><div>{t('ranking.loading')}</div></div>
               : <RankingTable entries={filtered} user={user} onNavigateToChannel={onNavigateToChannel} />
             }
           </div>

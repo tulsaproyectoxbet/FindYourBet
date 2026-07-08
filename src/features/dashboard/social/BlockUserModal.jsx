@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import AppIcon from '../../../components/ui/AppIcon'
 
 // Modal de bloqueig en dos passos:
@@ -7,6 +8,7 @@ import AppIcon from '../../../components/ui/AppIcon'
 //  2) Un cop bloquejat, ofereix reportar l'usuari. Si accepta, es delega a onReport
 //     (que obre el ReportUserModal amb el flux normal de motiu).
 export default function BlockUserModal({ username, onConfirm, onReport, onClose }) {
+  const { t } = useTranslation()
   const [blocked, setBlocked] = useState(false)
   const [working, setWorking] = useState(false)
 
@@ -37,19 +39,19 @@ export default function BlockUserModal({ username, onConfirm, onReport, onClose 
             <>
               <div style={{ marginBottom: '12px' }}><AppIcon name="ban" size={40} /></div>
               <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>
-                ¿Bloquear a {username}?
+                {t('blockModal.title', { username })}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
-                No podrá enviarte mensajes ni ver tu actividad, y se eliminará vuestra conversación. Podrás desbloquearlo cuando quieras.
+                {t('blockModal.desc')}
               </div>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                 <button onClick={onClose}
                   style={{ padding: '10px 20px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button onClick={handleBlock} disabled={working}
                   style={{ padding: '10px 24px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)', opacity: working ? 0.7 : 1 }}>
-                  {working ? 'Bloqueando...' : 'Bloquear'}
+                  {working ? t('blockModal.blocking') : t('social.block')}
                 </button>
               </div>
             </>
@@ -57,19 +59,19 @@ export default function BlockUserModal({ username, onConfirm, onReport, onClose 
             <>
               <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
               <div style={{ fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>
-                Has bloqueado a {username}
+                {t('blockModal.blocked', { username })}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
-                ¿Quieres reportar al usuario? Ayúdanos a mantener FYB seguro indicando el motivo.
+                {t('blockModal.reportPrompt')}
               </div>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                 <button onClick={onClose}
                   style={{ padding: '10px 20px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)' }}>
-                  No, gracias
+                  {t('blockModal.noThanks')}
                 </button>
                 <button onClick={() => { onClose(); onReport?.() }}
                   style={{ padding: '10px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-warning, #f59e0b)', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                  <><AppIcon name="flag" size={13} style={{ marginRight: 5 }} /> Sí, reportar</>
+                  <><AppIcon name="flag" size={13} style={{ marginRight: 5 }} /> {t('blockModal.yesReport')}</>
                 </button>
               </div>
             </>

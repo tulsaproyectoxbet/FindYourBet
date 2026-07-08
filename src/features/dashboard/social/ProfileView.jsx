@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
 import PostModal from '../feed/PostModal'
@@ -34,6 +35,7 @@ function StatPill({ label, value, color, onClick }) {
 }
 
 export default function ProfileView({ userId, currentUser, onBack, onStartDM, isFollowing, isFollower, onFollow, onUnfollow, onNavigateToChannel, onBlock, onReport, onViewUser }) {
+  const { t } = useTranslation()
   const { adminMode } = useAdminMode()
   const [profile, setProfile] = useState(null)
   const [bets, setBets] = useState([])
@@ -343,18 +345,18 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
   }
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={16} /> Cargando perfil...</div>
+    <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={16} /> {t('profile.loadingProfile')}</div>
   )
   if (!profile) return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
-        <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
+        <div style={{ fontWeight: 700, fontSize: '16px' }}>{t('profileView.title')}</div>
       </div>
       <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
         <div style={{ marginBottom: '12px' }}><AppIcon name="ban" size={40} /></div>
-        <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '6px' }}>Usuario no encontrado</div>
-        <div style={{ fontSize: '13px' }}>Este usuario no está disponible.</div>
+        <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '6px' }}>{t('profileView.notFound')}</div>
+        <div style={{ fontSize: '13px' }}>{t('profileView.notAvailable')}</div>
       </div>
     </motion.div>
   )
@@ -390,24 +392,24 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       {/* BACK */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text-muted)' }}>←</button>
-        <div style={{ fontWeight: 700, fontSize: '16px' }}>Perfil</div>
+        <div style={{ fontWeight: 700, fontSize: '16px' }}>{t('profileView.title')}</div>
       </div>
 
       {/* BANNER DE BLOQUEIG (qualsevol direcció) */}
       {isBlocked && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '16px' }}>
           <AppIcon name="ban" size={18} style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>Has bloqueado a este usuario.</div>
+          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>{t('profileView.youBlocked')}</div>
           <button onClick={handleUnblock}
             style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-            Desbloquear
+            {t('profileView.unblock')}
           </button>
         </div>
       )}
       {isBlockedByThem && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', marginBottom: '16px' }}>
           <AppIcon name="bellOff" size={18} style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>Este usuario no está disponible.</div>
+          <div style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 500 }}>{t('profileView.notAvailable')}</div>
         </div>
       )}
 
@@ -430,12 +432,12 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       <motion.div initial={{ opacity: 0, y: -6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.95 }}
                         style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', zIndex: 20, minWidth: '170px', overflow: 'hidden' }}>
                         {[
-                          { icon: 'arrowOut', label: 'Compartir perfil', action: () => { openSendProfile(); setShowMenu(false) } },
-                          { icon: 'flag', label: 'Reportar', action: () => { setShowReportModal(true); setShowMenu(false) } },
-                          { icon: 'ban', label: 'Bloquear', action: handleBlock, danger: true },
+                          { icon: 'arrowOut', label: t('profileView.shareProfile'), action: () => { openSendProfile(); setShowMenu(false) } },
+                          { icon: 'flag', label: t('social.report'), action: () => { setShowReportModal(true); setShowMenu(false) } },
+                          { icon: 'ban', label: t('social.block'), action: handleBlock, danger: true },
                           // Opció exclusiva de l'admin: verificar / desverificar tipsters
                           ...(currentUser?.email === 'fyourbet@gmail.com' ? [
-                            { icon: profile.is_verified ? 'close' : 'check', label: profile.is_verified ? 'Desverificar' : 'Verificar', action: handleToggleVerify, admin: true },
+                            { icon: profile.is_verified ? 'close' : 'check', label: profile.is_verified ? t('profileView.unverify') : t('profileView.verify'), action: handleToggleVerify, admin: true },
                           ] : []),
                         ].map((item, i, arr) => (
                           <button key={i} onClick={item.action}
@@ -461,7 +463,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isFollower && !isOwnProfile && !isMutual && (
                 <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-border)' }}>
-                  Te sigue
+                  {t('profileView.followsYou')}
                 </span>
               )}
             </div>
@@ -475,9 +477,9 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           )}
 
           <div style={{ display: 'flex', gap: '0' }}>
-            <StatPill label="Seguidores" value={displayFollowersCount} onClick={isAnyBlock ? undefined : () => setFollowListType('followers')} />
-            <StatPill label="Siguiendo" value={displayFollowingCount} onClick={isAnyBlock ? undefined : () => setFollowListType('following')} />
-            <StatPill label="Picks" value={displayStats.total} />
+            <StatPill label={t('profile.followers')} value={displayFollowersCount} onClick={isAnyBlock ? undefined : () => setFollowListType('followers')} />
+            <StatPill label={t('profile.following')} value={displayFollowingCount} onClick={isAnyBlock ? undefined : () => setFollowListType('following')} />
+            <StatPill label={t('profile.picks')} value={displayStats.total} />
             {displayStats.total > 0 && (
               <div style={{ textAlign: 'center', padding: '0 20px' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: displayStats.yieldVal >= 0 ? 'var(--color-primary)' : 'var(--color-error)' }}>
@@ -496,12 +498,12 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           <motion.button whileTap={isAnyBlock ? undefined : { scale: 0.97 }}
             onClick={isAnyBlock ? undefined : () => (isMutual || isFollowing) ? onUnfollow(userId) : onFollow(userId)}
             style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: isAnyBlock ? 'var(--color-bg-soft)' : (isMutual ? 'var(--color-primary-light)' : isFollowing ? 'var(--color-bg)' : 'var(--color-primary)'), color: isAnyBlock ? 'var(--color-text-muted)' : (isMutual ? 'var(--color-primary)' : isFollowing ? 'var(--color-text-muted)' : '#010906'), cursor: isAnyBlock ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', opacity: isAnyBlock ? 0.5 : 1 }}>
-            {isMutual ? <><AppIcon name="users" size={14} style={{ marginRight: 5 }} />Amigos</> : isFollowing ? <><AppIcon name="check" size={14} style={{ marginRight: 5 }} />Siguiendo</> : isFollower ? 'Seguir también' : '+ Seguir'}
+            {isMutual ? <><AppIcon name="users" size={14} style={{ marginRight: 5 }} />{t('profileView.friends')}</> : isFollowing ? <><AppIcon name="check" size={14} style={{ marginRight: 5 }} />{t('tipsters.following')}</> : isFollower ? t('notifications.followBack') : t('social.follow')}
           </motion.button>
           <motion.button whileTap={{ scale: 0.97 }}
             onClick={() => onStartDM?.(userId)}
             style={{ flex: 1, padding: '12px 0', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-            <AppIcon name="social" size={14} style={{ marginRight: 5, verticalAlign: 'middle' }} />Mensaje
+            <AppIcon name="social" size={14} style={{ marginRight: 5, verticalAlign: 'middle' }} />{t('profileView.message')}
           </motion.button>
           {/* Campaneta */}
           <div style={{ position: 'relative' }}>
@@ -518,13 +520,13 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                     {muted && (
                       <button onClick={() => { unmute(muteKey); setShowMuteMenu(false) }}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '11px 14px', background: 'none', border: 'none', borderBottom: '0.5px solid var(--color-border)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-primary)', fontWeight: 700, textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                        <AppIcon name="bell" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Activar notificaciones
+                        <AppIcon name="bell" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />{t('social.unmuteNotifs')}
                       </button>
                     )}
                     {MUTE_DURATIONS.map((d, i) => (
                       <button key={i} onClick={() => { mute(muteKey, d.ms); setShowMuteMenu(false) }}
                         style={{ display: 'flex', width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderBottom: i < MUTE_DURATIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                        {d.label}
+                        {t(d.labelKey)}
                       </button>
                     ))}
                   </motion.div>
@@ -665,13 +667,13 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
       {/* TABS */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '0.5px solid var(--color-border)' }}>
         {[
-          { id: 'stats', icon: 'stats', label: 'Rendimiento' },
-          { id: 'canales', icon: 'canales', label: 'Canales' },
-          { id: 'picks', icon: 'historial', label: 'Últimos picks' },
-        ].map(t => (
-          <button key={t.id} onClick={() => { setActiveTab(t.id); if (t.id === 'canales') fetchChannels() }}
-            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <AppIcon name={t.icon} size={13} />{t.label}
+          { id: 'stats',   icon: 'stats',    labelKey: 'profile.tabStats' },
+          { id: 'canales', icon: 'canales',  labelKey: 'profile.tabChannels' },
+          { id: 'picks',   icon: 'historial', labelKey: 'profile.tabPicks' },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === 'canales') fetchChannels() }}
+            style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === tab.id ? 'var(--color-primary)' : 'transparent'}`, cursor: 'pointer', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <AppIcon name={tab.icon} size={13} />{t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -687,12 +689,12 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
           <motion.div key="picks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px', width: 'fit-content' }}>
               {[
-                { id: 'public',  icon: 'globe',  label: `Públicos (${publicBets.length})` },
-                { id: 'private', icon: 'gem', label: `Premium (${premiumBets.length})` },
-              ].map(t => (
-                <button key={t.id} onClick={() => setPicksSubTab(t.id)}
-                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === t.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <AppIcon name={t.icon} size={12} />{t.label}
+                { id: 'public',  icon: 'globe', labelKey: 'profile.picksPublic',  n: publicBets.length },
+                { id: 'private', icon: 'gem',  labelKey: 'profile.picksPremium', n: premiumBets.length },
+              ].map(ptab => (
+                <button key={ptab.id} onClick={() => setPicksSubTab(ptab.id)}
+                  style={{ padding: '6px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: picksSubTab === ptab.id ? 'var(--color-primary)' : 'transparent', color: picksSubTab === ptab.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AppIcon name={ptab.icon} size={12} />{t(ptab.labelKey, { n: ptab.n })}
                 </button>
               ))}
             </div>
@@ -700,7 +702,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '12px' }}><AppIcon name="historial" size={40} /></div>
                 <div style={{ fontWeight: 600 }}>
-                  {picksSubTab === 'public' ? 'Sin picks públicos todavía' : 'Sin picks premium todavía'}
+                  {picksSubTab === 'public' ? t('profile.noPicksPublic') : t('profile.noPicksPremium')}
                 </div>
               </div>
             ) : (
@@ -714,7 +716,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                   const statusBorder = isWon ? 'var(--color-primary-border)' : isVoid ? 'var(--color-info-border)' : 'var(--color-error-border)'
                   const label = isWon
                     ? <><AppIcon name="check" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Win</>
-                    : isVoid ? '● Nula'
+                    : isVoid ? `● ${t('historial.status.void')}`
                     : <><AppIcon name="close" size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Loss</>
                   return (
                     <div key={b.id} onClick={() => setPostModalBetId(b.id)}
@@ -735,7 +737,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       {/* Event o pick privat */}
                       <div style={{ fontSize: '13px', fontWeight: 700, color: isPrivateForViewer ? 'var(--color-text-muted)' : 'var(--color-text)', lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontStyle: isPrivateForViewer ? 'italic' : 'normal' }}>
                         {isPrivateForViewer
-                          ? <><AppIcon name="lock" size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />Pick privado</>
+                          ? <><AppIcon name="lock" size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />{t('profileView.privatePick')}</>
                           : b.event}
                       </div>
 
@@ -748,10 +750,10 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       {/* Footer: canal + data */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '0.5px solid var(--color-border)', marginTop: 'auto', gap: '8px' }}>
                         <span style={{ fontSize: '11px', color: b.channel && !b.channel.deleted_at ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: b.channel && !b.channel.deleted_at ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontStyle: b.channel?.deleted_at ? 'italic' : 'normal' }}>
-                          {b.channel ? (b.channel.deleted_at ? 'Canal eliminado' : b.channel.name) : ''}
+                          {b.channel ? (b.channel.deleted_at ? t('profile.channelDeleted') : b.channel.name) : ''}
                         </span>
                         <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', flexShrink: 0 }}>
-                          {new Date(b.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                          {new Date(b.date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}
                         </span>
                       </div>
                     </div>
@@ -768,7 +770,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
             {displayStats.total === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '8px' }}><AppIcon name="stats" size={32} /></div>
-                <div>Este tipster aún no tiene picks registrados.</div>
+                <div>{t('profileView.noPicksRegistered')}</div>
               </div>
             ) : (() => {
               const now = new Date()
@@ -813,16 +815,16 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
 
               const monthLabel = statsPeriod.startsWith('month:') ? (() => {
                 const [y, m] = statsPeriod.replace('month:', '').split('-').map(Number)
-                const name = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
-                return name.charAt(0).toUpperCase() + name.slice(1) + ' de ' + y
+                const name = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+                return name.charAt(0).toUpperCase() + name.slice(1) + ' ' + y
               })() : null
 
               const PERIOD_OPTS = [
-                { id: 'total', label: 'Total' },
-                { id: '1m',    label: 'Este mes' },
-                { id: '3m',    label: 'Últimos 3 meses' },
-                { id: '6m',    label: 'Últimos 6 meses' },
-                { id: '1y',    label: 'Último año' },
+                { id: 'total', label: t('profile.periodTotal') },
+                { id: '1m',    label: t('profile.periodThisMonth') },
+                { id: '3m',    label: t('profile.period3Months') },
+                { id: '6m',    label: t('profile.period6Months') },
+                { id: '1y',    label: t('profile.period1Year') },
               ]
 
               return (
@@ -847,7 +849,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                           </button>
                         ))}
                         <div style={{ borderTop: '0.5px solid var(--color-border)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Mes concreto</span>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{t('profile.specificMonth')}</span>
                           <input type="month" value={statsMonthInput}
                             min="2026-01"
                             max={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`}
@@ -872,27 +874,27 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                     </div>
 
                     <div style={cardStyle}>
-                      <div style={labelStyle}>Cuota media</div>
+                      <div style={labelStyle}>{t('profile.avgOdds')}</div>
                       <div style={valStyle('var(--color-warning)')}>{pAvgOdds}</div>
-                      <div style={subStyle}>Cuota promedio</div>
+                      <div style={subStyle}>{t('profile.avgOddsDesc')}</div>
                     </div>
 
                     <div style={cardStyle}>
                       <div style={labelStyle}>Yield</div>
                       <div style={valStyle(yieldColor)}>{pYield >= 0 ? '+' : ''}{pYield.toFixed(2)}%</div>
-                      <div style={subStyle}>Beneficio sobre el stake</div>
+                      <div style={subStyle}>{t('profile.yieldDesc')}</div>
                     </div>
 
                     <div style={cardStyle}>
-                      <div style={labelStyle}>Stake medio</div>
+                      <div style={labelStyle}>{t('profile.avgStake')}</div>
                       <div style={valStyle('var(--color-text)')}>{pAvgStake.toFixed(1)}</div>
-                      <div style={subStyle}>Unidades por pick</div>
+                      <div style={subStyle}>{t('profile.avgStakeDesc')}</div>
                     </div>
 
                     <div style={{ ...cardStyle, border: `0.5px solid ${benefitEur >= 0 ? 'var(--color-primary-border)' : 'var(--color-error-border)'}`, gridColumn: '1 / -1' }}>
-                      <div style={labelStyle}>Beneficio</div>
+                      <div style={labelStyle}>{t('profile.benefit')}</div>
                       <div style={valStyle(benefitColor)}>{benefitEur >= 0 ? '+' : ''}{benefitEur.toFixed(0)}€</div>
-                      <div style={subStyle}>Banco inicial 1.000 €</div>
+                      <div style={subStyle}>{t('profile.bankDesc')}</div>
                     </div>
 
                   </div>
@@ -905,11 +907,11 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
         {activeTab === 'canales' && (
           <motion.div key="canales" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             {loadingChannels && !isAnyBlock ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> Cargando canales...</div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AppIcon name="loading" size={14} /> {t('profile.loadingChannels')}</div>
             ) : (isAnyBlock ? [] : channels).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
                 <div style={{ marginBottom: '12px' }}><AppIcon name="canales" size={40} /></div>
-                <div style={{ fontWeight: 600 }}>Sin canales públicos</div>
+                <div style={{ fontWeight: 600 }}>{t('profileView.noPublicChannels')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -934,8 +936,8 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                           {c.sport && <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px' }}>{c.sport}</span>}
                           {/* Stats inline al costat del nom */}
                           <div style={{ display: 'flex', alignItems: 'center' }}>
-                            {statCol(c.memberCount, 'Miembros')}
-                            {statCol(c.pickCount, 'Picks')}
+                            {statCol(c.memberCount, t('channels.members'))}
+                            {statCol(c.pickCount, t('profile.picks'))}
                             {displayStats.total > 0 && statCol(`${displayStats.yieldVal >= 0 ? '+' : ''}${displayStats.yieldVal.toFixed(1)}%`, 'Yield', yieldColor)}
                           </div>
                         </div>
@@ -944,10 +946,10 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       {onNavigateToChannel ? (
                         <button onClick={() => onNavigateToChannel(c)}
                           style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, marginLeft: '8px' }}>
-                          Ver canal
+                          {t('profileView.viewChannel')}
                         </button>
                       ) : (
-                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0, marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}><AppIcon name="globe" size={11} />Público</span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0, marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}><AppIcon name="globe" size={11} />{t('tipsters.chanType.public')}</span>
                       )}
                     </div>
                   )
@@ -971,7 +973,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="arrowOut" size={15} />Enviar perfil</div>
+                  <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="arrowOut" size={15} />{t('profileView.sendProfile')}</div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{profile.username}</div>
                 </div>
                 <button onClick={() => setShowSendProfile(false)}
@@ -980,7 +982,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
 
               {/* Tabs DM / Canals */}
               <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border)', flexShrink: 0 }}>
-                {[['dm', 'social', 'Mensajes directos'], ['canal', 'canales', 'Canales']].map(([id, icon, label]) => (
+                {[['dm', 'social', t('dashboard.tabs.messages')], ['canal', 'canales', t('dashboard.tabs.channels')]].map(([id, icon, label]) => (
                   <button key={id} onClick={() => setSendTab(id)}
                     style={{ flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: sendTab === id ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: `2px solid ${sendTab === id ? 'var(--color-primary)' : 'transparent'}`, fontFamily: 'var(--font-sans)', transition: 'color 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                     <AppIcon name={icon} size={13} />{label}
@@ -991,10 +993,10 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
               {/* Llista */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
                 {loadingSend ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Cargando...</div>
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>{t('contact.loading')}</div>
                 ) : sendTab === 'dm' ? (
                   sendConvs.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Sin conversaciones</div>
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>{t('social.noConversations')}</div>
                   ) : sendConvs.map(c => (
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden' }}>
@@ -1007,13 +1009,13 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       </div>
                       <button onClick={() => handleSendProfileTo('dm', c.id, c.username)} disabled={sentSet.has(c.id)}
                         style={{ background: sentSet.has(c.id) ? 'var(--color-primary-light)' : 'var(--color-primary)', color: sentSet.has(c.id) ? 'var(--color-primary)' : '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: sentSet.has(c.id) ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.2s' }}>
-                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />Enviado</> : 'Enviar'}
+                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />{t('profileView.sent')}</> : t('profileView.send')}
                       </button>
                     </div>
                   ))
                 ) : (
                   sendChannels.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Sin canales donde puedes publicar</div>
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)', fontSize: '13px' }}>{t('profileView.noChannelsToPost')}</div>
                   ) : sendChannels.map(c => (
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0, overflow: 'hidden' }}>
@@ -1025,7 +1027,7 @@ export default function ProfileView({ userId, currentUser, onBack, onStartDM, is
                       </div>
                       <button onClick={() => handleSendProfileTo('canal', c.id, c.name)} disabled={sentSet.has(c.id)}
                         style={{ background: sentSet.has(c.id) ? 'var(--color-primary-light)' : 'var(--color-primary)', color: sentSet.has(c.id) ? 'var(--color-primary)' : '#010906', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', cursor: sentSet.has(c.id) ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', flexShrink: 0, transition: 'all 0.2s' }}>
-                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />Enviado</> : 'Enviar'}
+                        {sentSet.has(c.id) ? <><AppIcon name="check" size={12} style={{ marginRight: 3 }} />{t('profileView.sent')}</> : t('profileView.send')}
                       </button>
                     </div>
                   ))

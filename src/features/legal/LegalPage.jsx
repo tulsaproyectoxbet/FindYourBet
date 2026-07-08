@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LEGAL_DOCS, LEGAL_ORDER, LAST_UPDATED, COMPANY } from './legalDocs'
+import { useTranslation } from 'react-i18next'
+import { getLegalDocs, LEGAL_ORDER, LAST_UPDATED, COMPANY } from './legalDocs'
 import './legal.css'
 
 // Renderitza un bloc del document segons la seva forma (data-driven).
@@ -17,8 +18,10 @@ function Block({ block, i }) {
 }
 
 export default function LegalPage() {
+  const { t, i18n } = useTranslation()
   const { doc } = useParams()
   const navigate = useNavigate()
+  const LEGAL_DOCS = getLegalDocs(i18n.language)
   const data = LEGAL_DOCS[doc]
 
   // En obrir un document, puja al principi (ve d'un enllaç del footer, etc.).
@@ -37,8 +40,8 @@ export default function LegalPage() {
           FindYour<span>Bet</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="legal-back" onClick={() => navigate(-1)}>← Atrás</button>
-          <button className="legal-back" onClick={() => navigate('/')}>Salir</button>
+          <button className="legal-back" onClick={() => navigate(-1)}>{t('common.back')}</button>
+          <button className="legal-back" onClick={() => navigate('/')}>{t('legal.exit')}</button>
         </div>
       </div>
 
@@ -58,7 +61,7 @@ export default function LegalPage() {
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <div className="legal-eyebrow">FindYourBet · Legal</div>
           <h1>{data.title}</h1>
-          <div className="legal-updated">Última actualización: {LAST_UPDATED}</div>
+          <div className="legal-updated">{t('legal.lastUpdated')} {LAST_UPDATED[i18n.language] ?? LAST_UPDATED.es}</div>
 
           {data.blocks.map((block, i) => <Block key={i} block={block} i={i} />)}
 
@@ -67,7 +70,7 @@ export default function LegalPage() {
               <a key={slug} onClick={() => goDoc(slug)}>{LEGAL_DOCS[slug].short}</a>
             ))}
             <div className="legal-copy">
-              © {new Date().getFullYear()} {COMPANY.brand} · Juega con responsabilidad · +18
+              © {new Date().getFullYear()} {COMPANY.brand} · {t('landing.footer.tagline')} · +18
             </div>
           </div>
         </motion.article>

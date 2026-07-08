@@ -33,6 +33,58 @@ Cap framework de tests configurat.
 
 ---
 
+## ⚠️ REGLA OBLIGATÒRIA: Internacionalització (i18n) — SEMPRE 3 IDIOMES
+
+**TOT string visible per a l'usuari ha d'estar traduit a ES + EN + FR.** Sense excepcions per a codi nou.
+
+### Sistema
+
+- **Llibreria**: `i18next` + `react-i18next`
+- **Fitxers de traducció**: `src/i18n/locales/es.json`, `en.json`, `fr.json`
+- **Hook**: `const { t, i18n } = useTranslation()` a cada component que mostri text
+
+### Regles obligatòries
+
+1. **Cap string hardcoded visible** als components — tots han d'usar `t('clau')`.
+2. **Quan afegeixis una clau nova** a `es.json`, afegeix-la també a `en.json` i `fr.json` en el mateix commit. Mai deixar claus sense traducció als 3 fitxers.
+3. **Contingut data-driven** (llistes de docs, configuració per idioma): usa funcions `getXxx(lang)` en lloc d'objectes estàtics. Exemple: `getLegalDocs(i18n.language)`, `getInfoDocs(i18n.language)`.
+4. **Dades que varien per idioma** però no caben bé com a claus JSON (blocs de text llarg, arrays de contingut): afegeix versions ES/EN/FR directament al fitxer de dades (com `legalDocs.jsx`, `infoDocs.jsx`).
+5. **Excepció**: `AdminPanel` (intern, admin-only) no cal traduir-lo.
+
+### Flux de treball quan es tradueix
+
+- No rellegeixis tots els components — tradueix només els fitxers afectats.
+- Si una clau ja existeix als JSONs, reutilitza-la; no creïs duplicats.
+- Si hi ha més de 100 textos nous, primer genera totes les claus i després edita els JSON.
+
+### Checklist abans de fer commit de qualsevol component nou
+
+- [ ] `import { useTranslation } from 'react-i18next'` + `const { t } = useTranslation()`
+- [ ] Tots els strings visibles usen `t('clau')`
+- [ ] La clau nova existeix a `es.json`, `en.json` i `fr.json`
+- [ ] Si el component mostra contingut que canvia per idioma, usa `i18n.language`
+
+### Estructura de claus recomanada
+
+```
+common.*          → textos genèrics (accept, cancel, back, save…)
+bets.*            → aposta: labels, estats (won/lost/void/pending)
+chatView.*        → canal de xat
+canales.*         → llista de canals, creació, cerca
+poll.*            → enquestes
+dm.*              → missatges directes
+tipsters.*        → descoberta i perfils de tipsters
+ranking.*         → ranking global i d'amics
+misApuestas.*     → historial i stats d'aposta pròpies
+configuracion.*   → settings i compte
+legal.*           → pàgines legals (chrome)
+infoPage.*        → pàgines informatives (chrome)
+contactPage.*     → pàgina de contacte pública
+cookie.*          → banner de cookies
+```
+
+---
+
 ## Stack
 
 - **React 18 + Vite** amb **JavaScript** (no TypeScript)
@@ -319,6 +371,99 @@ Per definició és silenciós. Si la funció es comparteix entre primer fetch i 
 
 ---
 
+## Git — mai sense permís explícit
+
+No facis mai commit, push ni pull. Només quan l'usuari ho demani explícitament.
+
+---
+
+## Ordre de treball (CRÍTIC)
+
+Sempre segueix aquest ordre:
+
+1. Entendre el problema.
+2. Localitzar els fitxers.
+3. Pensar la solució.
+4. Implementar.
+5. Revisar.
+6. Acabar.
+
+No saltis directament a escriure codi.
+
+Quan hi hagi un bug, segueix aquest ordre:
+
+1. Reproduir-lo.
+2. Trobar la causa.
+3. Explicar la causa a l'usuari.
+4. Arreglar-la.
+5. Comprovar que no es trenca res més.
+
+---
+
+## Raonament i coherència arquitectònica (CRÍTIC)
+
+Abans d'implementar qualsevol canvi, no assumeixis que cal crear una solució nova. La primera pregunta sempre ha de ser:
+
+> "Ja existeix alguna funcionalitat, patró o implementació dins del projecte que resolgui aquest mateix problema?"
+
+Si la resposta és sí: reutilitza-la, estén-la, redirigeix-hi o adapta-la. NO creïs una implementació paral·lela.
+
+**Cerca de funcionalitats similars** — quan rebis una tasca:
+1. Identifica què vol aconseguir l'usuari, no només què ha escrit.
+2. Busca si aquesta funcionalitat ja existeix en algun altre lloc.
+3. Analitza com està implementada.
+4. Mantén el mateix comportament, UX i arquitectura sempre que sigui possible.
+
+**Pensar abans de crear** — abans de crear un component, pàgina, hook, funció, ruta, consulta o estat nou, pregunta't:
+- Ja existeix? Puc reutilitzar-la? Puc redirigir-hi? Puc compartir la mateixa lògica?
+
+Si qualsevol resposta és "sí", reutilitza.
+
+**Consistència del producte** — FindYourBet ha de comportar-se com un únic producte. Evita duplicar pantalles, lògica, fetches, estats, components i rutes.
+
+**Pensament crític** — no executis instruccions de forma literal sense analitzar-les. Entén la intenció real. Si existeix una forma més coherent, més simple o més integrada amb l'arquitectura actual, proposa-la. Pensa com un Senior Full Stack Engineer responsable de mantenir una única arquitectura coherent durant anys.
+
+---
+
+## No toquis el que no cal
+
+No canviïs mai — si no és necessari per solucionar el problema:
+
+- imports
+- format del codi
+- noms de variables
+- ordre dels components
+- espais en blanc
+- comentaris existents
+
+---
+
+## Eficiència de tokens (CRÍTIC)
+
+Abans de llegir qualsevol fitxer, pregunta't: *"Necessito realment aquest fitxer per completar la tasca?"* Si la resposta és no, no l'obris.
+
+Abans de modificar codi:
+
+1. Busca primer el fitxer correcte.
+2. No llegeixis directoris sencers si no és necessari.
+3. No rellegeixis fitxers que no canviaran.
+4. No facis resums del codi.
+5. Modifica només els fitxers estrictament necessaris.
+6. Si només cal editar una funció, no reescriguis el fitxer complet.
+7. Evita explorar més de 5 fitxers abans de començar a implementar.
+8. No inspeccionis dependències si no són rellevants.
+9. Si la tasca afecta menys de 3 fitxers, treballa només sobre aquests — no exploris la resta del projecte.
+
+**Codebases grans:**
+- Prefereix Grep/ripgrep abans d'obrir fitxers.
+- Cerca per símbols abans de llegir implementacions completes.
+- Llegeix només els blocs de codi necessaris, no fitxers sencers.
+- No facis resums de fitxers grans.
+- No revisis automàticament fitxers relacionats si la tasca és local.
+- Quan una tasca afecti més de 10 fitxers, proposa dividir-la en fases abans de continuar.
+
+---
+
 ## Estàndard d'enginyeria
 
 Treballa com a **Senior Fullstack Developer**. Producte de qualitat Stripe/Linear:
@@ -328,6 +473,7 @@ Treballa com a **Senior Fullstack Developer**. Producte de qualitat Stripe/Linea
 - **Lògica de negoci** en hooks, no en components visuals.
 - **Patrons nets**: early returns, optional chaining, evita prop drilling (usa Context o Zustand — instal·lat però poc usat).
 - **No `any` ni mocks** quan es pot fetchar directament.
+- **Rendiment React**: memoització només quan aporta valor real; evita renders innecessaris, fetches duplicats, `useEffect` redundants i estats derivats (calcula'ls a partir de l'estat existent).
 
 ---
 

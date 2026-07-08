@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp } from '../../lib/animations'
 import { useSignUp } from './hooks/useSignUp'
 import { Button } from '../../components/ui/Button'
@@ -28,6 +29,7 @@ const handleGoogleRegister = () => {
 }
 
 export default function Register({ navigate, login }) {
+  const { t } = useTranslation()
   const {
     form, update, terms, setTerms, age, setAge,
     showPass, setShowPass, showPassConfirm, setShowPassConfirm,
@@ -52,16 +54,16 @@ export default function Register({ navigate, login }) {
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-primary-light)', border: '1.5px solid var(--color-primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <AppIcon name="mail" size={28} color="var(--color-primary)" />
             </div>
-            <div style={{ fontWeight: 800, fontSize: '20px', marginBottom: 10 }}>¡Cuenta creada!</div>
+            <div style={{ fontWeight: 800, fontSize: '20px', marginBottom: 10 }}>{t('auth.register.accountCreated')}</div>
             <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
-              Hemos enviado un email de confirmación a<br />
+              {t('auth.register.confirmationSent')}<br />
               <strong style={{ color: 'var(--color-text)' }}>{form.email}</strong>.<br />
-              Haz clic en el enlace para activar tu cuenta.
+              {t('auth.register.clickToActivate')}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 24 }}>
-              ¿No lo encuentras? Revisa la carpeta de spam o correo no deseado.
+              {t('auth.register.checkSpam')}
             </div>
-            <button className="auth-link" onClick={() => navigate('login')}>← Ir al inicio de sesión</button>
+            <button className="auth-link" onClick={() => navigate('login')}>{t('auth.register.goToSignIn')}</button>
           </motion.div>
         )}
 
@@ -69,15 +71,15 @@ export default function Register({ navigate, login }) {
         <motion.div className="auth-card auth-card--wide" variants={fadeUp} initial="hidden" animate="visible">
           <motion.div variants={fadeUp} custom={1}>
             <div className="auth-card-logo">FindYour<span>Bet</span></div>
-            <div className="auth-subtitle">Crea tu cuenta — es gratis</div>
+            <div className="auth-subtitle">{t('auth.register.title')}</div>
           </motion.div>
 
           <motion.div variants={fadeUp} custom={2}>
             <button className="auth-google-btn" onClick={handleGoogleRegister}>
               <GoogleIcon />
-              Registrarse con Google
+              {t('auth.register.registerGoogle')}
             </button>
-            <div className="auth-divider">o regístrate con email</div>
+            <div className="auth-divider">{t('auth.register.orWithEmail')}</div>
           </motion.div>
 
           {error && (
@@ -88,32 +90,32 @@ export default function Register({ navigate, login }) {
 
           <motion.div className="form-row" variants={fadeUp} custom={3}>
             <div>
-              <FormLabel>Nombre *</FormLabel>
+              <FormLabel>{t('auth.register.firstName')}</FormLabel>
               <Input placeholder="Tu nombre" value={form.name} onChange={e => update('name', stripEmojis(e.target.value))} />
             </div>
             <div>
-              <FormLabel>Apellidos *</FormLabel>
+              <FormLabel>{t('auth.register.lastName')}</FormLabel>
               <Input placeholder="Tus apellidos" value={form.surname} onChange={e => update('surname', stripEmojis(e.target.value))} />
             </div>
           </motion.div>
 
           <motion.div className="form-row" variants={fadeUp} custom={4}>
             <div>
-              <FormLabel>Fecha de nacimiento *</FormLabel>
+              <FormLabel>{t('auth.register.birthdate')}</FormLabel>
               <Input type="date" value={form.birthdate} max={maxBirthdate}
                 onChange={e => update('birthdate', e.target.value)} />
             </div>
             <div>
-              <FormLabel>Nacionalidad</FormLabel>
+              <FormLabel>{t('auth.register.nationality')}</FormLabel>
               <select className="input" value={form.nationality} onChange={e => update('nationality', e.target.value)}>
-                <option value="">Seleccionar...</option>
+                <option value="">{t('auth.register.selectNationality')}</option>
                 {NATIONALITIES.map(n => <option key={n}>{n}</option>)}
               </select>
             </div>
           </motion.div>
 
           <motion.div className="form-group" variants={fadeUp} custom={5}>
-            <FormLabel>Nombre de usuario *</FormLabel>
+            <FormLabel>{t('auth.register.username')}</FormLabel>
             <div className="input-with-icon">
               <span className="input-prefix">@</span>
               <Input className="has-prefix" placeholder="tuusuario"
@@ -124,16 +126,16 @@ export default function Register({ navigate, login }) {
           </motion.div>
 
           <motion.div className="form-group" variants={fadeUp} custom={6}>
-            <FormLabel>Email *</FormLabel>
+            <FormLabel>{t('auth.register.email')}</FormLabel>
             <Input type="email" placeholder="tu@email.com"
               value={form.email} onChange={e => update('email', e.target.value)} />
           </motion.div>
 
           <motion.div className="form-row" variants={fadeUp} custom={7}>
             <div>
-              <FormLabel>Contraseña *</FormLabel>
+              <FormLabel>{t('auth.register.password')}</FormLabel>
               <div className="input-with-icon">
-                <Input type={showPass ? 'text' : 'password'} placeholder="Mínimo 8 caracteres"
+                <Input type={showPass ? 'text' : 'password'} placeholder={t('auth.register.minChars')}
                   value={form.pass} onChange={e => update('pass', e.target.value)} />
                 <button className="toggle-pass" onClick={() => setShowPass(v => !v)}>
                   <AppIcon name={showPass ? 'eyeOff' : 'eye'} size={16} />
@@ -141,9 +143,9 @@ export default function Register({ navigate, login }) {
               </div>
             </div>
             <div>
-              <FormLabel>Repetir contraseña *</FormLabel>
+              <FormLabel>{t('auth.register.repeatPassword')}</FormLabel>
               <div className="input-with-icon">
-                <Input type={showPassConfirm ? 'text' : 'password'} placeholder="Repite la contraseña"
+                <Input type={showPassConfirm ? 'text' : 'password'} placeholder={t('auth.register.repeatPasswordPlaceholder')}
                   value={form.passConfirm} onChange={e => update('passConfirm', e.target.value)} />
                 <button className="toggle-pass" onClick={() => setShowPassConfirm(v => !v)}>
                   <AppIcon name={showPassConfirm ? 'eyeOff' : 'eye'} size={16} />
@@ -155,32 +157,33 @@ export default function Register({ navigate, login }) {
           <motion.div className="auth-checkboxes" variants={fadeUp} custom={8}>
             <label className="auth-checkbox-label">
               <input type="checkbox" className="auth-checkbox" checked={age} onChange={e => setAge(e.target.checked)} />
-              <span>Confirmo que tengo <strong>18 años o más</strong> y que los pronósticos deportivos están permitidos en mi país de residencia.</span>
+              <span dangerouslySetInnerHTML={{ __html: t('auth.register.age18confirm') }} />
             </label>
             <label className="auth-checkbox-label">
               <input type="checkbox" className="auth-checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} />
               <span>
-                He leído y acepto los{' '}
-                <a href="/legal/terminos" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>Términos y Condiciones</a>
-                {' '}y la{' '}
-                <a href="/legal/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>Política de Privacidad</a>.
+                {t('auth.register.termsConfirm')
+                  .replace('<termsLink>', '')
+                  .replace('</termsLink>', '')
+                  .replace('<privacyLink>', '')
+                  .replace('</privacyLink>', '')}
               </span>
             </label>
           </motion.div>
 
           <motion.div variants={fadeUp} custom={9}>
             <Button full onClick={handleRegister} disabled={loading}>
-              {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+              {loading ? t('auth.register.creating') : t('auth.register.createAccount')}
             </Button>
           </motion.div>
 
           <motion.div className="auth-privacy-note" variants={fadeUp} custom={10}>
-            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Tus datos están protegidos y nunca serán compartidos con terceros.
+            <AppIcon name="lock" size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />{t('auth.register.dataProtected')}
           </motion.div>
 
           <motion.div className="auth-switch" variants={fadeUp} custom={11}>
-            ¿Ya tienes cuenta?{' '}
-            <button className="auth-link" onClick={() => navigate('login')}>Inicia sesión</button>
+            {t('auth.register.alreadyAccount')}{' '}
+            <button className="auth-link" onClick={() => navigate('login')}>{t('auth.register.signIn')}</button>
           </motion.div>
         </motion.div>
         )}

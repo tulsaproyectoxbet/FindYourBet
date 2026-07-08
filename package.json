@@ -14,9 +14,11 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "framer-motion": "^12.38.0",
+    "i18next": "^26.3.4",
     "lucide-react": "^1.23.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^7.14.2",
     "stripe": "^22.1.1",
     "zustand": "^5.0.12"

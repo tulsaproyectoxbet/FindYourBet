@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { insertNotification } from './useNotifications'
 import { useFollow } from '../social/hooks/useFollow'
@@ -7,33 +8,35 @@ import Username from '../../../components/ui/Username'
 import AppIcon from '../../../components/ui/AppIcon'
 
 const TABS = [
-  { id: 'todos',        label: 'Todos' },
-  { id: 'seguidores',   label: 'Seguidores' },
-  { id: 'likes',        label: 'Likes' },
-  { id: 'comentarios',  label: 'Comentarios' },
+  { id: 'todos',        labelKey: 'notifications.tabAll' },
+  { id: 'seguidores',   labelKey: 'notifications.tabFollowers' },
+  { id: 'likes',        labelKey: 'notifications.tabLikes' },
+  { id: 'comentarios',  labelKey: 'notifications.tabComments' },
 ]
 
-function timeAgo(ts) {
+function timeAgo(ts, t) {
   if (!ts) return ''
   const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (m < 1) return 'ahora'
+  if (m < 1) return t('notifications.now')
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d`
-  return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
+  return new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
 }
 
-function notifText(n) {
+function notifText(n, t) {
   switch (n.type) {
-    case 'like':            return 'le dio like a tu pick.'
-    case 'comment':         return `comentó tu pick.`
-    case 'follow':          return 'empezó a seguirte.'
-    case 'channel_join':    return 'se unió a tu canal.'
-    case 'dm':              return 'te envió un mensaje.'
-    case 'channel_message': return `envió un mensaje${n.preview ? `: "${n.preview}"` : ' en un canal'}.`
-    default:                return (n.preview || 'Nueva notificación') + '.'
+    case 'like':            return t('notifications.likedPick')
+    case 'comment':         return t('notifications.commentedPick')
+    case 'follow':          return t('notifications.startedFollowing')
+    case 'channel_join':    return t('notifications.joinedChannel')
+    case 'dm':              return t('notifications.sentMessage')
+    case 'channel_message': return n.preview
+      ? t('notifications.channelMessagePreview', { preview: n.preview })
+      : t('notifications.channelMessage')
+    default:                return t('notifications.newNotif')
   }
 }
 
@@ -74,6 +77,7 @@ function Avatar({ profile, size = 36 }) {
 
 // Preview petit del post per likes i comentaris
 function PostPreview({ text, onClick }) {
+  const { t } = useTranslation()
   if (!text) return null
   return (
     <div onClick={e => { e.stopPropagation(); onClick?.() }}
@@ -85,7 +89,7 @@ function PostPreview({ text, onClick }) {
       </div>
       {onClick && (
         <div style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 600, marginTop: '4px' }}>
-          Ver pick →
+          {t('notifications.viewPick')}
         </div>
       )}
     </div>
@@ -93,6 +97,7 @@ function PostPreview({ text, onClick }) {
 }
 
 function NotifItem({ n, profile, onViewProfile, onViewPost, currentUser, followedSet, onFollowed, isFollowingFn }) {
+  const { t } = useTranslation()
   const isFollow  = n.type === 'follow'
   const isLike    = n.type === 'like'
   const isComment = n.type === 'comment'
@@ -131,9 +136,9 @@ function NotifItem({ n, profile, onViewProfile, onViewPost, currentUser, followe
             onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
             <Username username={displayName} isVerified={profile?.is_verified} size="sm" />
           </span>{' '}
-          <span style={{ color: 'var(--color-text-muted)' }}>{notifText(n)}</span>
+          <span style={{ color: 'var(--color-text-muted)' }}>{notifText(n, t)}</span>
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{timeAgo(n.created_at)}</div>
+        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{timeAgo(n.created_at, t)}</div>
 
         {/* Preview del post per likes i comentaris */}
         {hasPost && (
@@ -145,7 +150,7 @@ function NotifItem({ n, profile, onViewProfile, onViewPost, currentUser, followe
       {isFollow && (
         <button onClick={handleFollow} disabled={alreadyFollowed}
           style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-primary-border)', background: 'var(--color-primary-light)', color: 'var(--color-primary)', cursor: alreadyFollowed ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
-          {alreadyFollowed ? <><AppIcon name="users" size={12} /> Amigos</> : 'Seguir también'}
+          {alreadyFollowed ? <><AppIcon name="users" size={12} /> {t('notifications.friends')}</> : t('notifications.followBack')}
         </button>
       )}
     </div>
@@ -153,6 +158,7 @@ function NotifItem({ n, profile, onViewProfile, onViewPost, currentUser, followe
 }
 
 export default function NotificationsPanel({ notifications, onClose, onViewProfile, onViewPost, currentUser, onMarkAllRead }) {
+  const { t } = useTranslation()
   const { isFollowing } = useFollow(currentUser?.id)
   const [followedSet, setFollowedSet] = useState(new Set())
   const [profileMap, setProfileMap] = useState({})
@@ -186,17 +192,17 @@ export default function NotificationsPanel({ notifications, onClose, onViewProfi
 
         {/* Header */}
         <div style={{ padding: '14px 16px 0', flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '12px' }}>Notificaciones</div>
+          <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '12px' }}>{t('notifications.title')}</div>
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '4px', borderBottom: '0.5px solid var(--color-border)', paddingBottom: '0' }}>
-            {TABS.map(t => {
-              const count = t.id !== 'todos' ? tabCount(filtered, t.id) : null
-              const isActive = activeTab === t.id
+            {TABS.map(tab => {
+              const count = tab.id !== 'todos' ? tabCount(filtered, tab.id) : null
+              const isActive = activeTab === tab.id
               return (
-                <button key={t.id} onClick={() => { setActiveTab(t.id); onMarkAllRead?.() }}
+                <button key={tab.id} onClick={() => { setActiveTab(tab.id); onMarkAllRead?.() }}
                   style={{ padding: '7px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent', marginBottom: '-1px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {t.label}
+                  {t(tab.labelKey)}
                   {count > 0 && (
                     <span style={{ background: 'var(--color-error)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--radius-full)', lineHeight: 1.5 }}>
                       {count}
@@ -215,7 +221,7 @@ export default function NotificationsPanel({ notifications, onClose, onViewProfi
               <div style={{ fontSize: '28px', marginBottom: '8px' }}>
                 <AppIcon name={activeTab === 'seguidores' ? 'user' : activeTab === 'likes' ? 'heart' : activeTab === 'comentarios' ? 'social' : 'bell'} size={28} />
               </div>
-              <div style={{ fontSize: '13px' }}>Sin notificaciones aún</div>
+              <div style={{ fontSize: '13px' }}>{t('notifications.empty')}</div>
             </div>
           ) : visible.map(n => (
             <NotifItem

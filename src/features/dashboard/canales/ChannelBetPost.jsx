@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import ForwardModal from '../social/ForwardModal'
 import ReportPickModal from './ReportPickModal'
 import AppIcon from '../../../components/ui/AppIcon'
 
 const STATUS_CFG = {
-  won:     { label: 'Ganada',    color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
-  lost:    { label: 'Perdida',   color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
-  void:    { label: 'Nula',      color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
-  pending: { label: 'Pendiente', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
+  won:     { color: 'var(--color-primary)',    bg: 'var(--color-primary-light)',  border: 'var(--color-primary-border)' },
+  lost:    { color: 'var(--color-error)',      bg: 'var(--color-error-light)',    border: 'var(--color-error-border)' },
+  void:    { color: 'var(--color-info)',       bg: 'var(--color-info-light)',     border: 'var(--color-info-border)' },
+  pending: { color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)',        border: 'var(--color-border)' },
 }
 
 // isOwner: el propietari del canal no pot reportar els seus propis picks
 export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewStatus, currentUser, isOwner, onOpenPost, timeStr, viewCount = 0 }) {
+  const { t } = useTranslation()
   const [likeCount, setLikeCount] = useState(0)
   const [hasLiked, setHasLiked] = useState(false)
   const [commentCount, setCommentCount] = useState(0)
@@ -117,10 +119,10 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewS
               return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`
             }
             const stats = [
-              { label: 'Cuota', value: parseFloat(bet.odds || 0).toFixed(2) },
+              { label: t('bets.cardOdds'), value: parseFloat(bet.odds || 0).toFixed(2) },
               { label: 'Stake', value: `${bet.stake}` },
-              ...(bet.date ? [{ label: 'Fecha', value: fmtDate(bet.date) }] : []),
-              ...(bet.bookie ? [{ label: 'Bookie', value: bet.bookie }] : []),
+              ...(bet.date ? [{ label: t('bets.cardDate'), value: fmtDate(bet.date) }] : []),
+              ...(bet.bookie ? [{ label: t('bets.bookieLabel'), value: bet.bookie }] : []),
             ]
             return (
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)` }}>
@@ -150,7 +152,7 @@ export default function ChannelBetPost({ messageId, bet, liveStatus, liveReviewS
           <button onClick={(e) => { e.stopPropagation(); setShowForward(true) }}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-md)' }}>
             <AppIcon name="arrowOut" size={13} />
-            <span>Reenviar</span>
+            <span>{t('dm.forward')}</span>
           </button>
           {/* Botó de reportar — visible per a no-propietaris. Ocult si el pick ja és invalid. */}
           {!isOwner && !isInvalid && (

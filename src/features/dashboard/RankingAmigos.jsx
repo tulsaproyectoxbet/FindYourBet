@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { fadeUp, stagger } from '../../lib/animations'
 import { supabase } from '../../lib/supabase'
 import { useRanking, MIN_BETS, SPORT_ICONS } from './Ranking'
@@ -9,14 +10,15 @@ import AppIcon from '../../components/ui/AppIcon'
 import './dashboard.css'
 
 const PERIODS = [
-  { id: 'trimestral', label: 'Global' },
-  { id: 'setmanal',   label: 'Semanal' },
-  { id: 'mensual',    label: 'Mensual' },
-  { id: 'anual',      label: 'Anual' },
-  { id: 'total',      label: 'Total' },
+  { id: 'trimestral', labelKey: 'ranking.periods.global' },
+  { id: 'setmanal',   labelKey: 'ranking.periods.weekly' },
+  { id: 'mensual',    labelKey: 'ranking.periods.monthly' },
+  { id: 'anual',      labelKey: 'ranking.periods.annual' },
+  { id: 'total',      labelKey: 'ranking.periods.total' },
 ]
 
 export default function RankingAmigos({ user }) {
+  const { t } = useTranslation()
   const openProfile = useProfileNav()
   const [period, setPeriod] = useState('trimestral')
   const [friendIds, setFriendIds] = useState(null)
@@ -75,7 +77,7 @@ export default function RankingAmigos({ user }) {
           {PERIODS.map(p => (
             <button key={p.id} onClick={() => setPeriod(p.id)}
               style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: period === p.id ? 'var(--color-primary)' : 'transparent', color: period === p.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-              {p.label}
+              {t(p.labelKey)}
             </button>
           ))}
         </div>
@@ -87,7 +89,7 @@ export default function RankingAmigos({ user }) {
             <div style={{ position: 'absolute', top: '3px', left: hideMe ? '17px' : '3px', width: '12px', height: '12px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
           </div>
           <span style={{ fontSize: '13px', fontWeight: 600, color: hideMe ? 'var(--color-primary)' : 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-            Ocultarme del ranking
+            {t('ranking.friends.hideMe')}
           </span>
         </button>
       </div>
@@ -95,25 +97,25 @@ export default function RankingAmigos({ user }) {
       {friendsLoading || loading ? (
         <div className="empty-state">
           <div className="empty-icon"><AppIcon name="loading" size={48} /></div>
-          <div>{friendsLoading ? 'Cargando amigos...' : 'Cargando ranking...'}</div>
+          <div>{friendsLoading ? t('ranking.friends.loadingFriends') : t('ranking.loading')}</div>
         </div>
       ) : friendIds !== null && friendIds.length <= 1 ? (
         <div className="empty-state">
           <div className="empty-icon"><AppIcon name="users" size={48} /></div>
-          <div className="empty-title">Aún no tienes amigos mutuos</div>
-          <div className="empty-sub">Sigue a tipsters y espera a que te sigan de vuelta para ver su ranking aquí.</div>
+          <div className="empty-title">{t('ranking.friends.noFriends')}</div>
+          <div className="empty-sub">{t('ranking.friends.noFriendsSub')}</div>
         </div>
       ) : ranking.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon"><AppIcon name="users" size={48} /></div>
-          <div className="empty-title">Ningún amigo en el ranking</div>
-          <div className="empty-sub">Tus amigos necesitan mínimo {MIN_BETS} picks resueltos para aparecer.</div>
+          <div className="empty-title">{t('ranking.friends.noFriendsRanking')}</div>
+          <div className="empty-sub">{t('ranking.friends.noFriendsRankingSub', { n: MIN_BETS })}</div>
         </div>
       ) : (
         <AnimatePresence>
           <motion.div className="ranking-list" initial="hidden" animate="visible" variants={stagger}>
-            {ranking.map((t, i) => (
-              <motion.div key={t.userId} className="ranking-item" variants={fadeUp}
+            {ranking.map((entry, i) => (
+              <motion.div key={entry.userId} className="ranking-item" variants={fadeUp}
                 layout whileHover={{ x: 4, transition: { duration: 0.2 } }}>
 
                 <div className={`rank-pos ${i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : ''}`}>
@@ -122,18 +124,18 @@ export default function RankingAmigos({ user }) {
 
                 <div className="tipster-info-rank">
                   <div className="tipster-name-rank" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span onClick={() => openProfile(t.userId)} style={{ cursor: 'pointer' }}>
-                      <Username username={t.username} isVerified={t.isVerified} size="sm" />
+                    <span onClick={() => openProfile(entry.userId)} style={{ cursor: 'pointer' }}>
+                      <Username username={entry.username} isVerified={entry.isVerified} size="sm" />
                     </span>
-                    {user?.id === t.userId && (
+                    {user?.id === entry.userId && (
                       <span style={{ fontSize: '10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '0.5px solid var(--color-primary-border)', fontWeight: 600 }}>
-                        Tu
+                        {t('tipsters.you')}
                       </span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    <span className="tipster-user-rank" style={{ margin: 0 }}>{t.bets} picks resueltos</span>
-                    {t.usedSports?.map(s => (
+                    <span className="tipster-user-rank" style={{ margin: 0 }}>{entry.bets} {t('ranking.friends.resolvedPicks')}</span>
+                    {entry.usedSports?.map(s => (
                       <span key={s} style={{ fontSize: '10px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
                         {SPORT_ICONS[s]} {s}
                       </span>
@@ -143,22 +145,22 @@ export default function RankingAmigos({ user }) {
 
                 <div className="rank-metrics">
                   <div className="rank-metric">
-                    <div className={`rank-metric-val ${t.yieldVal >= 0 ? '' : 'red'}`}>
-                      {t.yieldVal >= 0 ? '+' : ''}{t.yieldVal.toFixed(1)}%
+                    <div className={`rank-metric-val ${entry.yieldVal >= 0 ? '' : 'red'}`}>
+                      {entry.yieldVal >= 0 ? '+' : ''}{entry.yieldVal.toFixed(1)}%
                     </div>
                     <div className="rank-metric-label">Yield</div>
                   </div>
                   <div className="rank-metric">
-                    <div className="rank-metric-val neutral">{t.won}/{t.lost}</div>
+                    <div className="rank-metric-val neutral">{entry.won}/{entry.lost}</div>
                     <div className="rank-metric-label">W/L</div>
                   </div>
                   <div className="rank-metric">
-                    <div className="rank-metric-val neutral">{t.avgOdds}</div>
-                    <div className="rank-metric-label">Cuota</div>
+                    <div className="rank-metric-val neutral">{entry.avgOdds}</div>
+                    <div className="rank-metric-label">{t('ranking.stats.avgOdds')}</div>
                   </div>
                   <div className="rank-metric">
-                    <div className="rank-metric-val neutral">{t.habitualStake}</div>
-                    <div className="rank-metric-label">Stake<br/>usual</div>
+                    <div className="rank-metric-val neutral">{entry.habitualStake}</div>
+                    <div className="rank-metric-label">{t('ranking.stats.usualStake')}</div>
                   </div>
                 </div>
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import AppIcon from '../../components/ui/AppIcon'
 
@@ -11,6 +12,7 @@ const PACKS = {
 }
 
 export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
+  const { t } = useTranslation()
   const [mainTab, setMainTab] = useState('emoji')
   const [activeEmojiTab, setActiveEmojiTab] = useState(Object.keys(PACKS)[0])
   const [gifs, setGifs] = useState([])
@@ -68,11 +70,11 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
     const file = e.target.files[0]
     if (!file) return
     if (file.type !== 'image/gif' && !file.name.toLowerCase().endsWith('.gif')) {
-      setUploadError('Solo se aceptan archivos .gif')
+      setUploadError(t('sticker.onlyGif'))
       return
     }
     if (file.size > 2 * 1024 * 1024) {
-      setUploadError('El GIF debe pesar menos de 2 MB (≈ 2 segundos)')
+      setUploadError(t('sticker.maxSize'))
       return
     }
     setUploading(true)
@@ -87,7 +89,7 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
       await supabase.from('user_stickers').insert({ user_id: user.id, url: urlData.publicUrl })
       await fetchMyGifs()
     } catch {
-      setUploadError('Error inesperado')
+      setUploadError(t('sticker.unexpectedError'))
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -110,7 +112,7 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
       >
         {/* TABS PRINCIPALS */}
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '0.5px solid var(--color-border)' }}>
-          {[['emoji', 'Emoji'], ['gif', 'GIF'], ['mygif', 'Mis GIFs']].map(([id, label]) => (
+          {[['emoji', 'Emoji'], ['gif', 'GIF'], ['mygif', t('sticker.myGifs')]].map(([id, label]) => (
             <button key={id} onClick={() => setMainTab(id)}
               style={{
                 flex: 1, border: 'none', background: 'none', cursor: 'pointer',
@@ -159,9 +161,9 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
         {mainTab === 'gif' && (
           <div style={{ height: '240px', overflowY: 'auto', padding: '8px' }}>
             {loadingGifs ? (
-              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0', fontSize: '13px' }}>Cargando GIFs...</div>
+              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0', fontSize: '13px' }}>{t('sticker.loadingGifs')}</div>
             ) : gifs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0', fontSize: '13px' }}>No hay GIFs disponibles aún</div>
+              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 0', fontSize: '13px' }}>{t('sticker.noGifs')}</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
                 {gifs.map((url, i) => (
@@ -186,12 +188,12 @@ export function StickerPicker({ onSelect, onSendGif, onClose, user }) {
             )}
             <button onClick={() => uploadRef.current?.click()} disabled={uploading}
               style={{ width: '100%', padding: '9px', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-soft)', color: uploading ? 'var(--color-text-muted)' : 'var(--color-primary)', cursor: uploading ? 'default' : 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)', marginBottom: '10px' }}>
-              {uploading ? <><AppIcon name="loading" size={12} style={{ marginRight:4, verticalAlign:'middle' }} /> Subiendo...</> : '+ Subir GIF (máx. 2 MB)'}
+              {uploading ? <><AppIcon name="loading" size={12} style={{ marginRight:4, verticalAlign:'middle' }} /> {t('sticker.uploading')}</> : t('sticker.uploadBtn')}
             </button>
             {loadingMyGifs ? (
-              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 0', fontSize: '13px' }}>Cargando...</div>
+              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 0', fontSize: '13px' }}>{t('contact.loading')}</div>
             ) : myGifs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 0', fontSize: '13px' }}>Aún no tienes GIFs guardados</div>
+              <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 0', fontSize: '13px' }}>{t('sticker.noMyGifs')}</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
                 {myGifs.map((url, i) => (

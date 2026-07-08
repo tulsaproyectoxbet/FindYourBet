@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import AppIcon from '../../../components/ui/AppIcon'
 import { useFollow } from '../social/hooks/useFollow'
@@ -12,10 +13,10 @@ import { formatMemberSince } from '../../../lib/dates'
 import { sanitizeSearchTerm } from '../../../lib/searchSanitize'
 
 const SORT_OPTIONS = [
-  { id: 'yield',   label: 'Rendimiento' },
-  { id: 'bets',    label: 'Apuestas' },
-  { id: 'oldest',  label: 'Más antiguo' },
-  { id: 'avgOdds', label: 'Cuota media' },
+  { id: 'yield',   labelKey: 'tipsters.sort.yield' },
+  { id: 'bets',    labelKey: 'tipsters.sort.bets' },
+  { id: 'oldest',  labelKey: 'tipsters.sort.oldest' },
+  { id: 'avgOdds', labelKey: 'tipsters.sort.avgOdds' },
 ]
 
 function Avatar({ url, name, size = 56, fontSize = 22 }) {
@@ -27,15 +28,16 @@ function Avatar({ url, name, size = 56, fontSize = 22 }) {
 
 
 const CHAN_TYPE = {
-  public:       { label: 'Público',     color: 'var(--color-primary)',    bg: 'var(--color-primary-light)' },
-  free_private: { label: 'Privado',     color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)' },
-  vip_weekly:   { label: 'VIP semanal', color: '#92400e',                  bg: '#fef3c7' },
-  vip_monthly:  { label: 'VIP mensual', color: '#92400e',                  bg: '#fef3c7' },
-  stakazo:      { label: 'Stakazo',     color: '#6d28d9',                  bg: '#ede9fe' },
+  public:       { labelKey: 'tipsters.chanType.public',       color: 'var(--color-primary)',    bg: 'var(--color-primary-light)' },
+  free_private: { labelKey: 'tipsters.chanType.free_private', color: 'var(--color-text-muted)', bg: 'var(--color-bg-soft)' },
+  vip_weekly:   { labelKey: 'tipsters.chanType.vip_weekly',   color: '#92400e',                  bg: '#fef3c7' },
+  vip_monthly:  { labelKey: 'tipsters.chanType.vip_monthly',  color: '#92400e',                  bg: '#fef3c7' },
+  stakazo:      { labelKey: 'tipsters.chanType.stakazo',      color: '#6d28d9',                  bg: '#ede9fe' },
 }
 
 // Card del propi perfil — esquerra: card format + bio inline; dreta: canals propis
 function MyProfileCard({ profile, onEdit, onSaveBio }) {
+  const { t } = useTranslation()
   const [editingBio, setEditingBio] = useState(false)
   const [bioValue, setBioValue]     = useState('')
   const [savingBio, setSavingBio]   = useState(false)
@@ -101,7 +103,7 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap', marginBottom: '4px' }}>
                   <Username username={profile?.username || '—'} isVerified={profile?.is_verified} size="lg" />
-                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>Tú</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>{t('tipsters.you')}</span>
                 </div>
                 {profile?.created_at && (
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
@@ -111,7 +113,7 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
               </div>
               <button onClick={onEdit}
                 style={{ flexShrink: 0, padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                <AppIcon name="edit" size={13} /> Editar
+                <AppIcon name="edit" size={13} /> {t('tipsters.edit')}
               </button>
             </div>
 
@@ -133,7 +135,7 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
                 <div style={{ fontSize: '20px', fontWeight: 800, color: hasStats ? 'var(--color-text)' : 'var(--color-text-muted)', lineHeight: 1 }}>
                   {hasStats ? `${Math.round(winRate)}%` : '—'}
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>aciertos</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('tipsters.winRateLabel')}</div>
               </div>
             </div>
 
@@ -152,22 +154,22 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                     <button onClick={handleCancelBio}
                       style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-                      Cancelar
+                      {t('common.cancel')}
                     </button>
                     <button onClick={handleSaveBio} disabled={savingBio}
                       style={{ flex: 1, padding: '7px', borderRadius: 'var(--radius-md)', border: 'none', background: savingBio ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: savingBio ? 'var(--color-text-muted)' : '#010906', cursor: savingBio ? 'default' : 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                      {savingBio ? 'Guardando...' : 'Guardar'}
+                      {savingBio ? t('tipsters.saving') : t('common.save')}
                     </button>
                   </div>
                 </>
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5, fontStyle: profile?.bio ? 'normal' : 'italic', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                    {profile?.bio || 'Sin bio'}
+                    {profile?.bio || t('tipsters.noBio')}
                   </div>
                   <button onClick={handleStartEditBio}
                     style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-sans)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <AppIcon name="edit" size={11} /> Editar bio
+                    <AppIcon name="edit" size={11} /> {t('tipsters.editBio')}
                   </button>
                 </div>
               )}
@@ -176,11 +178,11 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
             {/* Footer: seguidors + badge verificat */}
             <div style={{ paddingTop: '12px', borderTop: '0.5px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                {(profile?._followerCount ?? 0).toLocaleString('es-ES')} seguidores
+                {(profile?._followerCount ?? 0).toLocaleString()} {t('tipsters.followers')}
               </div>
               {profile?.is_verified && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', padding: '3px 10px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', fontWeight: 600 }}>
-                  <AppIcon name="check" size={11} /> Verificado
+                  <AppIcon name="check" size={11} /> {t('tipsters.verified')}
                 </span>
               )}
             </div>
@@ -193,20 +195,20 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
 
         {/* Dreta: Mis canales */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Mis canales</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>{t('channels.myChannels')}</div>
 
           {!chansLoaded ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-              <AppIcon name="loading" size={14} /> Cargando...
+              <AppIcon name="loading" size={14} /> {t('common.loading')}
             </div>
           ) : myChannels.length === 0 ? (
             <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-              Aún no tienes canales. Créalos desde la pestaña Canales.
+              {t('tipsters.noChannels')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {myChannels.map(chan => {
-                const t = CHAN_TYPE[chan.channel_type] || CHAN_TYPE.public
+                const chanType = CHAN_TYPE[chan.channel_type] || CHAN_TYPE.public
                 return (
                   <div key={chan.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -215,11 +217,11 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chan.name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>
-                        {chan.memberCount} {chan.memberCount === 1 ? 'miembro' : 'miembros'}
+                        {chan.memberCount} {chan.memberCount === 1 ? t('channels.member') : t('channels.members')}
                       </div>
                     </div>
-                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', background: t.bg, color: t.color, borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', flexShrink: 0, border: `0.5px solid ${t.color}22` }}>
-                      {t.label}
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', background: chanType.bg, color: chanType.color, borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', flexShrink: 0, border: `0.5px solid ${chanType.color}22` }}>
+                      {t(chanType.labelKey)}
                     </span>
                   </div>
                 )
@@ -237,6 +239,7 @@ function MyProfileCard({ profile, onEdit, onSaveBio }) {
 // interactiu i amb el tema que s'està editant (themeOverride). És la MATEIXA card que
 // veuen els altres, per garantir que previsualització i ficha real són idèntiques.
 function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onClick, preview = false, themeOverride }) {
+  const { t } = useTranslation()
   const { stats } = tipster
   const hasStats = stats.total >= 3
   const activeTheme = preview ? themeOverride : tipster.card_theme
@@ -272,7 +275,7 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
             <button
               onClick={e => { e.stopPropagation(); isFollowing ? onUnfollow() : onFollow() }}
               style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 'var(--radius-md)', border: isFollowing ? '0.5px solid var(--color-border)' : 'none', background: isFollowing ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: isFollowing ? 'var(--color-text-muted)' : '#010906', cursor: 'pointer', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-sans)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-              {isMutual ? <><AppIcon name="users" size={12} /> Amigos</> : isFollowing ? <><AppIcon name="check" size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Siguiendo</> : '+ Seguir'}
+              {isMutual ? <><AppIcon name="users" size={12} /> {t('notifications.friends')}</> : isFollowing ? <><AppIcon name="check" size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} /> {t('tipsters.following')}</> : `+ ${t('tipsters.follow')}`}
             </button>
           )}
         </div>
@@ -310,7 +313,7 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
             {(bioOverflow || bioExpanded) && (
               <span onClick={e => { e.stopPropagation(); setBioExpanded(v => !v) }}
                 style={{ display: 'inline-block', marginTop: '2px', fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', cursor: 'pointer' }}>
-                {bioExpanded ? 'Ver menos' : 'Ver más...'}
+                {bioExpanded ? t('tipsters.seeLess') : t('tipsters.seeMore')}
               </span>
             )}
           </div>
@@ -319,7 +322,7 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
         {/* Bottom: seguidors + avatars en comú */}
         <div style={{ marginTop: 'auto', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-            {(tipster._followerCount || 0).toLocaleString('es-ES')} seguidores
+            {(tipster._followerCount || 0).toLocaleString()} {t('tipsters.followers')}
           </div>
           {tipster._mutualConnections > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -337,7 +340,7 @@ function TipsterCard({ tipster, isFollowing, isMutual, onFollow, onUnfollow, onC
                 </div>
               )}
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                En común{tipster._mutualConnections > 3 ? ` +${tipster._mutualConnections - tipster._mutualAvatars?.length || tipster._mutualConnections}` : ''}
+                {t('tipsters.inCommon')}{tipster._mutualConnections > 3 ? ` +${tipster._mutualConnections - tipster._mutualAvatars?.length || tipster._mutualConnections}` : ''}
               </span>
             </div>
           )}
@@ -395,6 +398,7 @@ function enrichWithStats(profiles, bets) {
 }
 
 export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefreshUser }) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('sugeridos')
   const [query, setQuery]         = useState('')
 
@@ -741,19 +745,19 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       {/* Títol */}
       <div style={{ marginBottom: '20px' }}>
         <h2 style={{ fontSize: 'clamp(20px, 2.5vw, 28px)', fontWeight: 700, marginBottom: '4px' }}>Tipsters</h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>Descubre los mejores pronosticadores</p>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>{t('tipsters.subtitle')}</p>
       </div>
 
       {/* Fila: tabs esquerra + sort dreta */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '6px', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '4px' }}>
           {[
-            { id: 'sugeridos', label: 'Sugeridos' },
-            { id: 'siguiendo', label: 'Siguiendo' },
-          ].map(t => (
-            <button key={t.id} onClick={() => handleTabChange(t.id)}
-              style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: activeTab === t.id ? 'var(--color-primary)' : 'transparent', color: activeTab === t.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-              {t.label}
+            { id: 'sugeridos', labelKey: 'tipsters.tabs.suggested' },
+            { id: 'siguiendo', labelKey: 'tipsters.tabs.following' },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => handleTabChange(tab.id)}
+              style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)', background: activeTab === tab.id ? 'var(--color-primary)' : 'transparent', color: activeTab === tab.id ? '#010906' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -763,8 +767,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
           <div style={{ position: 'relative' }}>
             <button onClick={() => setSortOpen(o => !o)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-              <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Ordenar por:</span>
-              <span>{SORT_OPTIONS.find(o => o.id === followingSort)?.label}</span>
+              <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{t('tipsters.sortBy')}:</span>
+              <span>{t(SORT_OPTIONS.find(o => o.id === followingSort)?.labelKey)}</span>
               <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transform: sortOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
             </button>
             <AnimatePresence>
@@ -776,7 +780,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                     {SORT_OPTIONS.map((opt, i) => (
                       <button key={opt.id} onClick={() => { setFollowingSort(opt.id); setSortOpen(false) }}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: followingSort === opt.id ? 'var(--color-primary-light)' : 'none', border: 'none', borderBottom: i < SORT_OPTIONS.length - 1 ? '0.5px solid var(--color-border)' : 'none', cursor: 'pointer', fontSize: '13px', fontWeight: followingSort === opt.id ? 700 : 500, color: followingSort === opt.id ? 'var(--color-primary)' : 'var(--color-text)', textAlign: 'left', fontFamily: 'var(--font-sans)' }}>
-                        {opt.label}
+                        {t(opt.labelKey)}
                         {followingSort === opt.id && <AppIcon name="check" size={12} />}
                       </button>
                     ))}
@@ -792,7 +796,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       <div style={{ position: 'relative', marginBottom: '20px' }}>
         <input
           type="text"
-          placeholder="Busca tipsters por nombre o usuario..."
+          placeholder={t('tipsters.searchPlaceholder')}
           value={query}
           onChange={e => handleSearch(e.target.value)}
           maxLength={50}
@@ -815,11 +819,11 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
       {/* Resultats de cerca */}
       {showSearch && (
         <>
-          {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '20px' }}>Buscando tipsters...</div>}
+          {searching && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '20px' }}>{t('tipsters.searching')}</div>}
           {!searching && searchResults.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '40px 20px' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}><AppIcon name="search" size={32} /></div>
-              No se encontraron tipsters con ese nombre
+              {t('tipsters.searchNoResults')}
             </div>
           )}
           {!searching && searchResults.length > 0 && (
@@ -836,7 +840,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
             <>
               {sugeridosLoading && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '60px 20px' }}>
-                  <AppIcon name="loading" size={16} /> Cargando tipsters...
+                  <AppIcon name="loading" size={16} /> {t('tipsters.loadingTipsters')}
                 </div>
               )}
               {!sugeridosLoading && (
@@ -848,11 +852,11 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', background: onlyVerified ? 'var(--color-primary-light)' : 'var(--color-bg)', border: `0.5px solid ${onlyVerified ? 'var(--color-primary-border)' : 'var(--color-border)'}`, color: onlyVerified ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '13px', fontWeight: 700, padding: '7px 14px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
                       {/* "Semàfor": punt verd quan està actiu */}
                       <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: onlyVerified ? 'var(--color-primary)' : 'var(--color-border)', boxShadow: onlyVerified ? '0 0 6px var(--color-primary)' : 'none', transition: 'all 0.15s' }} />
-                      <AppIcon name="check" size={12} /> Solo verificados
+                      <AppIcon name="check" size={12} /> {t('tipsters.onlyVerified')}
                     </button>
                     <button onClick={loadSugeridos}
                       style={{ background: 'none', border: '0.5px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '12px', fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                      <AppIcon name="refresh" size={13} /> Actualizar
+                      <AppIcon name="refresh" size={13} /> {t('tipsters.refresh')}
                     </button>
                   </div>
 
@@ -863,7 +867,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                     ) : (
                       <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
                         <div style={{ marginBottom: '12px' }}><AppIcon name="check" size={40} color="var(--color-primary)" /></div>
-                        <div style={{ fontWeight: 600 }}>No hay tipsters verificados por ahora</div>
+                        <div style={{ fontWeight: 600 }}>{t('tipsters.noVerified')}</div>
                       </div>
                     )
                   ) : (() => {
@@ -879,8 +883,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                     if (hasCommon && hasDiscover) {
                       return (
                         <div className="tipsters-pair-grid">
-                          <div>{sectionHead('En común')}<TipsterGrid tipsters={contactTipsters} {...cardCallbacks} /></div>
-                          <div>{sectionHead('Descubre')}<TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} /></div>
+                          <div>{sectionHead(t('tipsters.inCommonSection'))}<TipsterGrid tipsters={contactTipsters} {...cardCallbacks} /></div>
+                          <div>{sectionHead(t('tipsters.discover'))}<TipsterGrid tipsters={forYouTipsters} {...cardCallbacks} /></div>
                         </div>
                       )
                     }
@@ -888,7 +892,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       // Una sola secció → ample complet
                       return (
                         <div>
-                          {sectionHead(hasCommon ? 'En común' : 'Descubre')}
+                          {sectionHead(hasCommon ? t('tipsters.inCommonSection') : t('tipsters.discover'))}
                           <TipsterGrid tipsters={hasCommon ? contactTipsters : forYouTipsters} {...cardCallbacks} />
                         </div>
                       )
@@ -897,8 +901,8 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
                       return (
                         <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
                           <div style={{ marginBottom: '12px' }}><AppIcon name="tipsters" size={40} /></div>
-                          <div style={{ fontWeight: 600 }}>No hay más tipsters por descubrir</div>
-                          <div style={{ fontSize: '13px', marginTop: '6px' }}>¡Ya sigues a todos los tipsters activos!</div>
+                          <div style={{ fontWeight: 600 }}>{t('tipsters.noMoreTipsters')}</div>
+                          <div style={{ fontSize: '13px', marginTop: '6px' }}>{t('tipsters.followedAll')}</div>
                         </div>
                       )
                     }
@@ -912,15 +916,15 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
           {/* ── SIGUIENDO ── */}
           {activeTab === 'siguiendo' && (
             <>
-              {followingLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><AppIcon name="loading" size={16} /> Cargando...</div>}
+              {followingLoading && <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><AppIcon name="loading" size={16} /> {t('common.loading')}</div>}
 
               {!followingLoading && following === null && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
                   <div style={{ marginBottom: '12px' }}><AppIcon name="warning" size={32} /></div>
-                  <div style={{ fontWeight: 600, marginBottom: '12px' }}>No se han podido cargar los tipsters</div>
+                  <div style={{ fontWeight: 600, marginBottom: '12px' }}>{t('tipsters.loadError')}</div>
                   <button onClick={loadSiguiendo}
                     style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '10px 22px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                    Reintentar
+                    {t('tipsters.retry')}
                   </button>
                 </div>
               )}
@@ -928,11 +932,11 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
               {!followingLoading && following !== null && following.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '60px 20px' }}>
                   <div style={{ marginBottom: '12px' }}><AppIcon name="user" size={40} /></div>
-                  <div style={{ fontWeight: 600 }}>Aún no sigues a nadie</div>
-                  <div style={{ fontSize: '13px', marginTop: '6px' }}>Descubre tipsters en la pestaña Sugeridos</div>
+                  <div style={{ fontWeight: 600 }}>{t('tipsters.notFollowingAnyone')}</div>
+                  <div style={{ fontSize: '13px', marginTop: '6px' }}>{t('tipsters.discoverInSugeridos')}</div>
                   <button onClick={() => handleTabChange('sugeridos')}
                     style={{ marginTop: '16px', background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '10px 22px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-sans)' }}>
-                    Ver sugeridos
+                    {t('tipsters.seeSuggested')}
                   </button>
                 </div>
               )}
@@ -960,12 +964,12 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
               style={{ maxWidth: '480px' }}>
 
               <div className="modal-header">
-                <div className="modal-title">Editar ficha</div>
+                <div className="modal-title">{t('tipsters.editCard')}</div>
                 <button className="modal-close" onClick={() => { setShowCardEdit(false); setEditTheme(myProfile.card_theme || 0) }}>×</button>
               </div>
 
               <div style={{ marginBottom: '24px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>Vista previa</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>{t('tipsters.preview')}</div>
                 {/* Mateixa card que veuen els altres, en mode previsualització amb el tema editat */}
                 <TipsterCard
                   tipster={{
@@ -981,7 +985,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
               </div>
 
               <div style={{ marginBottom: '28px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Tema</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>{t('tipsters.theme')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                   {THEME_STYLES.map((thStyle, i) => {
                     const isSelected = editTheme === i
@@ -1003,7 +1007,7 @@ export default function Tipsters({ user, onNavigateToChannel, onStartDM, onRefre
 
               <button onClick={handleSaveTheme} disabled={savingTheme}
                 style={{ width: '100%', background: savingTheme ? 'var(--color-bg-soft)' : 'var(--color-primary)', color: savingTheme ? 'var(--color-text-muted)' : '#010906', border: 'none', padding: '13px', borderRadius: 'var(--radius-md)', cursor: savingTheme ? 'default' : 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)' }}>
-                {savingTheme ? 'Guardando...' : 'Guardar'}
+                {savingTheme ? t('tipsters.saving') : t('common.save')}
               </button>
             </motion.div>
           </motion.div>

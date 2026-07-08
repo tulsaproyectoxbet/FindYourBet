@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../lib/textLimits'
 import AppIcon from '../../components/ui/AppIcon'
@@ -7,17 +8,18 @@ import AppIcon from '../../components/ui/AppIcon'
 const inputStyle = { width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', padding: '12px 14px', borderRadius: 'var(--radius-md)', outline: 'none', boxSizing: 'border-box' }
 
 const STATUS_CONFIG = {
-  pending:  { label: 'Pendiente',  color: 'var(--color-warning)',  bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
-  resolved: { label: 'Arreglado',  color: 'var(--color-primary)', bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
-  accepted: { label: 'Aceptada',   color: 'var(--color-primary)', bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
-  rejected: { label: 'Rechazado', color: 'var(--color-error)',    bg: 'var(--color-error-light)',   border: 'var(--color-error-border)' },
+  pending:  { labelKey: 'contact.statusPending',  color: 'var(--color-warning)',  bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
+  resolved: { labelKey: 'contact.statusResolved', color: 'var(--color-primary)', bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
+  accepted: { labelKey: 'contact.statusAccepted', color: 'var(--color-primary)', bg: 'var(--color-primary-light)', border: 'var(--color-primary-border)' },
+  rejected: { labelKey: 'contact.statusRejected', color: 'var(--color-error)',    bg: 'var(--color-error-light)',   border: 'var(--color-error-border)' },
 }
 
 function StatusBadge({ status }) {
+  const { t } = useTranslation()
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   return (
     <span style={{ fontSize: '11px', fontWeight: 700, color: cfg.color, background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: 'var(--radius-full)', padding: '2px 10px' }}>
-      {cfg.label}
+      {t(cfg.labelKey)}
     </span>
   )
 }
@@ -29,6 +31,7 @@ const SectionHeader = ({ children }) => (
 )
 
 function MisPeticiones({ user }) {
+  const { t } = useTranslation()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
@@ -42,46 +45,46 @@ function MisPeticiones({ user }) {
       .then(({ data }) => { setTickets(data || []); setLoading(false) })
   }, [user?.id])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> {t('contact.loading')}</div>
   if (!tickets.length) return (
     <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-      No tienes peticiones enviadas aún.
+      {t('contact.noRequests')}
     </div>
   )
 
-  const pending = tickets.filter(t => (t.status || 'pending') === 'pending')
-  const history = tickets.filter(t => (t.status || 'pending') !== 'pending')
+  const pending = tickets.filter(ticket => (ticket.status || 'pending') === 'pending')
+  const history = tickets.filter(ticket => (ticket.status || 'pending') !== 'pending')
 
-  const renderItem = (t) => (
-    <div key={t.id} style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <div onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+  const renderItem = (ticket) => (
+    <div key={ticket.id} style={{ background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+      <div onClick={() => setExpanded(expanded === ticket.id ? null : ticket.id)}
         style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+          <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            {new Date(t.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            {new Date(ticket.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
-        <StatusBadge status={t.status} />
-        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', flexShrink: 0 }}>{expanded === t.id ? '▲' : '▼'}</span>
+        <StatusBadge status={ticket.status} />
+        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', flexShrink: 0 }}>{expanded === ticket.id ? '▲' : '▼'}</span>
       </div>
-      {expanded === t.id && (
+      {expanded === ticket.id && (
         <div style={{ padding: '0 16px 14px', borderTop: '0.5px solid var(--color-border)' }}>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.7px' }}>Tu mensaje</div>
-          <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{t.message}</div>
-          {t.image_url && (
-            <a href={t.image_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '10px' }}>
-              <img src={t.image_url} alt="Adjunto" style={{ maxWidth: '240px', maxHeight: '200px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.7px' }}>{t('contact.yourMessage')}</div>
+          <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{ticket.message}</div>
+          {ticket.image_url && (
+            <a href={ticket.image_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '10px' }}>
+              <img src={ticket.image_url} alt={t('contact.attachedAlt')} style={{ maxWidth: '240px', maxHeight: '200px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
             </a>
           )}
-          {t.admin_response ? (
+          {ticket.admin_response ? (
             <div style={{ marginTop: '12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> Respuesta de FYB</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{t.admin_response}</div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> {t('contact.fybResponse')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{ticket.admin_response}</div>
             </div>
-          ) : t.status && t.status !== 'pending' && (
+          ) : ticket.status && ticket.status !== 'pending' && (
             <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px' }}>
-              La petición ya ha sido determinada.
+              {t('contact.requestResolved')}
             </div>
           )}
         </div>
@@ -91,15 +94,15 @@ function MisPeticiones({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> Pendientes ({pending.length})</span></SectionHeader>
+      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> {t('contact.pending', { count: pending.length })}</span></SectionHeader>
       {pending.length === 0
-        ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>No tienes peticiones pendientes.</div>
-        : pending.map(renderItem)}
+        ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>{t('contact.noPending')}</div>
+        : pending.map(ticket => renderItem(ticket))}
 
       {history.length > 0 && (
         <>
-          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> Historial ({history.length})</span></SectionHeader>
-          {history.map(renderItem)}
+          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> {t('contact.history', { count: history.length })}</span></SectionHeader>
+          {history.map(ticket => renderItem(ticket))}
         </>
       )}
     </div>
@@ -107,6 +110,7 @@ function MisPeticiones({ user }) {
 }
 
 function MisSugerencias({ user }) {
+  const { t } = useTranslation()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
@@ -120,10 +124,10 @@ function MisSugerencias({ user }) {
       .then(({ data }) => { setItems(data || []); setLoading(false) })
   }, [user?.id])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> Cargando...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><AppIcon name="loading" size={14} /> {t('contact.loading')}</div>
   if (!items.length) return (
     <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-      No tienes sugerencias enviadas aún.
+      {t('contact.noSuggestions')}
     </div>
   )
 
@@ -139,7 +143,7 @@ function MisSugerencias({ user }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{header}</div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              {new Date(s.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {new Date(s.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
           <StatusBadge status={s.status || 'pending'} />
@@ -147,21 +151,21 @@ function MisSugerencias({ user }) {
         </div>
         {expanded === s.id && (
           <div style={{ padding: '0 16px 14px', borderTop: '0.5px solid var(--color-border)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.7px' }}>Tu sugerencia</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.7px' }}>{t('contact.yourSuggestion')}</div>
             <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{s.message}</div>
             {s.image_url && (
               <a href={s.image_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '10px' }}>
-                <img src={s.image_url} alt="Adjunto" style={{ maxWidth: '240px', maxHeight: '200px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
+                <img src={s.image_url} alt={t('contact.attachedAlt')} style={{ maxWidth: '240px', maxHeight: '200px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', cursor: 'pointer' }} />
               </a>
             )}
             {s.admin_response ? (
               <div style={{ marginTop: '12px', background: 'var(--color-primary-light)', border: '0.5px solid var(--color-primary-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> Respuesta de FYB</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.7px', display: 'flex', alignItems: 'center', gap: '4px' }}><AppIcon name="social" size={11} /> {t('contact.fybResponse')}</div>
                 <div style={{ fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{s.admin_response}</div>
               </div>
             ) : s.status && s.status !== 'pending' && (
               <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px' }}>
-                La sugerencia ya ha sido determinada.
+                {t('contact.suggestionResolved')}
               </div>
             )}
           </div>
@@ -172,15 +176,15 @@ function MisSugerencias({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> Pendientes ({pending.length})</span></SectionHeader>
+      <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="loading" size={11} /> {t('contact.pending', { count: pending.length })}</span></SectionHeader>
       {pending.length === 0
-        ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>No tienes sugerencias pendientes.</div>
-        : pending.map(renderItem)}
+        ? <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '6px 4px' }}>{t('contact.noPendingSuggestions')}</div>
+        : pending.map(s => renderItem(s))}
 
       {history.length > 0 && (
         <>
-          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> Historial ({history.length})</span></SectionHeader>
-          {history.map(renderItem)}
+          <SectionHeader><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><AppIcon name="historial" size={11} /> {t('contact.history', { count: history.length })}</span></SectionHeader>
+          {history.map(s => renderItem(s))}
         </>
       )}
     </div>
@@ -188,6 +192,7 @@ function MisSugerencias({ user }) {
 }
 
 function RedesSoporte({ user }) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [problem, setProblem] = useState('')
   const [imageFile, setImageFile] = useState(null)
@@ -198,8 +203,8 @@ function RedesSoporte({ user }) {
   const handleImageChange = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('image/')) { alert('Solo se permiten imágenes'); return }
-    if (f.size > 5 * 1024 * 1024) { alert('Máximo 5MB'); return }
+    if (!f.type.startsWith('image/')) { alert(t('contact.onlyImages')); return }
+    if (f.size > 5 * 1024 * 1024) { alert(t('contact.maxSize')); return }
     setImageFile(f)
     setImagePreview(URL.createObjectURL(f))
   }
@@ -232,13 +237,13 @@ function RedesSoporte({ user }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>
       <div className="page-header">
-        <h2>Redes sociales & Soporte</h2>
-        <p>Síguenos y contáctanos por el canal que prefieras.</p>
+        <h2>{t('contact.socialSupport')}</h2>
+        <p>{t('contact.socialSubtitle')}</p>
       </div>
 
       <div style={{ marginBottom: '24px', maxWidth: '360px' }}>
         <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
-          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="phone" size={15} /> Redes sociales</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="phone" size={15} /> {t('contact.socialNetworks')}</div>
           {[
             {
               name: 'X', handle: '@fyourbet', url: 'https://x.com/fyourbet',
@@ -282,38 +287,38 @@ function RedesSoporte({ user }) {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             style={{ textAlign: 'center', padding: '24px', color: 'var(--color-primary)' }}>
             <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={36} color="var(--color-primary)" /></div>
-            <div style={{ fontWeight: 600, fontSize: '15px' }}>¡Mensaje recibido!</div>
-            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>Te responderemos en menos de 24h. Puedes seguir el estado en "Estado de mi petición".</div>
+            <div style={{ fontWeight: 600, fontSize: '15px' }}>{t('contact.messageSent')}</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>{t('contact.messageSentDesc')}</div>
           </motion.div>
         ) : (
           <>
-            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>¿Tienes un problema?</div>
+            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>{t('contact.problemTitle')}</div>
             <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '20px', marginTop: 0 }}>
-              Cuéntanos qué ha pasado con el mayor detalle posible y lo resolveremos lo antes posible.
+              {t('contact.problemDesc')}
             </p>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Título</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>{t('contact.titleLabel')}</label>
               <input
                 value={title}
                 onChange={e => setTitle(stripEmojis(e.target.value))}
-                placeholder="Resume tu problema en una frase..."
+                placeholder={t('contact.titlePlaceholder')}
                 maxLength={100}
                 style={{ ...inputStyle }}
               />
             </div>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Explícanos con detalle tu problema</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>{t('contact.detailLabel')}</label>
               <textarea
                 rows={5}
                 value={problem}
                 onChange={e => setProblem(clampLines(stripEmojis(e.target.value), LINE_LIMIT.FORM))}
-                placeholder="Describe paso a paso qué ha ocurrido, qué esperabas y qué ha pasado en su lugar..."
+                placeholder={t('contact.detailPlaceholder')}
                 maxLength={3000}
                 style={{ ...inputStyle, resize: 'vertical' }}
               />
             </div>
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Imagen (opcional)</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>{t('contact.imageLabel')}</label>
               {imagePreview ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                   <img src={imagePreview} alt="" style={{ maxWidth: '200px', maxHeight: '160px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }} />
@@ -322,14 +327,14 @@ function RedesSoporte({ user }) {
                 </div>
               ) : (
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                  <AppIcon name="camera" size={14} /> Adjuntar imagen
+                  <AppIcon name="camera" size={14} /> {t('contact.attachImage')}
                   <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                 </label>
               )}
             </div>
             <button onClick={handleSend} disabled={!title.trim() || !problem.trim() || loading}
               style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)', opacity: (!title.trim() || !problem.trim() || loading) ? 0.5 : 1 }}>
-              {loading ? 'Enviando...' : 'Enviar problema'}
+              {loading ? t('contact.sending') : t('contact.sendProblem')}
             </button>
           </>
         )}
@@ -337,9 +342,9 @@ function RedesSoporte({ user }) {
 
       {/* Estat de les peticions */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', maxWidth: '560px' }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="historial" size={16} /> Estado de mi petición</div>
+        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="historial" size={16} /> {t('contact.requestStatus')}</div>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: 0, marginBottom: '16px' }}>
-          Aquí puedes consultar el estado de todos tus problemas enviados y ver si el equipo te ha respondido.
+          {t('contact.requestStatusDesc')}
         </p>
         <MisPeticiones user={user} />
       </div>
@@ -348,6 +353,7 @@ function RedesSoporte({ user }) {
 }
 
 function Sugerencias({ user }) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [imageFile, setImageFile] = useState(null)
@@ -358,8 +364,8 @@ function Sugerencias({ user }) {
   const handleImageChange = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('image/')) { alert('Solo se permiten imágenes'); return }
-    if (f.size > 5 * 1024 * 1024) { alert('Máximo 5MB'); return }
+    if (!f.type.startsWith('image/')) { alert(t('contact.onlyImages')); return }
+    if (f.size > 5 * 1024 * 1024) { alert(t('contact.maxSize')); return }
     setImageFile(f)
     setImagePreview(URL.createObjectURL(f))
   }
@@ -390,8 +396,8 @@ function Sugerencias({ user }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>
       <div className="page-header">
-        <h2>Ayúdanos a mejorar</h2>
-        <p>Tu opinión construye FindYourBet.</p>
+        <h2>{t('contact.suggestionsTitle')}</h2>
+        <p>{t('contact.suggestionsSubtitle')}</p>
       </div>
 
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', maxWidth: '560px', marginBottom: '24px' }}>
@@ -400,30 +406,30 @@ function Sugerencias({ user }) {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             style={{ textAlign: 'center', padding: '32px', color: 'var(--color-primary)' }}>
             <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={40} color="var(--color-primary)" /></div>
-            <div style={{ fontWeight: 600, fontSize: '16px' }}>¡Gracias por tu sugerencia!</div>
-            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>El equipo de FYB la revisará y, si encaja con la visión de la plataforma, la implementará. Puedes seguir el estado en "Estado de mi sugerencia".</div>
+            <div style={{ fontWeight: 600, fontSize: '16px' }}>{t('contact.suggestionSent')}</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '8px' }}>{t('contact.suggestionSentDesc')}</div>
           </motion.div>
         ) : (
           <>
             <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '20px', marginTop: 0 }}>
-              ¿Echas algo en falta? ¿Tienes una idea que haría FYB mejor? Cuéntanosla. Leemos todas las sugerencias y las mejores acaban convirtiéndose en funcionalidades reales de la plataforma.
+              {t('contact.suggestionsDesc')}
             </p>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Título</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>{t('contact.titleLabel')}</label>
               <input
                 value={title}
                 onChange={e => setTitle(stripEmojis(e.target.value))}
-                placeholder="Resume tu idea en una frase..."
+                placeholder={t('contact.titleSuggestionPlaceholder')}
                 maxLength={100}
                 style={{ ...inputStyle }}
               />
             </div>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Tu sugerencia</label>
-              <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={5} placeholder="Cuéntanos tu idea con detalle..." value={message} onChange={e => setMessage(clampLines(stripEmojis(e.target.value), LINE_LIMIT.FORM))} maxLength={3000} />
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>{t('contact.suggestionLabel')}</label>
+              <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={5} placeholder={t('contact.suggestionPlaceholder')} value={message} onChange={e => setMessage(clampLines(stripEmojis(e.target.value), LINE_LIMIT.FORM))} maxLength={3000} />
             </div>
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Imagen (opcional)</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>{t('contact.imageLabel')}</label>
               {imagePreview ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                   <img src={imagePreview} alt="" style={{ maxWidth: '200px', maxHeight: '160px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)' }} />
@@ -432,14 +438,14 @@ function Sugerencias({ user }) {
                 </div>
               ) : (
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--color-bg-soft)', border: '0.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                  <AppIcon name="camera" size={14} /> Adjuntar imagen
+                  <AppIcon name="camera" size={14} /> {t('contact.attachImage')}
                   <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                 </label>
               )}
             </div>
             <button onClick={handleSend} disabled={!title.trim() || !message.trim() || loading}
               style={{ background: 'var(--color-primary)', color: '#010906', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)', opacity: (!title.trim() || !message.trim() || loading) ? 0.5 : 1 }}>
-              {loading ? 'Enviando...' : 'Enviar sugerencia'}
+              {loading ? t('contact.sending') : t('contact.sendSuggestion')}
             </button>
           </>
         )}
@@ -447,9 +453,9 @@ function Sugerencias({ user }) {
 
       {/* Estat de les suggerències de l'usuari */}
       <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '24px', maxWidth: '560px' }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="sugerencias" size={16} /> Estado de mi sugerencia</div>
+        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="sugerencias" size={16} /> {t('contact.suggestionStatus')}</div>
         <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: 0, marginBottom: '16px' }}>
-          Aquí puedes consultar el estado de todas tus sugerencias y ver si el equipo te ha respondido.
+          {t('contact.suggestionStatusDesc')}
         </p>
         <MisSugerencias user={user} />
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
 import AppIcon from '../../../components/ui/AppIcon'
@@ -9,14 +10,15 @@ import AppIcon from '../../../components/ui/AppIcon'
 export const REPORT_THRESHOLD = 3
 
 const REASONS = [
-  { id: 'resultado_manipulado', label: 'Resultado manipulado', desc: 'Ha marcado el pick como ganado/perdido incorrectamente' },
-  { id: 'cuota_editada',        label: 'Cuota editada',        desc: 'La cuota fue modificada después de publicar el pick' },
-  { id: 'informacion_falsa',    label: 'Información falsa',    desc: 'Datos del evento o mercado incorrectos o inventados' },
-  { id: 'pick_duplicado',       label: 'Pick duplicado',       desc: 'Este pick ya fue publicado anteriormente' },
-  { id: 'otros',                label: 'Otros',                desc: 'Otro motivo — explícalo en el campo de abajo' },
+  { id: 'resultado_manipulado', labelKey: 'reportPick.resultManipulated', descKey: 'reportPick.resultManipulatedDesc' },
+  { id: 'cuota_editada',        labelKey: 'reportPick.oddsEdited',        descKey: 'reportPick.oddsEditedDesc' },
+  { id: 'informacion_falsa',    labelKey: 'reportPick.falseInfo',         descKey: 'reportPick.falseInfoDesc' },
+  { id: 'pick_duplicado',       labelKey: 'reportPick.duplicate',         descKey: 'reportPick.duplicateDesc' },
+  { id: 'otros',                labelKey: 'reportPick.other',             descKey: 'reportPick.otherDesc' },
 ]
 
 export default function ReportPickModal({ bet, currentUser, onClose }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,9 +43,9 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
 
     if (insertErr) {
       if (insertErr.code === '23505') {
-        setError('Ya has reportado este pick anteriormente.')
+        setError(t('reportPick.alreadyReported'))
       } else {
-        setError('Error al enviar el reporte. Inténtalo de nuevo.')
+        setError(t('reportPick.errorSend'))
       }
       setLoading(false)
       return
@@ -79,23 +81,23 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
           {done ? (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
               <div style={{ marginBottom: '12px' }}><AppIcon name="success" size={36} color="var(--color-primary)" /></div>
-              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>Reporte enviado</div>
+              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>{t('reportPick.sent')}</div>
               <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: '20px' }}>
-                Lo revisaremos lo antes posible. Si el pick acumula suficientes reportes, quedará suspendido automáticamente hasta que lo verifiquemos.
+                {t('reportPick.sentDesc')}
               </div>
               <button onClick={onClose}
                 style={{ padding: '10px 28px', background: 'var(--color-primary)', color: '#010906', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)' }}>
-                Cerrar
+                {t('common.close')}
               </button>
             </div>
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={15} /> Reportar pick</div>
+                <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><AppIcon name="flag" size={15} /> {t('reportPick.title')}</div>
                 <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '0 4px', display: 'flex' }}><AppIcon name="close" size={18} /></button>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '18px' }}>
-                Pick: <strong>{bet.event || 'Pick de foto'}</strong>
+                Pick: <strong>{bet.event || t('reportPick.photoPickLabel')}</strong>
               </div>
 
               {/* Motius predefinits */}
@@ -105,8 +107,8 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
                     style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `0.5px solid ${reason === r.id ? 'var(--color-error)' : 'var(--color-border)'}`, background: reason === r.id ? 'rgba(239,68,68,0.06)' : 'var(--color-bg-soft)', cursor: 'pointer', transition: 'all 0.12s' }}>
                     <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: `2px solid ${reason === r.id ? 'var(--color-error)' : 'var(--color-border)'}`, background: reason === r.id ? 'var(--color-error)' : 'transparent', flexShrink: 0, marginTop: '2px' }} />
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: reason === r.id ? 700 : 500, color: reason === r.id ? 'var(--color-error)' : 'var(--color-text)' }}>{r.label}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>{r.desc}</div>
+                      <div style={{ fontSize: '13px', fontWeight: reason === r.id ? 700 : 500, color: reason === r.id ? 'var(--color-error)' : 'var(--color-text)' }}>{t(r.labelKey)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>{t(r.descKey)}</div>
                     </div>
                   </div>
                 ))}
@@ -115,12 +117,12 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
               {/* Camp de detalls — sempre visible però obligatori per "otros" */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
-                  Detalles {reason === 'otros' ? '*' : '(opcional)'}
+                  {t('reportPick.detailsLabel')} {reason === 'otros' ? '*' : t('reportPick.optional')}
                 </label>
                 <textarea
                   value={details}
                   onChange={e => setDetails(clampLines(stripEmojis(e.target.value), LINE_LIMIT.FORM))}
-                  placeholder="Explica con más detalle qué ha pasado..."
+                  placeholder={t('reportPick.detailsPlaceholder')}
                   rows={3}
                   maxLength={500}
                   style={{ width: '100%', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
@@ -136,11 +138,11 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={handleSubmit} disabled={!canSubmit || loading}
                   style={{ flex: 1, padding: '11px', background: canSubmit ? 'var(--color-error)' : 'var(--color-bg-soft)', color: canSubmit ? '#fff' : 'var(--color-text-muted)', border: 'none', borderRadius: 'var(--radius-md)', cursor: canSubmit ? 'pointer' : 'default', fontWeight: 700, fontSize: '14px', fontFamily: 'var(--font-sans)', transition: 'all 0.15s' }}>
-                  {loading ? 'Enviando...' : 'Enviar reporte'}
+                  {loading ? t('reportPick.sending') : t('reportPick.submit')}
                 </button>
                 <button onClick={onClose}
                   style={{ padding: '11px 18px', background: 'var(--color-bg-soft)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
               </div>
             </>
