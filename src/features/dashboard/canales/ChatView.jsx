@@ -11,6 +11,8 @@ import { advanceChannelRead, getChannelReadTs } from '../../../hooks/useUnreadCh
 import { useAdminMode } from '../../../contexts/AdminModeContext'
 import { useMessages } from './hooks/useMessages'
 import { StickerPicker } from '../StickerPicker'
+import WinnerPicker from './WinnerPicker'
+import WinnerCard from './WinnerCard'
 import { VoiceRecordButton } from '../VoiceMessage'
 import { useProfileNav } from '../../../contexts/ProfileNavContext'
 import ForwardModal from '../social/ForwardModal'
@@ -19,6 +21,7 @@ import {
   parseBetMessage, parsePollMessage,
   renderMessage, parseForward, parseReply, parseEdited, parsePinnedValue,
   isBetMessage, isImageMessage, isStickerMessage, isProfileMessage, isVoiceMessage, isPollMessage, isChannelMessage,
+  isWinnerMessage, parseWinnerMessage,
   isImgTextMessage, parseImgTextMessage, ImageMessage,
   formatMsgTime, getDayLabel, DaySeparator,
 } from './messageRenderer'
@@ -928,6 +931,8 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   const [showMenu, setShowMenu] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
+  const [showWinnerPicker, setShowWinnerPicker] = useState(false)
+  const [pendingWinner, setPendingWinner] = useState(null)
   const [showExtras, setShowExtras] = useState(false)
   const [muted, setMuted] = useState(false)
   const fileInputRef = useRef(null)
@@ -1109,13 +1114,26 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   }
 
   const handleSend = async () => {
-    if (!text.trim() && !pastedImage) return
+    if (!text.trim() && !pastedImage && !pendingWinner) return
     if (editingMsg) {
       const saved = text + '[EDITED]'
       await supabase.from('channel_messages').update({ content: saved }).eq('id', editingMsg.id)
       setEditedMap(prev => ({ ...prev, [editingMsg.id]: saved }))
       setEditingMsg(null)
       setText('')
+      return
+    }
+
+    if (pendingWinner) {
+      const trimmedText = text.trim()
+      const payload = { tpl: pendingWinner, avatar: user?.avatar_url || '' }
+      if (trimmedText) payload.text = trimmedText
+      const content = `[WINNER]:${JSON.stringify(payload)}`
+      setPendingWinner(null)
+      setText('')
+      setReplyTo(null)
+      await sendMessage(content, user.id)
+      notifyChannelMembers(content)
       return
     }
 
@@ -1162,7 +1180,9 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
     ].filter((id, i, arr) => id !== user.id && arr.indexOf(id) === i)
     const stripped = content.replace(/^\[FWD[^\]]*\]:/, '').replace(/^\[REPLY:[^\]]*\]:/, '')
     let preview
-    if (stripped.startsWith('[IMG_MSG]:')) {
+    if (stripped.startsWith('[WINNER]:')) {
+      try { const wd = JSON.parse(stripped.replace('[WINNER]:', '')); preview = wd.text ? `🏆 ${wd.text}` : '🏆 Victoria' } catch { preview = '🏆 Victoria' }
+    } else if (stripped.startsWith('[IMG_MSG]:')) {
       try { preview = (JSON.parse(stripped.replace('[IMG_MSG]:', '')).text || t('chatView.image')) } catch { preview = t('chatView.image') }
     } else {
       preview = stripped.slice(0, 80)
@@ -1203,6 +1223,7 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
     return urlData.publicUrl
   }
 
+
   const uploadFile = async (file) => {
     setUploading(true)
     setUploadError('')
@@ -1221,7 +1242,14 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
   const handleFile = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    await uploadFile(file)
+    const isImg = /^image\/(jpeg|png|gif|webp)$/.test(file.type) || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name || '')
+    if (isImg) {
+      // Imatges: preview a l'input (igual que enganxar del portapapers)
+      setPastedImage({ file, previewUrl: URL.createObjectURL(file) })
+    } else {
+      // PDFs i altres: upload immediat com abans
+      await uploadFile(file)
+    }
     e.target.value = ''
   }
 
@@ -1332,11 +1360,14 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           const isBet = isBetMessage(displayContent)
           const isPoll = isPollMessage(displayContent)
           const isImage = isImageMessage(displayContent)
+          const isWinner = isWinnerMessage(displayContent)
           const isSticker = isStickerMessage(displayContent)
           const isProfile = isProfileMessage(displayContent)
           const isChannel = isChannelMessage(displayContent)
           const isVoice = isVoiceMessage(displayContent)
-          const isNobubble = isSticker || isBet || isProfile || isPoll || isChannel
+          const isNobubble = isSticker || isBet || isProfile || isPoll || isChannel || isWinner
+          const winnerData = isWinner ? parseWinnerMessage(displayContent) : null
+          const winnerHasText = !!winnerData?.text
           const timeStr = formatMsgTime(m.created_at)
           const prev = messages[i - 1]
           const showDaySep = !prev || getDayLabel(m.created_at) !== getDayLabel(prev.created_at)
@@ -1368,18 +1399,19 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                       ⋮
                     </button>
                   )}
-                  <div style={{ maxWidth: isBet || isProfile || isChannel ? '320px' : isNobubble ? 'fit-content' : isVoice ? '280px' : '70%' }}>
+                  <div style={{ width: isWinner ? '70%' : undefined, maxWidth: isWinner ? 'none' : isBet || isProfile || isChannel ? '320px' : isNobubble ? 'fit-content' : isVoice ? '280px' : '70%' }}>
                     <div style={{
                         position: 'relative',
                         background: isNobubble ? 'transparent' : isOwn ? 'var(--color-primary)' : 'var(--color-bg-soft)',
                         color: isOwn ? '#010906' : 'var(--color-text)',
-                        padding: isNobubble ? '0' : isImage ? '6px' : isVoice ? '10px 12px 22px 12px' : '7px 12px 19px 12px',
+                        padding: isNobubble ? '0' : isImage ? '0' : isVoice ? '10px 12px 22px 12px' : '7px 12px 19px 12px',
                         borderRadius: isNobubble || isImage ? 'var(--radius-lg)' : isOwn ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
                         minWidth: !isNobubble && !isImage && !isVoice ? '63px' : undefined,
+                        overflow: isImage ? 'hidden' : undefined,
                         fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap', textAlign: 'left',
-                        border: isOwn || isNobubble ? 'none' : '0.5px solid var(--color-border)',
+                        border: isOwn || isNobubble || isImage ? 'none' : '0.5px solid var(--color-border)',
                       }}>
-                      {forwardedFrom && !isNobubble && !isImage && (
+                      {forwardedFrom && !isNobubble && !isImage && !isWinner && (
                         <div style={{ fontSize: '11px', fontStyle: 'italic', opacity: 0.6, marginBottom: '5px' }}>
                           {forwardedFrom === 'dm'
                             ? t('dmview.forwarded')
@@ -1428,6 +1460,20 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
                               </span>
                             </div>
                           )
+                        : isWinner
+                        ? winnerData ? (
+                            <div style={{ position: 'relative' }}>
+                              <WinnerCard tpl={winnerData.tpl} avatar={winnerData.avatar} />
+                              <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.45)', color: '#fff', borderRadius: '6px', padding: '2px 6px', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap', backdropFilter: 'blur(4px)' }}>
+                                {timeStr}
+                              </span>
+                              {winnerHasText && (
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '28px 10px 8px', background: 'linear-gradient(transparent, rgba(0,0,0,0.65))', fontSize: '13px', color: '#fff', lineHeight: 1.4, whiteSpace: 'pre-wrap', pointerEvents: 'none' }}>
+                                  {winnerData.text}
+                                </div>
+                              )}
+                            </div>
+                          ) : null
                         : renderMessage(displayContent, handleInternalLink, isOwn, openProfile, timeStr, m.view_count || 0, handleMention)}
                       {edited && !isNobubble && !isImage && (
                         <span style={{ fontSize: '10px', opacity: 0.55, fontStyle: 'italic', marginLeft: '4px' }}>{t('chatView.edited')}</span>
@@ -1489,6 +1535,17 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
               <img src={pastedImage.previewUrl} alt="preview"
                 style={{ maxHeight: '120px', maxWidth: '220px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-primary-border)', objectFit: 'cover', display: 'block' }} />
               <button onClick={() => { URL.revokeObjectURL(pastedImage.previewUrl); setPastedImage(null) }}
+                style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '13px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Preview winner pic — queda a l'input fins que l'usuari apreta Enviar */}
+          {pendingWinner && (
+            <div style={{ position: 'relative', marginBottom: '8px', width: '180px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '0.5px solid var(--color-primary-border)' }}>
+              <WinnerCard tpl={pendingWinner} avatar={user?.avatar_url} />
+              <button onClick={() => setPendingWinner(null)}
                 style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '13px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                 ×
               </button>
@@ -1557,7 +1614,24 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
               </AnimatePresence>
             </div>
 
-            <Button onClick={handleSend} disabled={!text.trim() && !pastedImage}>{t('chatView.send')}</Button>
+            {/* Victorias: imatges composades amb l'avatar de l'usuari */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button onClick={() => { setShowWinnerPicker(v => !v); setShowStickers(false) }}
+                style={{ background: showWinnerPicker ? 'var(--color-primary-light)' : 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '11px 14px', cursor: 'pointer', color: showWinnerPicker ? 'var(--color-primary)' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>
+                <AppIcon name="trophy" size={16} />
+              </button>
+              <AnimatePresence>
+                {showWinnerPicker && (
+                  <WinnerPicker
+                    currentUser={user}
+                    onSend={(tplId) => { setPendingWinner(tplId); setShowWinnerPicker(false) }}
+                    onClose={() => setShowWinnerPicker(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+
+            <Button onClick={handleSend} disabled={!text.trim() && !pastedImage && !pendingWinner}>{t('chatView.send')}</Button>
           </div>
         </div>
       ) : (
@@ -1593,7 +1667,8 @@ export default function ChatView({ channel: initialChannel, user, onBack, member
           const isProfMsg = isProfileMessage(displayContent)
           const isPollMsg = isPollMessage(displayContent)
           const canFwd = channel.is_private ? isOwner : channel.allow_forward !== false
-          const canEdit = isOwnMsg && !forwardedFrom && !isBetMsg && !isImgMsg && !isImgTextMsg && !isStkMsg && !isVoiceMsg && !isProfMsg && !isPollMsg
+          const isWinnerMsg = isWinnerMessage(displayContent)
+          const canEdit = isOwnMsg && !forwardedFrom && !isBetMsg && !isImgMsg && !isImgTextMsg && !isStkMsg && !isVoiceMsg && !isProfMsg && !isPollMsg && !isWinnerMsg
           const canDel = isOwnMsg || isOwner || isAdmin || adminMode
           const canPin = isOwner || isAdmin || adminMode
           const readable = readableContent(displayContent, t)

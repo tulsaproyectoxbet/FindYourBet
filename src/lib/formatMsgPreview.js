@@ -6,6 +6,7 @@ export function formatMsgPreview(content) {
     .replace(/^\[REPLY:[^\]]*\]:/, '')
     .replace(/\[EDITED\]$/, '')
     .trim()
+  if (inner.startsWith('[WINNER]:'))  return '🏆 Victoria'
   if (inner.startsWith('[IMAGE]:'))   return '📷 Imagen'
   if (inner.startsWith('[IMG_MSG]:')) {
     try { const d = JSON.parse(inner.replace('[IMG_MSG]:', '')); return '📷 ' + (d.text || 'Imagen') } catch { return '📷 Imagen' }

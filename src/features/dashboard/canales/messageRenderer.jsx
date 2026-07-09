@@ -279,6 +279,10 @@ export function isPollMessage(content) { return content?.startsWith('[POLL]:') }
 export function parsePollMessage(content) {
   try { return JSON.parse(content.replace('[POLL]:', '')) } catch { return null }
 }
+export function isWinnerMessage(content) { return content?.startsWith('[WINNER]:') }
+export function parseWinnerMessage(content) {
+  try { return JSON.parse(content.replace('[WINNER]:', '')) } catch { return null }
+}
 export function isImgTextMessage(content) { return content?.startsWith('[IMG_MSG]:') }
 export function parseImgTextMessage(content) {
   try { return JSON.parse(content.replace('[IMG_MSG]:', '')) } catch { return null }
