@@ -127,7 +127,7 @@
       "history": "Historique",
       "messages": "Messages",
       "channels": "Canaux",
-      "feed": "Fil d'actualité",
+      "feed": "Feed",
       "tipsters": "Tipsters",
       "ranking": "Classement",
       "faqs": "FAQ",
@@ -135,7 +135,7 @@
       "suggestions": "Suggestions",
       "personalStats": "Statistiques personnelles",
       "socialSupport": "Réseaux sociaux et support",
-      "helpImprove": "Aidez-nous à améliorer"
+      "helpImprove": "Suggestions"
     },
     "shortcuts": {
       "title": "Raccourcis de navigation",
@@ -193,10 +193,10 @@
     "changePassword": "Changer le mot de passe",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
-    "updatePassword": "Mettre à jour le mot de passe",
+    "updatePassword": "Mettre à jour",
     "changeEmail": "Changer l'e-mail",
     "newEmail": "Nouvel e-mail",
-    "updateEmail": "Mettre à jour l'e-mail",
+    "updateEmail": "Mettre à jour",
     "legalPrivacy": "Légal et confidentialité",
     "legalDesc": "Consultez les documents légaux de FindYourBet.",
     "legalNotice": "Mentions légales",
@@ -329,7 +329,7 @@
   "ranking": {
     "periods": {
       "global": "Global",
-      "weekly": "Hebdomadaire",
+      "weekly": "Hebdo",
       "monthly": "Mensuel",
       "annual": "Annuel",
       "total": "Total"
@@ -351,7 +351,7 @@
     "friends": {
       "title": "Classement amis",
       "subtitle": "Classement de vos amis mutuels",
-      "hideMe": "Me cacher du classement",
+      "hideMe": "Me masquer",
       "noFriends": "Vous n'avez pas encore d'amis mutuels",
       "noFriendsRanking": "Pas d'amis dans le classement",
       "noFriendsSub": "Suivez des tipsters et attendez qu'ils vous suivent en retour pour voir leur classement ici.",
@@ -397,7 +397,7 @@
     "col": {
       "pos": "POS",
       "channel": "CANAL",
-      "yield": "RENDEMENT",
+      "yield": "YIELD",
       "winRate": "% RÉUSSITE",
       "wl": "V/D",
       "avgOdds": "COTE MOY.",
@@ -416,7 +416,8 @@
     "emptyForYou": "Pas de pronostics pour vous pour le moment",
     "emptyFollowingSub": "Les pronostics apparaîtront ici tant qu'ils sont en attente de résolution.",
     "emptyForYouSub": "Pas de pronostics publics en attente pour le moment.",
-    "allSeen": "Vous avez tout vu — affichage des pronostics plus anciens"
+    "allSeen": "Vous avez tout vu — affichage des pronostics plus anciens",
+    "viewChannel": "Voir le canal →"
   },
   "channels": {
     "create": "Créer un canal",
@@ -450,8 +451,8 @@
     "unpin": "Désépingler",
     "muteNotifs": "Désactiver",
     "unmuteNotifs": "Activer les notifications",
-    "moveToFolder": "Déplacer vers un dossier",
-    "deleteChat": "Supprimer la discussion",
+    "moveToFolder": "Vers un dossier",
+    "deleteChat": "Supprimer",
     "mute": "Désactiver",
     "unmute": "Activer",
     "delete": "Supprimer",
@@ -483,7 +484,7 @@
       "total": "Total",
       "anual": "Annuel",
       "mensual": "Mensuel",
-      "setmanal": "Hebdomadaire"
+      "setmanal": "Hebdo"
     },
     "statusLabel": "Statut",
     "status": {
@@ -525,7 +526,7 @@
     "viewHistorial": "Voir l'historique →",
     "loading": "Chargement...",
     "kpi": {
-      "yield": "Rendement",
+      "yield": "Yield",
       "wl": "V / D",
       "total": "Total pronostics",
       "avgOdds": "Cote moyenne",
@@ -633,7 +634,7 @@
     "namePlaceholder": "Votre nom",
     "bioPlaceholder": "Présentez-vous à la communauté en tant que tipster...",
     "saving": "Enregistrement...",
-    "saveChanges": "Enregistrer les modifications",
+    "saveChanges": "Enregistrer",
     "usernameCanChange": "Vous pouvez changer votre nom d'utilisateur",
     "usernameChangeable": "Vous pourrez le changer dans {{days}} jour(s) (ou revenir à un ancien pseudo à tout moment)",
     "dmMutual": "Abonnés mutuels uniquement",
@@ -870,8 +871,8 @@
     "oddsPlaceholder": "ex. 1.85",
     "bookieLabel": "Bookie",
     "noBookieOption": "— Non spécifié —",
-    "dateLabel": "Date et heure de l'événement",
-    "dateLabelRequired": "Date et heure de l'événement *",
+    "dateLabel": "Date & heure",
+    "dateLabelRequired": "Date & heure *",
     "stakeLabel": "Mise (1–10)",
     "stakeSub": "% du bankroll recommandé",
     "analysisLabel": "Analyse (optionnel)",
@@ -993,7 +994,7 @@
     "saving": "Enregistrement...",
     "createOffer": "+ Créer une offre",
     "newOfferBtn": "+ Nouvelle offre d'accès",
-    "pause": "Mettre en pause",
+    "pause": "Pause",
     "activate": "Activer"
   },
   "voice": {
@@ -1058,7 +1059,7 @@
       "namePlaceholder": "Nom de la chaîne",
       "descPlaceholder": "Description de la chaîne...",
       "saving": "Enregistrement...",
-      "saveChanges": "Enregistrer les modifications",
+      "saveChanges": "Enregistrer",
       "nameTaken": "Ce nom de chaîne est déjà utilisé",
       "photoError": "Erreur photo : {{msg}}",
       "privateChannel": "Chaîne privée",
@@ -1066,7 +1067,7 @@
       "statsSection": "Statistiques",
       "totalPicks": "Total picks",
       "avgOdds": "Cote moyenne",
-      "extractStats": "Extraire le tableau statistique",
+      "extractStats": "Extraire les stats",
       "configSection": "Configuration",
       "irreversible": "Action irréversible",
       "publicLink": "Lien visible publiquement",
@@ -1173,9 +1174,6 @@
     "shareChannel": "Partager le canal",
     "reported": "Canal signalé. Nous le passerons en revue prochainement."
   },
-  "feed": {
-    "viewChannel": "Voir le canal →"
-  },
   "canalPage": {
     "loading": "Chargement du canal...",
     "notFound": "Canal introuvable",
@@ -1216,9 +1214,19 @@
     "winning": "en hausse",
     "losing": "en baisse",
     "feats": "Exploits",
-    "maxOddsWon": "Cote la plus haute gagnée",
-    "maxStakeLost": "Mise la plus haute risquée",
+    "maxOddsWon": "Meilleure cote gagnée",
+    "maxStakeLost": "Mise max risquée",
     "topPicks": "Meilleurs picks",
     "bySport": "Par sport"
+  },
+  "maintenance": {
+    "title": "Maintenance en cours",
+    "subtitle": "Nous travaillons à améliorer la plateforme. Nous revenons bientôt.",
+    "estimated": "Durée estimée",
+    "indefinite": "Durée indéfinie",
+    "exit": "Quitter",
+    "scheduledFor": "Maintenance prévue à {{time}}",
+    "loginNotice": "La plateforme est en maintenance. Vous pouvez vous connecter, mais l'accès sera disponible une fois terminé.",
+    "registerNotice": "La plateforme est en maintenance. Vous pouvez vous inscrire, mais l'accès sera disponible une fois terminé."
   }
 }

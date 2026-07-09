@@ -1,13 +1,142 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { ADMIN_USER_IDS } from '../../lib/adminUsers'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../lib/textLimits'
 import AppIcon from '../../components/ui/AppIcon'
+import { usePolling } from '../../hooks/usePolling'
 
 // Emails amb accés al panell d'administració.
 // Afegir més si cal.
 const ADMIN_EMAILS = ['fyourbet@gmail.com']
+
+const DURATION_OPTIONS = [
+  { value: '',          label: 'Indefinido' },
+  { value: '30 minutos', label: '30 minutos' },
+  { value: '1 hora',    label: '1 hora' },
+  { value: '2 horas',   label: '2 horas' },
+  { value: '4 horas',   label: '4 horas' },
+]
+
+function MantenimientoTab() {
+  const [data, setData] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [duration, setDuration] = useState('')
+  const [scheduledAt, setScheduledAt] = useState('')
+  const [feedback, setFeedback] = useState(null)
+
+  useEffect(() => {
+    supabase.from('maintenance_mode').select('*').eq('id', 1).single()
+      .then(({ data: d }) => {
+        if (!d) return
+        setData(d)
+        setMsg(d.message || '')
+        setDuration(d.estimated_duration || '')
+        // datetime-local espera format "YYYY-MM-DDTHH:MM"
+        setScheduledAt(d.scheduled_at ? d.scheduled_at.slice(0, 16) : '')
+      })
+  }, [])
+
+  const save = async (overrides = {}) => {
+    setSaving(true)
+    setFeedback(null)
+    const payload = {
+      message: msg,
+      estimated_duration: duration,
+      scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      ...overrides,
+    }
+    const { error } = await supabase.from('maintenance_mode').update(payload).eq('id', 1)
+    if (!error) {
+      setData(prev => ({ ...prev, ...payload }))
+      setFeedback('Guardado ✓')
+    } else {
+      setFeedback('Error: ' + error.message)
+    }
+    setSaving(false)
+    setTimeout(() => setFeedback(null), 3000)
+  }
+
+  const toggle = () => save({ is_active: !data?.is_active })
+
+  const scheduledTriggered = data?.scheduled_at && new Date(data.scheduled_at) <= new Date()
+  const isEffectivelyActive = data?.is_active || scheduledTriggered
+
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg-soft)', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '13px', boxSizing: 'border-box' }
+  const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }
+
+  if (!data) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}><AppIcon name="loading" size={20} /></div>
+
+  return (
+    <div style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* Estat actual */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: isEffectivelyActive ? 'rgba(245,158,11,0.1)' : 'var(--color-bg-soft)', border: `1px solid ${isEffectivelyActive ? 'rgba(245,158,11,0.4)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-lg)' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '14px', color: isEffectivelyActive ? '#f59e0b' : 'var(--color-primary)' }}>
+            {isEffectivelyActive ? '⚠️ EN MANTENIMIENTO' : '✅ Plataforma operativa'}
+          </div>
+          {scheduledTriggered && !data.is_active && (
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>Activado automáticamente por programación</div>
+          )}
+          {data.scheduled_at && !scheduledTriggered && (
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+              Programado para: {new Date(data.scheduled_at).toLocaleString('es-ES')}
+            </div>
+          )}
+        </div>
+        <button onClick={toggle} disabled={saving}
+          style={{ padding: '8px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', background: isEffectivelyActive ? 'var(--color-error)' : 'var(--color-primary)', color: isEffectivelyActive ? '#fff' : '#010906', opacity: saving ? 0.6 : 1 }}>
+          {saving ? '...' : isEffectivelyActive ? 'Desactivar' : 'Activar'}
+        </button>
+      </div>
+
+      {/* Missatge */}
+      <div>
+        <label style={labelStyle}>Mensaje para los usuarios</label>
+        <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={3}
+          placeholder="Estamos trabajando para mejorar la plataforma..."
+          style={{ ...inputStyle, resize: 'vertical' }} />
+      </div>
+
+      {/* Duració estimada */}
+      <div>
+        <label style={labelStyle}>Duración estimada</label>
+        <select value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle}>
+          {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+
+      {/* Programació */}
+      <div>
+        <label style={labelStyle}>Programar inicio automático (opcional)</label>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
+            style={{ ...inputStyle, flex: 1 }} />
+          {scheduledAt && (
+            <button onClick={() => setScheduledAt('')}
+              style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg-soft)', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '12px', fontFamily: 'var(--font-sans)' }}>
+              Cancelar
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
+          Si programas una hora, el mantenimiento se activará automáticamente al llegar a esa hora (detectado por el cliente en el próximo polling).
+        </div>
+      </div>
+
+      {/* Guardar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <button onClick={() => save()} disabled={saving}
+          style={{ padding: '10px 24px', borderRadius: 'var(--radius-md)', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-sans)', background: 'var(--color-primary)', color: '#010906', opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </button>
+        {feedback && <span style={{ fontSize: '13px', color: feedback.startsWith('Error') ? 'var(--color-error)' : 'var(--color-primary)' }}>{feedback}</span>}
+      </div>
+    </div>
+  )
+}
 
 const REASON_LABELS = {
   resultado_manipulado: 'Resultado manipulado',
@@ -27,8 +156,12 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
     setLoading(false)
   }
 
+  const ratePercent = Math.round((bet._rate ?? 0) * 100)
+  const views = bet._views ?? 0
+  const isHighRate = ratePercent >= 15
+
   return (
-    <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderLeft: '3px solid var(--color-warning)', borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: '10px' }}>
+    <div style={{ background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', borderLeft: `3px solid ${isHighRate ? 'var(--color-error)' : 'var(--color-warning)'}`, borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
@@ -43,13 +176,16 @@ function ReviewCard({ bet, reports, onClear, onInvalidate }) {
               {bet.status === 'won' ? <><AppIcon name="check" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Ganada</> : bet.status === 'lost' ? <><AppIcon name="close" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Perdida</> : bet.status === 'void' ? '● Nula' : <><AppIcon name="loading" size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} /> Pendiente</>}
             </span>
           </div>
-          <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             {reports.map((r, i) => (
               <span key={i} style={{ fontSize: '11px', background: 'rgba(245,158,11,0.1)', border: '0.5px solid rgba(245,158,11,0.35)', color: 'var(--color-warning)', borderRadius: 'var(--radius-full)', padding: '2px 8px', fontWeight: 600 }}>
                 {REASON_LABELS[r.reason] || r.reason}
               </span>
             ))}
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{reports.length} reporte{reports.length !== 1 ? 's' : ''}</span>
+            {/* Taxa de denuncia: reports / vistes totals */}
+            <span style={{ fontSize: '11px', fontWeight: 700, color: isHighRate ? 'var(--color-error)' : 'var(--color-text-muted)', background: isHighRate ? 'var(--color-error-light)' : 'var(--color-bg-soft)', border: `0.5px solid ${isHighRate ? 'var(--color-error-border)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-full)', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <AppIcon name="flag" size={10} /> {ratePercent}% · {reports.length} de {views} vista{views !== 1 ? 's' : ''}
+            </span>
           </div>
         </div>
 
@@ -850,7 +986,7 @@ export default function AdminPanel({ user }) {
   const [reviewBets, setReviewBets] = useState([])
   const [reportsByBet, setReportsByBet] = useState({})
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('review')
+  const [activeTab, setActiveTab] = useState(null)
 
   // Comprova accés admin per email
   const isAdmin = ADMIN_EMAILS.includes(user?.email)
@@ -859,23 +995,28 @@ export default function AdminPanel({ user }) {
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0)
   const [suggestionsCount, setSuggestionsCount] = useState(0)
   const [userReportsCount, setUserReportsCount] = useState(0)
+  const [reviewCount, setReviewCount] = useState(0)
 
-  useEffect(() => {
+  const fetchCounts = useCallback(async () => {
     if (!isAdmin) return
-    supabase.from('support_tickets').select('id', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .then(({ count }) => setPendingTicketsCount(count || 0))
-    supabase.from('suggestions').select('id', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .then(({ count }) => setSuggestionsCount(count || 0))
-    supabase.from('user_reports').select('id', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .then(({ count }) => setUserReportsCount(count || 0))
+    const [tickets, suggestions, reports, review] = await Promise.all([
+      supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('suggestions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('user_reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('bets').select('id', { count: 'exact', head: true }).eq('review_status', 'review'),
+    ])
+    setPendingTicketsCount(tickets.count || 0)
+    setSuggestionsCount(suggestions.count || 0)
+    setUserReportsCount(reports.count || 0)
+    setReviewCount(review.count || 0)
   }, [isAdmin])
+
+  // Fetch inicial + polling cada 60s (silenciós, sense loading)
+  useEffect(() => { fetchCounts() }, [fetchCounts])
+  usePolling(fetchCounts, 60000, isAdmin)
 
   const fetchReviewBets = async () => {
     setLoading(true)
-    // Picks en revisió pendent
     const { data: bets } = await supabase
       .from('bets')
       .select('*')
@@ -886,11 +1027,10 @@ export default function AdminPanel({ user }) {
     if (!bets?.length) { setReviewBets([]); setReportsByBet({}); setLoading(false); return }
 
     const betIds = bets.map(b => b.id)
-    const { data: reports } = await supabase
-      .from('bet_reports')
-      .select('bet_id, reason, details, created_at')
-      .in('bet_id', betIds)
-      .order('created_at', { ascending: false })
+    const [{ data: reports }, viewsResult] = await Promise.all([
+      supabase.from('bet_reports').select('bet_id, reason, details, created_at').in('bet_id', betIds).order('created_at', { ascending: false }),
+      supabase.rpc('get_bet_total_views_batch', { p_bet_ids: betIds }),
+    ])
 
     const rMap = {}
     for (const r of reports || []) {
@@ -898,7 +1038,23 @@ export default function AdminPanel({ user }) {
       rMap[r.bet_id].push(r)
     }
 
-    setReviewBets(bets)
+    const viewsMap = {}
+    for (const v of viewsResult.data || []) {
+      viewsMap[v.bet_id] = Number(v.view_count)
+    }
+
+    // Priority = taxa × antiguitat (hores des del primer report): puja picks virals + antics
+    const withPriority = bets.map(bet => {
+      const betReports = rMap[bet.id] || []
+      const views = viewsMap[bet.id] || 0
+      const rate = views > 0 ? betReports.length / views : (betReports.length > 0 ? 1 : 0)
+      const oldestTs = betReports.length ? betReports[betReports.length - 1].created_at : bet.created_at
+      const hoursOld = (Date.now() - new Date(oldestTs).getTime()) / 3600000
+      return { ...bet, _rate: rate, _views: views, _reportCount: betReports.length, _priority: rate * hoursOld }
+    })
+    withPriority.sort((a, b) => b._priority - a._priority)
+
+    setReviewBets(withPriority)
     setReportsByBet(rMap)
     setLoading(false)
   }
@@ -907,12 +1063,14 @@ export default function AdminPanel({ user }) {
     // Validat → review_status = 'cleared', torna a comptar a les estadístiques
     await supabase.from('bets').update({ review_status: 'cleared' }).eq('id', betId)
     setReviewBets(prev => prev.filter(b => b.id !== betId))
+    setReviewCount(prev => Math.max(0, prev - 1))
   }
 
   const handleInvalidate = async (betId) => {
     // Invalidat → review_status = 'invalid', exclòs permanentment de les estadístiques
     await supabase.from('bets').update({ review_status: 'invalid' }).eq('id', betId)
     setReviewBets(prev => prev.filter(b => b.id !== betId))
+    setReviewCount(prev => Math.max(0, prev - 1))
   }
 
   // useEffect després de totes les funcions per evitar "accessed before declared"
@@ -930,35 +1088,75 @@ export default function AdminPanel({ user }) {
     )
   }
 
+  const SECTIONS = [
+    { id: 'analiticas',    icon: 'stats',       label: 'Analíticas',        desc: 'Métricas y datos de la plataforma' },
+    { id: 'review',        icon: 'flag',        label: 'Picks en revisión', desc: 'Revisa picks reportados por usuarios', badge: reviewCount },
+    { id: 'problemas',     icon: 'warning',     label: 'Problemas',         desc: 'Tickets de soporte pendientes', badge: pendingTicketsCount },
+    { id: 'sugerencias',   icon: 'message',     label: 'Sugerencias',       desc: 'Sugerencias enviadas por usuarios', badge: suggestionsCount },
+    { id: 'verificados',   icon: 'shieldCheck', label: 'Usuarios',          desc: 'Gestión y verificación de cuentas' },
+    { id: 'reportes',      icon: 'users',       label: 'Reportes',          desc: 'Reportes de usuarios entre sí', badge: userReportsCount },
+    { id: 'mantenimiento', icon: 'tool',        label: 'Mantenimiento',     desc: 'Activar o programar modo mantenimiento' },
+  ]
+
+  const currentSection = SECTIONS.find(s => s.id === activeTab)
+
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontWeight: 700, fontSize: '22px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}><AppIcon name="settings" size={20} /> Centro de control</h2>
-        <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Gestión interna de FYB.</p>
-      </div>
 
-      {/* Pestanyes del panell */}
-      <div style={{ display: 'flex', gap: '4px', borderBottom: '0.5px solid var(--color-border)', marginBottom: '20px' }}>
-        {[
-          { id: 'analiticas',   icon: 'stats',       label: 'Analíticas' },
-          { id: 'review',       icon: 'flag',        label: `Picks en revisión${reviewBets.length > 0 ? ` (${reviewBets.length})` : ''}` },
-          { id: 'problemas',    icon: 'warning',     label: `Problemas${pendingTicketsCount > 0 ? ` (${pendingTicketsCount})` : ''}` },
-          { id: 'sugerencias',  icon: 'message',     label: `Sugerencias${suggestionsCount > 0 ? ` (${suggestionsCount})` : ''}` },
-          { id: 'verificados',  icon: 'shieldCheck', label: 'Usuarios' },
-          { id: 'reportes',     icon: 'users',       label: `Reportes${userReportsCount > 0 ? ` (${userReportsCount})` : ''}` },
-        ].map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{ padding: '8px 16px', border: 'none', borderBottom: `2px solid ${activeTab === t.id ? 'var(--color-primary)' : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === t.id ? 700 : 500, color: activeTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <AppIcon name={t.icon} size={13} />{t.label}
+      {/* Capçalera — sempre visible */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div>
+          <h2
+            onClick={() => setActiveTab(null)}
+            style={{ fontWeight: 700, fontSize: '22px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: activeTab ? 'pointer' : 'default' }}
+          >
+            <AppIcon name="settings" size={20} /> Centro de control
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+            {currentSection ? currentSection.label : 'Gestión interna de FYB.'}
+          </p>
+        </div>
+        {activeTab && (
+          <button onClick={() => setActiveTab(null)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
+            <AppIcon name="back" size={14} /> Atrás
           </button>
-        ))}
+        )}
       </div>
 
-      {activeTab === 'analiticas'  && <AnalyticsTab />}
-      {activeTab === 'problemas'   && <ProblemasTab />}
-      {activeTab === 'sugerencias' && <SugerenciasTab adminUserId={user?.id} />}
-      {activeTab === 'verificados' && <VerificadosTab />}
-      {activeTab === 'reportes'    && <UserReportsTab />}
+      {/* Vista home: grid de cards */}
+      {!activeTab && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          {SECTIONS.map(s => (
+            <button key={s.id} onClick={() => setActiveTab(s.id)}
+              style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', padding: '20px', borderRadius: 'var(--radius-lg)', border: '0.5px solid var(--color-border)', background: 'var(--color-bg-soft)', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)', transition: 'border-color 0.15s, background 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'var(--color-primary-light)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = 'var(--color-bg-soft)' }}
+            >
+              {s.badge > 0 && (
+                <span style={{ position: 'absolute', top: '12px', right: '12px', minWidth: '20px', height: '20px', borderRadius: 'var(--radius-full)', background: 'var(--color-error)', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
+                  {s.badge}
+                </span>
+              )}
+              <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg)', border: '0.5px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AppIcon name={s.icon} size={18} color="var(--color-primary)" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text)', marginBottom: '3px' }}>{s.label}</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{s.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Vista de secció */}
+      {activeTab === 'analiticas'    && <AnalyticsTab />}
+      {activeTab === 'problemas'     && <ProblemasTab />}
+      {activeTab === 'sugerencias'   && <SugerenciasTab adminUserId={user?.id} />}
+      {activeTab === 'verificados'   && <VerificadosTab />}
+      {activeTab === 'reportes'      && <UserReportsTab />}
+      {activeTab === 'mantenimiento' && <MantenimientoTab />}
 
       {activeTab === 'review' && (
         <>

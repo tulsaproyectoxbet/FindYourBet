@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { fadeUp } from '../../lib/animations'
@@ -30,6 +31,17 @@ const handleGoogleRegister = () => {
 
 export default function Register({ navigate, login }) {
   const { t } = useTranslation()
+  const [maintenanceActive, setMaintenanceActive] = useState(false)
+
+  useEffect(() => {
+    supabase.from('maintenance_mode').select('is_active, scheduled_at').eq('id', 1).single()
+      .then(({ data }) => {
+        if (!data) return
+        const scheduledTriggered = data.scheduled_at && new Date(data.scheduled_at) <= new Date()
+        setMaintenanceActive(data.is_active || scheduledTriggered)
+      })
+  }, [])
+
   const {
     form, update, terms, setTerms, age, setAge,
     showPass, setShowPass, showPassConfirm, setShowPassConfirm,
@@ -47,6 +59,13 @@ export default function Register({ navigate, login }) {
       </motion.nav>
 
       <div className="auth-wrapper">
+        {maintenanceActive && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', color: 'var(--color-warning, #f59e0b)', maxWidth: '420px', width: '100%' }}>
+            <AppIcon name="tool" size={15} />
+            <span>{t('maintenance.registerNotice')}</span>
+          </motion.div>
+        )}
 
         {/* Pantalla d'èxit: email de confirmació enviat */}
         {registered && (

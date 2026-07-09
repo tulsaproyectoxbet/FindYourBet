@@ -416,7 +416,8 @@
     "emptyForYou": "No picks for you right now",
     "emptyFollowingSub": "Picks will appear here while they are pending resolution.",
     "emptyForYouSub": "No pending public picks at this moment.",
-    "allSeen": "You've seen it all — showing older picks"
+    "allSeen": "You've seen it all — showing older picks",
+    "viewChannel": "View channel →"
   },
   "channels": {
     "create": "Create channel",
@@ -870,8 +871,8 @@
     "oddsPlaceholder": "e.g. 1.85",
     "bookieLabel": "Bookie",
     "noBookieOption": "— Not specified —",
-    "dateLabel": "Event date and time",
-    "dateLabelRequired": "Event date and time *",
+    "dateLabel": "Date & time",
+    "dateLabelRequired": "Date & time *",
     "stakeLabel": "Stake (1–10)",
     "stakeSub": "% of recommended bankroll",
     "analysisLabel": "Analysis (optional)",
@@ -1173,9 +1174,6 @@
     "shareChannel": "Share channel",
     "reported": "Channel reported. We will review it soon."
   },
-  "feed": {
-    "viewChannel": "View channel →"
-  },
   "canalPage": {
     "loading": "Loading channel...",
     "notFound": "Channel not found",
@@ -1220,5 +1218,15 @@
     "maxStakeLost": "Highest stake risked",
     "topPicks": "Best picks",
     "bySport": "By sport"
+  },
+  "maintenance": {
+    "title": "We're under maintenance",
+    "subtitle": "We're working to improve the platform. We'll be back soon.",
+    "estimated": "Estimated time",
+    "indefinite": "Indefinite",
+    "exit": "Exit",
+    "scheduledFor": "Maintenance scheduled for {{time}}",
+    "loginNotice": "The platform is under maintenance. You can log in, but access will be available when we finish.",
+    "registerNotice": "The platform is under maintenance. You can register, but you'll be able to access when we finish."
   }
 }

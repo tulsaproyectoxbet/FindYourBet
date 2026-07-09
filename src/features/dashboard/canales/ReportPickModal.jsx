@@ -5,9 +5,10 @@ import { supabase } from '../../../lib/supabase'
 import { clampLines, stripEmojis, LINE_LIMIT } from '../../../lib/textLimits'
 import AppIcon from '../../../components/ui/AppIcon'
 
-// Quants reports fan falta perquè un pick entri en revisió automàtica.
-// Canviar aquest valor quan es determini el número definitiu.
-export const REPORT_THRESHOLD = 3
+// Llindar combinat: mínim 5 reports I taxa >= 15% sobre el total de vistes.
+// Si no hi ha vistes registrades, qualsevol >= 5 reports dispara revisió.
+export const REPORT_THRESHOLD = 5
+const RATE_THRESHOLD = 0.15
 
 const REASONS = [
   { id: 'resultado_manipulado', labelKey: 'reportPick.resultManipulated', descKey: 'reportPick.resultManipulatedDesc' },
@@ -51,16 +52,28 @@ export default function ReportPickModal({ bet, currentUser, onClose }) {
       return
     }
 
-    // Comprova si s'ha assolit el llindar de reports → posa el pick en revisió
+    // Comprova si s'ha assolit el llindar combinat: >= 5 reports I taxa >= 15%
     const { count } = await supabase.from('bet_reports')
       .select('*', { count: 'exact', head: true })
       .eq('bet_id', bet.id)
 
     if ((count ?? 0) >= REPORT_THRESHOLD) {
-      await supabase.from('bets')
-        .update({ review_status: 'review' })
-        .eq('id', bet.id)
-        .is('review_status', null) // només si encara no estava en revisió
+      // Obté el total de vistes (canal + feed + DMs) per calcular la taxa
+      let totalViews = 0
+      try {
+        const { data: viewData } = await supabase.rpc('get_bet_total_views_batch', { p_bet_ids: [bet.id] })
+        totalViews = viewData?.[0]?.view_count ?? 0
+      } catch { /* fallback: sense vistes, la taxa es considera 100% */ }
+
+      // Si no hi ha vistes registrades, qualsevol >= 5 reports és prou greu per revisar
+      const rate = totalViews > 0 ? (count / totalViews) : 1
+
+      if (rate >= RATE_THRESHOLD) {
+        await supabase.from('bets')
+          .update({ review_status: 'review' })
+          .eq('id', bet.id)
+          .is('review_status', null)
+      }
     }
 
     setDone(true)

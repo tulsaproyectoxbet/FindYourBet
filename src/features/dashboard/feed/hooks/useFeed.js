@@ -126,9 +126,15 @@ export function useFeed(currentUserId) {
       .then(({ data }) => { if (data) setMyUsername(data.username) })
   }, [currentUserId])
 
-  // Mark a post as seen — writes to localStorage; filtering applies on next fetch
-  const markSeen = useCallback((messageId) => {
-    if (currentUserId && messageId) persistSeen(currentUserId, messageId)
+  // Mark a post as seen — writes to localStorage + Supabase bet_views per al recompte unificat
+  const markSeen = useCallback((messageId, betId) => {
+    if (!currentUserId || !messageId) return
+    persistSeen(currentUserId, messageId)
+    if (betId) {
+      supabase.from('bet_views')
+        .upsert([{ bet_id: betId, user_id: currentUserId, source: 'feed' }], { ignoreDuplicates: true })
+        .then()
+    }
   }, [currentUserId])
 
   const fetchFeed = async () => {

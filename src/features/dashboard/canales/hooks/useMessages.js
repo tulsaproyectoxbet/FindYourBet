@@ -41,19 +41,33 @@ export function useMessages(channelId, userId) {
     if (error || !data) return null
 
     const msgIds = data.map(m => m.id)
-    // Els recomptes de vistes són secundaris: si fallen, mostrem els missatges igualment.
-    const { data: counts } = msgIds.length
-      ? await supabase
-          .from('channel_message_view_counts')
-          .select('message_id, view_count')
-          .in('message_id', msgIds)
-      : { data: [] }
+    // Bet IDs dels picks (columna extreta via trigger SQL)
+    const betIds = [...new Set(data.map(m => m.bet_id).filter(Boolean))]
+
+    // Les vistes són secundàries: si fallen, mostrem els missatges igualment.
+    const [{ data: counts }, viewsResult] = await Promise.all([
+      msgIds.length
+        ? supabase.from('channel_message_view_counts').select('message_id, view_count').in('message_id', msgIds)
+        : Promise.resolve({ data: [] }),
+      // Total de vistes per bet (suma canal + feed + DMs)
+      betIds.length
+        ? supabase.rpc('get_bet_total_views_batch', { p_bet_ids: betIds })
+        : Promise.resolve({ data: [] }),
+    ])
 
     const countMap = {}
     ;(counts || []).forEach(r => { countMap[r.message_id] = Number(r.view_count) })
 
+    // Map bet_id → total de vistes de totes les fonts
+    const totalCountMap = {}
+    ;(viewsResult.data || []).forEach(r => { totalCountMap[r.bet_id] = Number(r.view_count) })
+
     // La query retorna newest-first; invertim perquè el xat mostri oldest-top newest-bottom
-    return data.reverse().map(m => ({ ...m, view_count: countMap[m.id] || 0 }))
+    return data.reverse().map(m => ({
+      ...m,
+      // Per a picks: total de totes les fonts. Per a la resta: vistes del canal
+      view_count: m.bet_id ? (totalCountMap[m.bet_id] || 0) : (countMap[m.id] || 0),
+    }))
   }, [channelId])
 
   // Carrega missatges amb la protecció obligatòria (regla 3 del CLAUDE.md):

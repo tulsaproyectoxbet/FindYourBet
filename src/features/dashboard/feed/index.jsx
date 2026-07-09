@@ -11,7 +11,7 @@ const TABS = [
 ]
 
 // Marks post as seen only after being visible for 800ms (like a view count)
-function SeenObserver({ postId, onSeen, children }) {
+function SeenObserver({ postId, betId, onSeen, children }) {
   const ref = useRef(null)
   const seen = useRef(false)
   const timer = useRef(null)
@@ -26,7 +26,7 @@ function SeenObserver({ postId, onSeen, children }) {
           timer.current = setTimeout(() => {
             if (!seen.current) {
               seen.current = true
-              onSeen(postId)
+              onSeen(postId, betId)
               observer.disconnect()
             }
           }, 800)
@@ -42,7 +42,7 @@ function SeenObserver({ postId, onSeen, children }) {
       observer.disconnect()
       clearTimeout(timer.current)
     }
-  }, [postId, onSeen])
+  }, [postId, betId, onSeen])
 
   return <div ref={ref}>{children}</div>
 }
@@ -55,7 +55,7 @@ export default function Feed({ user, onNavigateToChannel }) {
     markSeen, followingAllSeen, discoverAllSeen,
   } = useFeed(user?.id)
 
-  const stableMarkSeen = useCallback(markSeen, [markSeen])
+  const stableMarkSeen = useCallback((id, betId) => markSeen(id, betId), [markSeen])
 
   const posts = activeTab === 'siguiendo' ? followingFeed : discoverFeed
   const allSeen = activeTab === 'siguiendo' ? followingAllSeen : discoverAllSeen
@@ -66,7 +66,7 @@ export default function Feed({ user, onNavigateToChannel }) {
       exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.3 }}>
 
       <div className="page-header">
-        <h2>Feed</h2>
+        <h2>{t('dashboard.tabs.feed')}</h2>
         <p>{t('feed.subtitle')}</p>
       </div>
 
@@ -104,7 +104,7 @@ export default function Feed({ user, onNavigateToChannel }) {
           )}
           <AnimatePresence>
             {posts.map(post => (
-              <SeenObserver key={post.id} postId={post.id} onSeen={stableMarkSeen}>
+              <SeenObserver key={post.id} postId={post.id} betId={post.bet?.id} onSeen={stableMarkSeen}>
                 <FeedCard
                   post={post}
                   currentUser={user}

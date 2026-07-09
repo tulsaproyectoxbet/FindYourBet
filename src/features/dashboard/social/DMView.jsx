@@ -215,6 +215,7 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   const firstUnreadDoneRef = useRef(false)
   const markedRef = useRef(new Set())
   const observerRef = useRef(null)
+  const trackedBetsRef = useRef(new Set())
   const [showMenu, setShowMenu] = useState(false)
   const [showMuteSub, setShowMuteSub] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
@@ -312,7 +313,28 @@ export default function DMView({ conversation, currentUser, onBack, onSend, onFe
   useEffect(() => {
     setLoading(true)
     loadMessages()
+    // Reset del tracking en canviar de conversa
+    trackedBetsRef.current = new Set()
   }, [conversation.id, loadMessages])
+
+  // Registra vistes de picks visibles al DM — silenciós, en background
+  useEffect(() => {
+    if (!currentUser?.id || !messages.length) return
+    const newBetIds = []
+    for (const m of messages) {
+      if (!m.content?.startsWith('[BET]:')) continue
+      try {
+        const betId = JSON.parse(m.content.slice(6)).id
+        if (betId && !trackedBetsRef.current.has(betId)) {
+          trackedBetsRef.current.add(betId)
+          newBetIds.push(betId)
+        }
+      } catch { /* ignora picks malformats */ }
+    }
+    if (!newBetIds.length) return
+    const rows = newBetIds.map(bet_id => ({ bet_id, user_id: currentUser.id, source: 'dm' }))
+    supabase.from('bet_views').upsert(rows, { ignoreDuplicates: true }).then()
+  }, [messages, currentUser?.id])
 
   // Realtime: sense filter (els filters d'UPDATE requereixen REPLICA IDENTITY FULL)
   // Filtrem al callback per conversation_id / per id de missatge a l'estat

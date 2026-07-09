@@ -416,7 +416,8 @@
     "emptyForYou": "Sin picks para ti ahora",
     "emptyFollowingSub": "Los picks aparecerán aquí mientras estén pendientes de resolverse.",
     "emptyForYouSub": "No hay picks públicos pendientes en este momento.",
-    "allSeen": "Ya lo has visto todo — te mostramos picks anteriores"
+    "allSeen": "Ya lo has visto todo — te mostramos picks anteriores",
+    "viewChannel": "Ver canal →"
   },
   "channels": {
     "create": "Crear canal",
@@ -1173,9 +1174,6 @@
     "shareChannel": "Compartir canal",
     "reported": "Canal reportado. Lo revisaremos pronto."
   },
-  "feed": {
-    "viewChannel": "Ver canal →"
-  },
   "canalPage": {
     "loading": "Cargando canal...",
     "notFound": "Canal no encontrado",
@@ -1220,5 +1218,15 @@
     "maxStakeLost": "Mayor stake arriesgado",
     "topPicks": "Mejores picks",
     "bySport": "Por deporte"
+  },
+  "maintenance": {
+    "title": "Estamos en mantenimiento",
+    "subtitle": "Estamos trabajando para mejorar la plataforma. Volvemos pronto.",
+    "estimated": "Tiempo estimado",
+    "indefinite": "Tiempo indefinido",
+    "exit": "Salir",
+    "scheduledFor": "Mantenimiento programado para las {{time}}",
+    "loginNotice": "La plataforma está en mantenimiento. Puedes iniciar sesión, pero el acceso estará disponible cuando terminemos.",
+    "registerNotice": "La plataforma está en mantenimiento. Puedes registrarte, pero podrás acceder cuando terminemos."
   }
 }

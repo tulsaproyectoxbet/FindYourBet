@@ -33,6 +33,8 @@ import Username from '../../components/ui/Username'
 import Avatar from '../../components/ui/Avatar'
 import { ProfileNavContext } from '../../contexts/ProfileNavContext'
 import { AdminModeProvider } from '../../contexts/AdminModeContext'
+import { useMaintenanceMode } from '../../hooks/useMaintenanceMode'
+import MaintenanceOverlay from '../../components/ui/MaintenanceOverlay'
 import './dashboard.css'
 
 const APP_VERSION = 'v0.9 · Beta pública'
@@ -365,6 +367,7 @@ function ShortcutConfigModal({ shortcuts, onSave, onClose, userId }) {
 
 export default function Dashboard({ user, logout, onRefreshUser }) {
   const { t } = useTranslation()
+  const maintenance = useMaintenanceMode(user?.id)
   const [tab, setTabRaw] = useState('miperfil')
   const [visited, setVisited] = useState(() => new Set(['miperfil']))
   const [canalesKey, setCanalesKey] = useState(0)
@@ -532,6 +535,13 @@ export default function Dashboard({ user, logout, onRefreshUser }) {
     <AdminModeProvider user={user}>
     <ProfileNavContext.Provider value={setNotifProfileUserId}>
     <>
+    {maintenance.isActive && (
+      <MaintenanceOverlay
+        message={maintenance.message}
+        estimatedDuration={maintenance.estimatedDuration}
+        onExit={logout}
+      />
+    )}
     <div className="dashboard">
       <BetModal
         open={showModal}
